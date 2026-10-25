@@ -15,11 +15,9 @@
       --primary-dark: #6239BD;
       --primary-light: #9676E4;
       --accent-orange: #FF6B35;
-      --accent-pink: #FF4F81;
       --emerald: #28A745;
       --emerald-bg: #EAFBF2;
       --gold: #F59E0B;
-      --gold-bg: #FFFBEB;
       --bg-page: #F8F6FC;
       --card-bg: #FFFFFF;
       --text-main: #292331;
@@ -32,429 +30,603 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
+      scroll-behavior: smooth;
     }
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: radial-gradient(circle at 50% 10%, #EDE5FF 0%, #F8F6FC 60%, #F2EDFC 100%);
+      background: var(--bg-page);
       color: var(--text-main);
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px 40px;
-      position: relative;
       overflow-x: hidden;
     }
 
-    /* Ambient Orbs matching App UI Theme */
-    .orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(50px);
-      z-index: 0;
-      pointer-events: none;
-    }
-    .orb-1 {
-      width: 260px;
-      height: 260px;
-      background: rgba(118, 81, 214, 0.18);
-      top: -80px;
-      left: -60px;
-    }
-    .orb-2 {
-      width: 240px;
-      height: 240px;
-      background: rgba(255, 107, 53, 0.12);
-      bottom: -60px;
-      right: -60px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 440px;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Brand Header */
-    .brand-bar {
+    /* Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 20px;
+      justify-content: space-between;
+      padding: 14px 24px;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
     }
     .brand-logo {
-      width: 52px;
-      height: 52px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #7651D6, #6239BD, #9676E4);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7651D6, #6239BD);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
       font-family: 'Poppins', sans-serif;
       font-weight: 800;
-      font-size: 24px;
-      box-shadow: 0 12px 28px rgba(118, 81, 214, 0.32);
-      border: 2px solid rgba(255, 255, 255, 0.9);
+      font-size: 18px;
+      box-shadow: 0 6px 16px rgba(118, 81, 214, 0.3);
     }
-    .brand-title {
+    .brand-name {
       font-family: 'Poppins', sans-serif;
       font-weight: 800;
-      font-size: 24px;
-      background: linear-gradient(90deg, #3A236C, #7651D6, #9676E4);
+      font-size: 20px;
+      color: #3A236C;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+    .nav-cta {
+      background: var(--primary);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 13.5px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(118, 81, 214, 0.25);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 24px 40px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .hero-section {
+        grid-template-columns: 1fr;
+        padding: 32px 16px;
+        text-align: center;
+      }
+      .nav-links {
+        display: none;
+      }
+    }
+    .hero-content h1 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 42px;
+      line-height: 1.18;
+      color: var(--text-main);
+      margin-bottom: 16px;
+    }
+    .hero-content h1 span {
+      background: linear-gradient(90deg, #7651D6, #9676E4);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: -0.5px;
-      line-height: 1.15;
     }
-    .brand-sub {
-      font-family: 'Poppins', sans-serif;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      color: #77717F;
-      text-transform: uppercase;
+    .hero-content p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 28px;
     }
-
-    /* Main Card */
-    .hero-card {
-      background: rgba(255, 255, 255, 0.98);
-      border-radius: 28px;
-      padding: 28px 22px 24px;
-      box-shadow: 0 24px 55px rgba(58, 35, 108, 0.12);
-      border: 1.5px solid var(--border-color);
-      text-align: center;
-    }
-
-    .invite-pill {
+    .hero-badge {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
       background: #F0EAFD;
       color: #7651D6;
       border: 1px solid rgba(118, 81, 214, 0.2);
-      padding: 6px 14px;
+      padding: 7px 16px;
       border-radius: 999px;
       font-family: 'Poppins', sans-serif;
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 700;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
     .pulse-dot {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: #28A745;
       box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
     }
-
-    .hero-heading {
-      font-family: 'Poppins', sans-serif;
-      font-weight: 800;
-      font-size: 26px;
-      line-height: 1.25;
-      color: var(--text-main);
-      margin-bottom: 10px;
-      letter-spacing: -0.4px;
-    }
-    .hero-heading span {
-      color: #7651D6;
-    }
-
-    .hero-desc {
-      font-size: 13.5px;
-      line-height: 1.6;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-    }
-
-    /* Wallet Banner Preview */
-    .wallet-preview {
-      background: linear-gradient(135deg, #7651D6 0%, #6239BD 100%);
-      border-radius: 18px;
-      padding: 16px 18px;
-      color: #FFF;
-      margin-bottom: 18px;
+    .hero-buttons {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 10px 24px rgba(118, 81, 214, 0.25);
+      gap: 14px;
+      flex-wrap: wrap;
     }
-    .wallet-info {
+    @media (max-width: 900px) {
+      .hero-buttons {
+        justify-content: center;
+      }
+    }
+    .btn-main {
+      background: linear-gradient(135deg, #7651D6, #6239BD);
+      color: #fff;
+      padding: 15px 28px;
+      border-radius: 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(118, 81, 214, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.2s;
+    }
+    .btn-main:hover {
+      transform: translateY(-2px);
+    }
+    .btn-sec {
+      background: #FFFFFF;
+      color: #7651D6;
+      border: 1.5px solid rgba(118, 81, 214, 0.3);
+      padding: 15px 28px;
+      border-radius: 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Hero Card / Mockup */
+    .hero-card {
+      background: #FFFFFF;
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 24px 55px rgba(58, 35, 108, 0.12);
+      border: 1.5px solid var(--border-color);
       text-align: left;
     }
-    .wallet-label {
-      font-size: 11px;
-      font-weight: 600;
+    .wallet-preview-card {
+      background: linear-gradient(135deg, #7651D6, #6239BD);
+      border-radius: 20px;
+      padding: 20px;
+      color: #fff;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 24px rgba(118, 81, 214, 0.25);
+    }
+    .wallet-preview-card .label {
+      font-size: 12px;
       opacity: 0.85;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin-bottom: 2px;
+      margin-bottom: 4px;
     }
-    .wallet-amount {
+    .wallet-preview-card .amt {
       font-family: 'Poppins', sans-serif;
+      font-size: 28px;
       font-weight: 800;
-      font-size: 26px;
-      letter-spacing: -0.5px;
     }
-    .wallet-badge {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      backdrop-filter: blur(4px);
-    }
-
-    /* Referral Code Box */
-    .ref-box {
+    .ref-box-card {
       background: #FCFBFE;
       border: 1.5px dashed #9676E4;
       border-radius: 16px;
-      padding: 14px 16px;
-      margin-bottom: 18px;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      margin-bottom: 20px;
     }
-    .ref-meta {
-      text-align: left;
-    }
-    .ref-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #7651D6;
-      margin-bottom: 2px;
-    }
-    .ref-code-value {
+    .ref-code-val {
       font-family: 'Poppins', sans-serif;
       font-weight: 800;
       font-size: 20px;
-      letter-spacing: 1.5px;
       color: #292331;
+      letter-spacing: 1px;
     }
-    .copy-chip {
+    .copy-btn-card {
       background: #7651D6;
-      color: #FFFFFF;
+      color: #fff;
       border: none;
-      border-radius: 11px;
-      padding: 9px 14px;
+      padding: 8px 16px;
+      border-radius: 10px;
       font-family: 'Poppins', sans-serif;
+      font-weight: 700;
       font-size: 12px;
-      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(118, 81, 214, 0.25);
-    }
-    .copy-chip:active {
-      transform: scale(0.96);
-    }
-    .copy-chip.copied {
-      background: #28A745;
     }
 
-    /* Redirect Status Banner */
-    .status-banner {
-      background: var(--emerald-bg);
-      border: 1px solid rgba(40, 167, 69, 0.25);
-      color: #15803D;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 12.5px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+    /* Stats Bar */
+    .stats-section {
+      background: #FFFFFF;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 32px 24px;
+      margin: 40px 0;
     }
-    .spinner {
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(21, 128, 61, 0.3);
-      border-top-color: #16A34A;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Primary CTA Button */
-    .btn-primary {
-      width: 100%;
-      border: none;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #7651D6 0%, #8A64E8 50%, #6239BD 100%);
-      color: #FFFFFF;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 700;
-      font-size: 15.5px;
-      padding: 16px 18px;
-      cursor: pointer;
-      box-shadow: 0 12px 30px rgba(118, 81, 214, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      text-decoration: none;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-      margin-bottom: 12px;
-    }
-    .btn-primary:active {
-      transform: scale(0.98);
-      box-shadow: 0 6px 16px rgba(118, 81, 214, 0.25);
-    }
-
-    .btn-secondary {
-      width: 100%;
-      border: 1.5px solid rgba(118, 81, 214, 0.25);
-      border-radius: 15px;
-      background: #FCFBFE;
-      color: #7651D6;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 600;
-      font-size: 13.5px;
-      padding: 13px 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      text-decoration: none;
-      transition: background 0.2s ease;
-    }
-    .btn-secondary:hover {
-      background: #F4EFFD;
-    }
-
-    /* Perks Grid */
-    .perks-grid {
+    .stats-grid {
+      max-width: 1000px;
+      margin: 0 auto;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-top: 20px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border-color);
+      gap: 20px;
+      text-align: center;
     }
-    .perk-item {
-      background: #FCFBFE;
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 12px 8px;
+    @media (max-width: 700px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
     }
-    .perk-val {
+    .stat-num {
       font-family: 'Poppins', sans-serif;
       font-weight: 800;
-      font-size: 15px;
+      font-size: 32px;
       color: #7651D6;
+      margin-bottom: 4px;
     }
-    .perk-lbl {
-      font-size: 10.5px;
+    .stat-lbl {
+      font-size: 14px;
       color: var(--text-muted);
-      margin-top: 3px;
       font-weight: 500;
     }
 
-    .footer-note {
-      margin-top: 18px;
+    /* Sections */
+    .section-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 24px;
+    }
+    .section-title {
       text-align: center;
-      font-size: 11.5px;
-      color: #77717F;
+      margin-bottom: 48px;
+    }
+    .section-title h2 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 34px;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+    .section-title p {
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    /* How it works */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 850px) {
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .step-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 32px 24px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(58, 35, 108, 0.06);
+      text-align: center;
+      position: relative;
+    }
+    .step-num {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #F0EAFD;
+      color: #7651D6;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .step-card h3 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: var(--text-main);
+    }
+    .step-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 800px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .feature-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .feature-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 14px;
+      background: #F0EAFD;
+      color: #7651D6;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .feature-text h3 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+    .feature-text p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    .footer {
+      background: #231C2D;
+      color: #E2DFEB;
+      padding: 50px 24px 30px;
+      text-align: center;
+    }
+    .footer-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 30px;
+      margin-bottom: 30px;
+    }
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .footer-links a {
+      color: #E2DFEB;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .footer-links a:hover {
+      color: #9676E4;
+    }
+    .copyright {
+      font-size: 13px;
+      color: #9B93A8;
     }
   </style>
 </head>
 <body>
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
 
-  <main class="container">
-    <div class="brand-bar">
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="#" class="nav-brand">
       <div class="brand-logo">TG</div>
-      <div>
-        <div class="brand-title">Task Gullak</div>
-        <div class="brand-sub">Earn • Complete • Grow</div>
+      <div class="brand-name">Task Gullak</div>
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#features">Why Task Gullak</a>
+      <a href="#download">Download App</a>
+    </div>
+    <a href="#download" class="nav-cta">Download APK</a>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero-section">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        <span>VERIFIED REWARD PLATFORM</span>
+      </div>
+      <h1>Complete Simple Tasks &amp; Grow Your <span>Gullak Wallet</span></h1>
+      <p>
+        Join thousands of smart earners. Complete daily verified tasks, upload proof screenshots, and withdraw your rewards directly to your UPI account instantly.
+      </p>
+      <div class="hero-buttons">
+        <a href="#" onclick="openTaskGullakApp(true)" class="btn-main">
+          <span>🚀 Open App &amp; Claim ₹5</span>
+        </a>
+        <a href="#download" class="btn-sec" onclick="handleDownloadFallback(event)">
+          <span>📲 Download APK</span>
+        </a>
       </div>
     </div>
 
-    <section class="hero-card">
-      <div class="invite-pill">
-        <span class="pulse-dot"></span>
-        <span id="invite-badge-text">VERIFIED REWARD GATEWAY</span>
-      </div>
-
-      <h1 class="hero-heading">
-        Complete Tasks &amp; Grow Your <span>Gullak Wallet</span>
-      </h1>
-      <p class="hero-desc">
-        Complete simple verified tasks, upload proof screenshots, and withdraw your rewards directly to your UPI account instantly.
-      </p>
-
-      <div class="wallet-preview">
-        <div class="wallet-info">
-          <div class="wallet-label">Welcome Bonus Available</div>
-          <div class="wallet-amount">₹5.00 INR</div>
+    <!-- Hero Mockup Card -->
+    <div class="hero-card">
+      <div class="wallet-preview-card">
+        <div>
+          <div class="label">Welcome Bonus Available</div>
+          <div class="amt">₹5.00 INR</div>
         </div>
-        <div class="wallet-badge">
-          <span>🔒 Secured</span>
+        <div style="font-size: 28px;">🔒</div>
+      </div>
+
+      <div class="ref-box-card">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #7651D6; text-transform: uppercase; margin-bottom: 2px;">Your Invite Code</div>
+          <div class="ref-code-val" id="ref-code-display">TGWELCOME</div>
         </div>
+        <button type="button" class="copy-btn-card" id="copy-btn" onclick="copyReferralCode()">Copy Code</button>
       </div>
 
-      <div class="ref-box" id="ref-box">
-        <div class="ref-meta">
-          <div class="ref-label">Your Invite Code</div>
-          <div class="ref-code-value" id="ref-code-display">TGWELCOME</div>
-        </div>
-        <button type="button" class="copy-chip" id="copy-btn" onclick="copyReferralCode()">
-          Copy Code
-        </button>
-      </div>
-
-      <div class="status-banner" id="redirect-banner">
-        <div class="spinner" id="redirect-spinner"></div>
-        <span id="redirect-status-text">Opening Task Gullak App automatically...</span>
-      </div>
-
-      <button type="button" class="btn-primary" id="open-app-btn" onclick="openTaskGullakApp(true)">
-        <span>🚀 Open Task Gullak App &amp; Claim ₹5</span>
+      <button type="button" onclick="openTaskGullakApp(true)" style="width: 100%; background: #7651D6; color: #fff; border: none; border-radius: 14px; padding: 14px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 8px 20px rgba(118, 81, 214, 0.3);">
+        Launch Task Gullak App Now
       </button>
+    </div>
+  </header>
 
-      <a href="#download" class="btn-secondary" id="download-apk-btn" onclick="handleDownloadFallback(event)">
-        <span>📲 Download Official Task Gullak APK</span>
-      </a>
+  <!-- Stats Section -->
+  <section class="stats-section">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-num">₹10 Lakh+</div>
+        <div class="stat-lbl">Rewards Paid Instantly</div>
+      </div>
+      <div>
+        <div class="stat-num">50,000+</div>
+        <div class="stat-lbl">Active Task Earners</div>
+      </div>
+      <div>
+        <div class="stat-num">100%</div>
+        <div class="stat-lbl">Verified Safe Payouts</div>
+      </div>
+    </div>
+  </section>
 
-      <div class="perks-grid">
-        <div class="perk-item">
-          <div class="perk-val">₹5 Bonus</div>
-          <div class="perk-lbl">Instant Sign-up</div>
-        </div>
-        <div class="perk-item">
-          <div class="perk-val">Verified</div>
-          <div class="perk-lbl">Task Proofs</div>
-        </div>
-        <div class="perk-item">
-          <div class="perk-val">Instant</div>
-          <div class="perk-lbl">UPI Payouts</div>
+  <!-- How It Works Section -->
+  <section class="section-container" id="how-it-works">
+    <div class="section-title">
+      <h2>How Task Gullak Works</h2>
+      <p>Start earning in 3 simple steps</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Download &amp; Sign Up</h3>
+        <p>Install the official Task Gullak app and claim your instant ₹5 sign-up welcome bonus in your wallet.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Complete Verified Tasks</h3>
+        <p>Browse available tasks, follow simple instructions, and submit your completion proof with a screenshot.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Withdraw via UPI</h3>
+        <p>Once admin approves your submission, earnings are credited instantly to your Gullak wallet for UPI withdrawal.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section-container" id="features">
+    <div class="section-title">
+      <h2>Why Smart Earners Choose Task Gullak</h2>
+      <p>Designed for secure, transparent, and fast rewards</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-text">
+          <h3>100% Verified Tasks</h3>
+          <p>Every task is curated and vetted to ensure legitimate payouts and a safe earning environment.</p>
         </div>
       </div>
-    </section>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-text">
+          <h3>Instant UPI Payouts</h3>
+          <p>Transfer your Gullak wallet balance directly to your bank account using any UPI handle instantly.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎁</div>
+        <div class="feature-text">
+          <h3>Referral Rewards</h3>
+          <p>Invite your friends with your unique code and earn lifetime referral percentages on their task earnings.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-text">
+          <h3>Secure Firebase Backend</h3>
+          <p>Powered by secure cloud infrastructure with end-to-end data encryption and robust user protection.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <p class="footer-note">
-      © 2026 Task Gullak • taskgullak.space • Official Rewards Platform
-    </p>
-  </main>
+  <!-- Download Section -->
+  <section class="section-container" id="download" style="text-align: center; background: #F0EAFD; border-radius: 28px; margin: 40px auto; max-width: 1000px; padding: 50px 24px;">
+    <h2 style="font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 32px; color: #3A236C; margin-bottom: 12px;">Ready to Start Earning?</h2>
+    <p style="color: var(--text-muted); font-size: 16px; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">Download the official Task Gullak Android app today and claim your ₹5 welcome bonus instantly.</p>
+    <a href="#" onclick="handleDownloadFallback(event)" class="btn-main" style="font-size: 16px; padding: 16px 36px;">
+      <span>📲 Download Task Gullak APK (v1.0)</span>
+    </a>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="brand-logo" style="width: 36px; height: 36px; font-size: 16px;">TG</div>
+        <div style="font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 18px; color: #fff;">Task Gullak</div>
+      </div>
+      <div class="footer-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Features</a>
+        <a href="#download">Download APK</a>
+      </div>
+      <div class="copyright">
+        © 2026 Task Gullak • taskgullak.space • All rights reserved.
+      </div>
+    </div>
+  </footer>
 
   <script>
     const ANDROID_PACKAGE = "com.aistudio.taskgullak.px7k9m";
@@ -475,8 +647,6 @@
 
     const referralCode = extractReferralCode();
     const displayEl = document.getElementById("ref-code-display");
-    const statusTextEl = document.getElementById("redirect-status-text");
-    const spinnerEl = document.getElementById("redirect-spinner");
 
     if (referralCode) {
       displayEl.textContent = referralCode;
@@ -493,10 +663,10 @@
       } catch (_) {}
       const btn = document.getElementById("copy-btn");
       btn.textContent = "Copied ✓";
-      btn.classList.add("copied");
+      btn.style.background = "#28A745";
       setTimeout(() => {
         btn.textContent = "Copy Code";
-        btn.classList.remove("copied");
+        btn.style.background = "#7651D6";
       }, 2200);
     }
 
@@ -527,9 +697,6 @@
       const customUri = buildCustomSchemeUri(referralCode);
       const intentUri = buildAndroidIntentUri(referralCode);
 
-      statusTextEl.textContent = "Redirecting you to Task Gullak App...";
-      spinnerEl.style.display = "inline-block";
-
       if (isAndroid) {
         window.location.href = intentUri;
         setTimeout(() => {
@@ -538,11 +705,6 @@
       } else {
         window.location.href = customUri;
       }
-
-      setTimeout(() => {
-        spinnerEl.style.display = "none";
-        statusTextEl.textContent = "Code ready! If the app didn't open, tap the button below.";
-      }, 2400);
     }
 
     function handleDownloadFallback(e) {
@@ -550,12 +712,6 @@
       copyReferralCode();
       window.location.href = DEFAULT_APK_DOWNLOAD_URL;
     }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      setTimeout(() => {
-        openTaskGullakApp(false);
-      }, 500);
-    });
   </script>
 </body>
 </html>
