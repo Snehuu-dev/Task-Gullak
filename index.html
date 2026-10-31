@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Task Gullak — Complete Verified Tasks &amp; Earn UPI Rewards</title>
+  <meta name="description" content="Complete simple daily tasks, grow your Gullak wallet balance, and withdraw earnings instantly via UPI." />
+  <meta name="theme-color" content="#7651D6" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #7651D6;
+      --primary-dark: #6239BD;
+      --primary-light: #9676E4;
+      --accent-orange: #FF6B35;
+      --emerald: #28A745;
+      --emerald-bg: #EAFBF2;
+      --gold: #F59E0B;
+      --bg-page: #F8F6FC;
+      --card-bg: #FFFFFF;
+      --text-main: #292331;
+      --text-muted: #77717F;
+      --border-color: rgba(118, 81, 214, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7651D6, #6239BD);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 6px 16px rgba(118, 81, 214, 0.3);
+    }
+    .brand-name {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: #3A236C;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+    .nav-cta {
+      background: var(--primary);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 13.5px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(118, 81, 214, 0.25);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 24px 40px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .hero-section {
+        grid-template-columns: 1fr;
+        padding: 32px 16px;
+        text-align: center;
+      }
+      .nav-links {
+        display: none;
+      }
+    }
+    .hero-content h1 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 42px;
+      line-height: 1.18;
+      color: var(--text-main);
+      margin-bottom: 16px;
+    }
+    .hero-content h1 span {
+      background: linear-gradient(90deg, #7651D6, #9676E4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-content p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #F0EAFD;
+      color: #7651D6;
+      border: 1px solid rgba(118, 81, 214, 0.2);
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #28A745;
+      box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 900px) {
+      .hero-buttons {
+        justify-content: center;
+      }
+    }
+    .btn-main {
+      background: linear-gradient(135deg, #7651D6, #6239BD);
+      color: #fff;
+      padding: 15px 28px;
+      border-radius: 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(118, 81, 214, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.2s;
+    }
+    .btn-main:hover {
+      transform: translateY(-2px);
+    }
+    .btn-sec {
+      background: #FFFFFF;
+      color: #7651D6;
+      border: 1.5px solid rgba(118, 81, 214, 0.3);
+      padding: 15px 28px;
+      border-radius: 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Hero Card / Mockup */
+    .hero-card {
+      background: #FFFFFF;
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 24px 55px rgba(58, 35, 108, 0.12);
+      border: 1.5px solid var(--border-color);
+      text-align: left;
+    }
+    .wallet-preview-card {
+      background: linear-gradient(135deg, #7651D6, #6239BD);
+      border-radius: 20px;
+      padding: 20px;
+      color: #fff;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 24px rgba(118, 81, 214, 0.25);
+    }
+    .wallet-preview-card .label {
+      font-size: 12px;
+      opacity: 0.85;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+    }
+    .wallet-preview-card .amt {
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+    }
+    .ref-box-card {
+      background: #FCFBFE;
+      border: 1.5px dashed #9676E4;
+      border-radius: 16px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .ref-code-val {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: #292331;
+      letter-spacing: 1px;
+    }
+    .copy-btn-card {
+      background: #7651D6;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Stats Bar */
+    .stats-section {
+      background: #FFFFFF;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 32px 24px;
+      margin: 40px 0;
+    }
+    .stats-grid {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      text-align: center;
+    }
+    @media (max-width: 700px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+    }
+    .stat-num {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 32px;
+      color: #7651D6;
+      margin-bottom: 4px;
+    }
+    .stat-lbl {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Sections */
+    .section-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 24px;
+    }
+    .section-title {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .section-title h2 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 34px;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+    .section-title p {
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    /* How it works */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 850px) {
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .step-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 32px 24px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(58, 35, 108, 0.06);
+      text-align: center;
+      position: relative;
+    }
+    .step-num {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #F0EAFD;
+      color: #7651D6;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .step-card h3 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: var(--text-main);
+    }
+    .step-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 800px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .feature-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .feature-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 14px;
+      background: #F0EAFD;
+      color: #7651D6;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .feature-text h3 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+    .feature-text p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    .footer {
+      background: #231C2D;
+      color: #E2DFEB;
+      padding: 50px 24px 30px;
+      text-align: center;
+    }
+    .footer-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 30px;
+      margin-bottom: 30px;
+    }
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .footer-links a {
+      color: #E2DFEB;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .footer-links a:hover {
+      color: #9676E4;
+    }
+    .copyright {
+      font-size: 13px;
+      color: #9B93A8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="#" class="nav-brand">
+      <div class="brand-logo">TG</div>
+      <div class="brand-name">Task Gullak</div>
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#features">Why Task Gullak</a>
+      <a href="#download">Download App</a>
+    </div>
+    <a href="#download" class="nav-cta">Download APK</a>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero-section">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        <span>VERIFIED REWARD PLATFORM</span>
+      </div>
+      <h1>Complete Simple Tasks &amp; Grow Your <span>Gullak Wallet</span></h1>
+      <p>
+        Join thousands of smart earners. Complete daily verified tasks, upload proof screenshots, and withdraw your rewards directly to your UPI account instantly.
+      </p>
+      <div class="hero-buttons">
+        <a href="#" onclick="openTaskGullakApp(true)" class="btn-main">
+          <span>🚀 Open App &amp; Claim ₹5</span>
+        </a>
+        <a href="#download" class="btn-sec" onclick="handleDownloadFallback(event)">
+          <span>📲 Download APK</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Hero Mockup Card -->
+    <div class="hero-card">
+      <div class="wallet-preview-card">
+        <div>
+          <div class="label">Welcome Bonus Available</div>
+          <div class="amt">₹5.00 INR</div>
+        </div>
+        <div style="font-size: 28px;">🔒</div>
+      </div>
+
+      <div class="ref-box-card">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #7651D6; text-transform: uppercase; margin-bottom: 2px;">Your Invite Code</div>
+          <div class="ref-code-val" id="ref-code-display">TGWELCOME</div>
+        </div>
+        <button type="button" class="copy-btn-card" id="copy-btn" onclick="copyReferralCode()">Copy Code</button>
+      </div>
+
+      <button type="button" onclick="openTaskGullakApp(true)" style="width: 100%; background: #7651D6; color: #fff; border: none; border-radius: 14px; padding: 14px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 8px 20px rgba(118, 81, 214, 0.3);">
+        Launch Task Gullak App Now
+      </button>
+    </div>
+  </header>
+
+  <!-- Stats Section -->
+  <section class="stats-section">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-num">₹10 Lakh+</div>
+        <div class="stat-lbl">Rewards Paid Instantly</div>
+      </div>
+      <div>
+        <div class="stat-num">50,000+</div>
+        <div class="stat-lbl">Active Task Earners</div>
+      </div>
+      <div>
+        <div class="stat-num">100%</div>
+        <div class="stat-lbl">Verified Safe Payouts</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="section-container" id="how-it-works">
+    <div class="section-title">
+      <h2>How Task Gullak Works</h2>
+      <p>Start earning in 3 simple steps</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Download &amp; Sign Up</h3>
+        <p>Install the official Task Gullak app and claim your instant ₹5 sign-up welcome bonus in your wallet.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Complete Verified Tasks</h3>
+        <p>Browse available tasks, follow simple instructions, and submit your completion proof with a screenshot.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Withdraw via UPI</h3>
+        <p>Once admin approves your submission, earnings are credited instantly to your Gullak wallet for UPI withdrawal.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section-container" id="features">
+    <div class="section-title">
+      <h2>Why Smart Earners Choose Task Gullak</h2>
+      <p>Designed for secure, transparent, and fast rewards</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-text">
+          <h3>100% Verified Tasks</h3>
+          <p>Every task is curated and vetted to ensure legitimate payouts and a safe earning environment.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-text">
+          <h3>Instant UPI Payouts</h3>
+          <p>Transfer your Gullak wallet balance directly to your bank account using any UPI handle instantly.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎁</div>
+        <div class="feature-text">
+          <h3>Referral Rewards</h3>
+          <p>Invite your friends with your unique code and earn lifetime referral percentages on their task earnings.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-text">
+          <h3>Secure Firebase Backend</h3>
+          <p>Powered by secure cloud infrastructure with end-to-end data encryption and robust user protection.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Section -->
+  <section class="section-container" id="download" style="text-align: center; background: #F0EAFD; border-radius: 28px; margin: 40px auto; max-width: 1000px; padding: 50px 24px;">
+    <h2 style="font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 32px; color: #3A236C; margin-bottom: 12px;">Ready to Start Earning?</h2>
+    <p style="color: var(--text-muted); font-size: 16px; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">Download the official Task Gullak Android app today and claim your ₹5 welcome bonus instantly.</p>
+    <a href="#" onclick="handleDownloadFallback(event)" class="btn-main" style="font-size: 16px; padding: 16px 36px;">
+      <span>📲 Download Task Gullak APK (v1.0)</span>
+    </a>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="brand-logo" style="width: 36px; height: 36px; font-size: 16px;">TG</div>
+        <div style="font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 18px; color: #fff;">Task Gullak</div>
+      </div>
+      <div class="footer-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Features</a>
+        <a href="#download">Download APK</a>
+      </div>
+      <div class="copyright">
+        © 2026 Task Gullak • taskgullak.space • All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const ANDROID_PACKAGE = "com.aistudio.taskgullak.px7k9m";
+    const DEFAULT_APK_DOWNLOAD_URL = "https://taskgullak.space/TaskGullak.apk";
+
+    function extractReferralCode() {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("ref") || params.get("code") || params.get("referral");
+      if (fromQuery && fromQuery.trim().length > 0) {
+        return fromQuery.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      }
+      const pathSeg = window.location.pathname.replace(/^\/+|\/+$/g, "");
+      if (pathSeg && pathSeg !== "dl" && pathSeg !== "index.html" && /^[A-Za-z0-9]{4,16}$/.test(pathSeg)) {
+        return pathSeg.toUpperCase();
+      }
+      return "";
+    }
+
+    const referralCode = extractReferralCode();
+    const displayEl = document.getElementById("ref-code-display");
+
+    if (referralCode) {
+      displayEl.textContent = referralCode;
+    } else {
+      displayEl.textContent = "TGWELCOME";
+    }
+
+    async function copyReferralCode() {
+      const codeToCopy = referralCode || "TGWELCOME";
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(codeToCopy);
+        }
+      } catch (_) {}
+      const btn = document.getElementById("copy-btn");
+      btn.textContent = "Copied ✓";
+      btn.style.background = "#28A745";
+      setTimeout(() => {
+        btn.textContent = "Copy Code";
+        btn.style.background = "#7651D6";
+      }, 2200);
+    }
+
+    function buildAndroidIntentUri(code) {
+      const clean = encodeURIComponent(code || "TGWELCOME");
+      const fallbackUrl = encodeURIComponent(window.location.href);
+      return (
+        "intent://refer?ref=" +
+        clean +
+        "#Intent;scheme=taskgullak;package=" +
+        ANDROID_PACKAGE +
+        ";S.browser_fallback_url=" +
+        fallbackUrl +
+        ";end"
+      );
+    }
+
+    function buildCustomSchemeUri(code) {
+      const clean = encodeURIComponent(code || "TGWELCOME");
+      return "taskgullak://refer?ref=" + clean;
+    }
+
+    function openTaskGullakApp(manualTrigger) {
+      if (referralCode) {
+        copyReferralCode();
+      }
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const customUri = buildCustomSchemeUri(referralCode);
+      const intentUri = buildAndroidIntentUri(referralCode);
+
+      if (isAndroid) {
+        window.location.href = intentUri;
+        setTimeout(() => {
+          window.location.href = customUri;
+        }, 650);
+      } else {
+        window.location.href = customUri;
+      }
+    }
+
+    function handleDownloadFallback(e) {
+      e.preventDefault();
+      copyReferralCode();
+      window.location.href = DEFAULT_APK_DOWNLOAD_URL;
+    }
+  </script>
+</body>
+</html>
