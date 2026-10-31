@@ -1,9 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "",
-  "outputDirectory": ".",
+  "builds": [
+    {
+      "src": "privacy.html",
+      "use": "@vercel/static"
+    }
+  ],
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "destination": "/index.html" }
+    {
+      "src": "/privacy",
+      "dest": "/privacy.html"
+    }
   ]
 }
