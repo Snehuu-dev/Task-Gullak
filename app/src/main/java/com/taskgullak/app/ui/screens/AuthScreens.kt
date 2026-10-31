@@ -229,8 +229,8 @@ fun onGoogleSignInClicked(
                     extractedEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
                 }
 
-                val isPasswordSet = FirebaseEmailDispatchService.isPasswordConfiguredLocally(context, extractedEmail)
-                if (!isPasswordSet) {
+                val existsInDb = FirebaseEmailDispatchService.checkGoogleEmailAccountExistsInDatabase(context, extractedEmail)
+                if (!existsInDb) {
                     onRequirePasswordSetup(
                         PendingGooglePasswordSetup(
                             fullName = extractedName,

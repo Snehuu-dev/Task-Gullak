@@ -464,6 +464,20 @@ object FirebaseEmailDispatchService {
         if (apiKey.isBlank()) return@withContext false
 
         try {
+            // Check 1: Firestore users collection
+            val firestore = FirebaseFirestore.getInstance()
+            val userSnap = firestore.collection("users")
+                .whereEqualTo("email", cleanEmail)
+                .limit(1)
+                .get()
+                .await()
+            if (!userSnap.isEmpty) {
+                markPasswordConfiguredLocally(context, cleanEmail)
+                markEmailRegistered(context, cleanEmail)
+                return@withContext true
+            }
+
+            // Check 2: Firebase Auth IdentityToolkit
             val payload = JSONObject().apply {
                 put("identifier", cleanEmail)
                 put("continueUri", "https://task-gullak.firebaseapp.com")
