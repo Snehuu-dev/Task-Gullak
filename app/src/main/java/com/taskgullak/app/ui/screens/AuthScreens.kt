@@ -448,21 +448,16 @@ fun LoginScreen(
     }
 
     AuthPurpleBackground(testTag = "login_screen") {
-        val activeGoogleSetup = pendingGoogleSetup
-        if (activeGoogleSetup != null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                GooglePasswordSetupCard(
-                    setup = activeGoogleSetup,
-                    onConfirmSuccess = {
-                        pendingGoogleSetup = null
-                        onLoginSuccess()
-                    },
-                    onCancel = {
-                        pendingGoogleSetup = null
-                    }
-                )
-            }
-        } else {
+val activeGoogleSetup = pendingGoogleSetup
+if (activeGoogleSetup != null) {
+  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    GooglePasswordSetupCard(
+      setup = activeGoogleSetup,
+      onConfirmSuccess = { pendingGoogleSetup = null; onLoginSuccess() },
+      onCancel = { pendingGoogleSetup = null }
+    )
+  }
+} else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -767,6 +762,7 @@ fun LoginScreen(
                     )
                 }
             }
+}
         }
     }
 }

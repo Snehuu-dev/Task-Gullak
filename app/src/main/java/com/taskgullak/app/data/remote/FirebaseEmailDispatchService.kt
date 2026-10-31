@@ -318,8 +318,12 @@ object FirebaseEmailDispatchService {
         val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
         val existing = prefs.getStringSet(KEY_REGISTERED_EMAILS, emptySet()).orEmpty()
         val configured = prefs.getStringSet(KEY_PASSWORD_CONFIGURED_EMAILS, emptySet()).orEmpty()
+        val googleEmails = prefs.getStringSet(KEY_GOOGLE_EMAILS, emptySet()).orEmpty()
+        val savedEmail = prefs.getString(KEY_USER_EMAIL, "").orEmpty()
         return existing.any { it.equals(clean, ignoreCase = true) } ||
-            configured.any { it.equals(clean, ignoreCase = true) }
+            configured.any { it.equals(clean, ignoreCase = true) } ||
+            googleEmails.any { it.equals(clean, ignoreCase = true) } ||
+            savedEmail.equals(clean, ignoreCase = true)
     }
 
     private fun saveAccountPasswordForEmail(context: Context, email: String, password: String) {
@@ -435,7 +439,8 @@ object FirebaseEmailDispatchService {
             putStringSet(KEY_GOOGLE_EMAILS, googleEmails)
             putString(KEY_ACCOUNT_NAMES_JSON, namesJson.toString())
             putBoolean(KEY_USER_LOGGED_IN, true)
-        }.apply()
+            putBoolean(KEY_MIGRATED_GOOGLE_PWD_V2, true)
+        }.commit()
     }
 
     /**
