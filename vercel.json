@@ -4,12 +4,28 @@
     {
       "src": "privacy.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "delete.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/privacy",
       "dest": "/privacy.html"
+    },
+    {
+      "src": "/delete.acc",
+      "dest": "/delete.html"
+    },
+    {
+      "src": "/delete-account",
+      "dest": "/delete.html"
+    },
+    {
+      "src": "/delete",
+      "dest": "/delete.html"
     }
   ]
 }
