@@ -1,0 +1,1 @@
+sed -i '/if (showSubmissionsSection) {/,/}/d' C:/Users/DELL/Downloads/zipunpacker (3)/app/src/main/java/com/example/taskgullak/ui/screens/TabShellScreens.kt

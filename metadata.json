@@ -1,0 +1,6 @@
+{
+  "name": "Task Gullak",
+  "description": "Complete verified tasks, earn rewards, and manage your Task Gullak wallet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

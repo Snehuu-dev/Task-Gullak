@@ -1,0 +1,1 @@
+sed -i 's/\.whereEqualTo("active", true)//g' C:/Users/DELL/Downloads/zipunpacker (3)/app/src/main/java/com/example/taskgullak/data/repository/TaskGullakRepository.kt

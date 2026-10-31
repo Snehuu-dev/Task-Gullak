@@ -1,0 +1,105 @@
+{
+  "project_info": {
+    "project_number": "402307564487",
+    "project_id": "task-gullak",
+    "storage_bucket": "task-gullak.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402307564487:android:c33eab177bec32a2274fe2",
+        "android_client_info": {
+          "package_name": "Taskgullak.com"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402307564487:android:344e64291c25e394274fe2",
+        "android_client_info": {
+          "package_name": "com.aistudio.taskgullak.kxmpzq"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "402307564487-gmou4l1ospa5emjordmo8lib3u88b8o7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.taskgullak.kxmpzq",
+            "certificate_hash": "87f857f0910de90506b349820c26d2e2e7f552a0"
+          }
+        },
+        {
+          "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402307564487:android:14d0295e2d3c2639274fe2",
+        "android_client_info": {
+          "package_name": "com.taskgullak.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

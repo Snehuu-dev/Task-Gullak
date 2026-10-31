@@ -1,0 +1,328 @@
+{
+  "entities": {
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Grants administrator privileges for the external Task Gullak Admin Panel.",
+      "type": "object",
+      "properties": {
+        "adminId": {
+          "type": "string",
+          "description": "The authenticated Firebase UID of the admin."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the administrator."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "super_admin"],
+          "description": "Administrative privilege level."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when admin role was granted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["adminId", "email", "role", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Represents a Task Gullak user profile, wallet balance, reward metrics, and account ban status.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authenticated Firebase user UID owning this profile."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Display name of the user (1 to 100 characters)."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address linked to the Task Gullak account."
+        },
+        "walletBalance": {
+          "type": "integer",
+          "description": "Verified reward balance in INR (₹)."
+        },
+        "completedTasksCount": {
+          "type": "integer",
+          "description": "Total number of verified/approved tasks completed by the user."
+        },
+        "pendingRewards": {
+          "type": "integer",
+          "description": "Pending reward amount in INR (₹) awaiting admin verification."
+        },
+        "emailVerified": {
+          "type": "boolean",
+          "description": "Whether the user's email address has been verified."
+        },
+        "isBanned": {
+          "type": "boolean",
+          "description": "Optional flag controlled by the Admin Panel indicating whether the user is banned."
+        },
+        "banReason": {
+          "type": "string",
+          "description": "Optional reason provided by the Admin Panel when banning a user."
+        },
+        "avatarId": {
+          "type": "string",
+          "description": "Optional 3D avatar preset identifier selected by the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp populated via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp populated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "fullName",
+        "email",
+        "walletBalance",
+        "completedTasksCount",
+        "pendingRewards",
+        "emailVerified",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TaskSubmission": {
+      "title": "TaskSubmission",
+      "description": "Represents a user's task completion message, screenshot proof, and admin approval status.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authenticated Firebase user UID who submitted the task."
+        },
+        "userName": {
+          "type": "string",
+          "description": "Optional denormalized display name of the user for the Admin Panel."
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Optional denormalized email of the user for the Admin Panel."
+        },
+        "taskId": {
+          "type": "string",
+          "description": "Identifier of the project/task being completed."
+        },
+        "taskTitle": {
+          "type": "string",
+          "description": "Title of the project/task completed."
+        },
+        "category": {
+          "type": "string",
+          "description": "Task category (e.g., Video, Feedback, Checklist, Survey, App Testing)."
+        },
+        "rewardAmount": {
+          "type": "integer",
+          "description": "Reward amount in INR (₹) for this task."
+        },
+        "proofText": {
+          "type": "string",
+          "description": "Completion message, feedback response, or verification notes submitted by the user."
+        },
+        "screenshotBase64": {
+          "type": "string",
+          "description": "Optional compressed Base64 data URI of the user's task completion screenshot proof."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "verified", "approved", "rejected"],
+          "description": "Verification status of the submission controlled by the Admin Panel."
+        },
+        "adminNote": {
+          "type": "string",
+          "description": "Optional review note or rejection reason added by the Admin Panel."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp populated via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp populated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "taskId",
+        "taskTitle",
+        "category",
+        "rewardAmount",
+        "proofText",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminTask": {
+      "title": "AdminTask",
+      "description": "Represents an earnable task/project published or removed by the Admin Panel.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Project/task title shown in Offers."
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Short subtitle or campaign tag."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category label (e.g., Video, Feedback, Checklist, Testing, App Install)."
+        },
+        "rewardInr": {
+          "type": "integer",
+          "description": "Reward amount in INR (₹) paid upon admin approval."
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "description": "Estimated completion duration in minutes."
+        },
+        "instructions": {
+          "type": "array",
+          "description": "Step-by-step instructions (up to 10 strings)."
+        },
+        "proofRequirement": {
+          "type": "string",
+          "description": "Description of the completion message and screenshot proof required."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the task is currently active and visible to users."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp populated via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp populated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "title",
+        "subtitle",
+        "category",
+        "rewardInr",
+        "durationMinutes",
+        "instructions",
+        "proofRequirement",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BroadcastNotification": {
+      "title": "BroadcastNotification",
+      "description": "Represents a real-time push/in-app notification broadcast from the Admin Panel.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Notification title shown in the phone system notification and app tray."
+        },
+        "message": {
+          "type": "string",
+          "description": "Notification body message."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["broadcast", "new_task", "reward_update", "system"],
+          "description": "Category of the broadcast notification."
+        },
+        "targetUserId": {
+          "type": "string",
+          "description": "Optional target ('all' for global broadcast or a specific user UID)."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the notification is active."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Broadcast timestamp populated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["title", "message", "type", "active", "createdAt"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Represents a wallet credit or deduction entry created by Admin Panel actions or task approvals.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The user UID whose wallet was credited or debited."
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Transaction amount in INR (₹)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["admin_credit", "admin_deduct", "task_reward", "withdrawal"],
+          "description": "Type of wallet ledger transaction."
+        },
+        "note": {
+          "type": "string",
+          "description": "Description or reason for the credit/deduction."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Transaction timestamp populated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["userId", "amount", "type", "note", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": "AdminRole",
+      "description": "Stores administrator UIDs authorized to operate the external Admin Panel."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores each authenticated user's profile, Gullak wallet balance, and ban status."
+    },
+    "/users/{userId}/submissions/{submissionId}": {
+      "schema": "TaskSubmission",
+      "description": "Stores task submissions, completion messages, and screenshot proof for a specific user."
+    },
+    "/submissions/{submissionId}": {
+      "schema": "TaskSubmission",
+      "description": "Root-level mirror of task submissions enabling the Admin Panel to review, approve, and credit all user submissions."
+    },
+    "/tasks/{taskId}": {
+      "schema": "AdminTask",
+      "description": "Stores projects and tasks added or removed by the Admin Panel."
+    },
+    "/broadcasts/{broadcastId}": {
+      "schema": "BroadcastNotification",
+      "description": "Stores real-time broadcast notifications pushed from the Admin Panel to user devices."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "Stores wallet credit and deduction ledger records for a user."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Task Gullak</string>
+    <string name="taskgullak_firebase_project_id" translatable="false">task-gullak</string>
+    <string name="taskgullak_firebase_api_key" translatable="false">AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY</string>
+    <string name="taskgullak_firebase_app_id" translatable="false">1:402307564487:android:14d0295e2d3c2639274fe2</string>
+    <string name="taskgullak_firebase_storage_bucket" translatable="false">task-gullak.firebasestorage.app</string>
+    <string name="taskgullak_firebase_database_url" translatable="false">https://task-gullak-default-rtdb.firebaseio.com</string>
+    <string name="default_web_client_id" translatable="false">402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com</string>
+</resources>
