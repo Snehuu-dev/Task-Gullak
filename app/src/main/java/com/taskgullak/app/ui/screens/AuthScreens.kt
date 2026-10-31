@@ -448,21 +448,9 @@ fun LoginScreen(
     }
 
     AuthPurpleBackground(testTag = "login_screen") {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // BRAND HEADER (.login-brand)
-            AuthBrandHeader()
-
-            Spacer(modifier = Modifier.height(13.dp))
-
-            val activeGoogleSetup = pendingGoogleSetup
-            if (activeGoogleSetup != null) {
+        val activeGoogleSetup = pendingGoogleSetup
+        if (activeGoogleSetup != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 GooglePasswordSetupCard(
                     setup = activeGoogleSetup,
                     onConfirmSuccess = {
@@ -474,8 +462,21 @@ fun LoginScreen(
                     }
                 )
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // BRAND HEADER (.login-brand)
+                AuthBrandHeader()
 
-            // LOGIN CARD (.login-card)
+                Spacer(modifier = Modifier.height(13.dp))
+
+                // LOGIN CARD (.login-card)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
