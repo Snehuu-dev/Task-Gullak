@@ -567,9 +567,18 @@
       }
     }
 
-    function unlockDashboard() {
+    async function unlockDashboard() {
       document.getElementById("auth-overlay").style.display = "none";
       document.getElementById("admin-app").style.display = "flex";
+
+      try {
+        if (!firebase.auth().currentUser) {
+          await firebase.auth().signInAnonymously().catch(() => {});
+        }
+      } catch (e) {
+        console.log("Auth note:", e);
+      }
+
       initRealtimeListeners();
     }
 
@@ -596,7 +605,10 @@
         renderTasksTable();
         document.getElementById("stat-active-tasks").innerText = stateTasks.filter(t => t.active !== false).length;
         document.getElementById("badge-tasks-count").innerText = stateTasks.length;
-      }, err => console.log("Tasks listener note:", err));
+      }, err => {
+        console.log("Tasks listener note:", err);
+        renderTasksTable();
+      });
 
       // 2. Submissions Listener
       db.collection("submissions").onSnapshot(snapshot => {
@@ -607,7 +619,11 @@
         const pendingCount = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").length;
         document.getElementById("stat-pending-subs").innerText = pendingCount;
         document.getElementById("badge-submissions-count").innerText = pendingCount;
-      }, err => console.log("Submissions listener note:", err));
+      }, err => {
+        console.log("Submissions listener note:", err);
+        renderSubmissionsTable();
+        renderDashboardSubmissions();
+      });
 
       // 3. Withdrawals Listener
       db.collection("withdrawals").onSnapshot(snapshot => {
@@ -616,20 +632,29 @@
         const pendingW = stateWithdrawals.filter(w => w.status === "pending").length;
         document.getElementById("stat-pending-withdrawals").innerText = pendingW;
         document.getElementById("badge-withdrawals-count").innerText = pendingW;
-      }, err => console.log("Withdrawals listener note:", err));
+      }, err => {
+        console.log("Withdrawals listener note:", err);
+        renderWithdrawalsTable();
+      });
 
       // 4. Users Listener
       db.collection("users").onSnapshot(snapshot => {
         stateUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderUsersTable();
         document.getElementById("stat-total-users").innerText = stateUsers.length;
-      }, err => console.log("Users listener note:", err));
+      }, err => {
+        console.log("Users listener note:", err);
+        renderUsersTable();
+      });
 
       // 5. Broadcasts Listener
       db.collection("broadcasts").onSnapshot(snapshot => {
         stateBroadcasts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderBroadcastsTable();
-      }, err => console.log("Broadcasts listener note:", err));
+      }, err => {
+        console.log("Broadcasts listener note:", err);
+        renderBroadcastsTable();
+      });
     }
 
     // Render Dashboard Table
@@ -637,7 +662,7 @@
       const tbody = document.getElementById("table-dashboard-submissions");
       const pending = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").slice(0, 5);
       if (pending.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">🎉 All submissions verified! No pending items. Submissions uploaded from the Android app will appear here in real time.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Connected to Firestore ('task-gullak'). No pending submissions right now. Submissions uploaded from the mobile app will appear here automatically in real time.</td></tr>`;
         return;
       }
       tbody.innerHTML = pending.map(s => `
