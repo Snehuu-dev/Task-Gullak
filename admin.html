@@ -77,12 +77,18 @@
       border-radius: 12px; display: flex; align-items: center; justify-content: center;
     }
     .header-brand h1 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 800; }
-    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
     .badge-admin {
       background: rgba(16, 185, 129, 0.15); color: var(--accent-green);
       border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 14px; border-radius: 99px;
       font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
     }
+    .btn-seed {
+      background: rgba(245, 158, 11, 0.18); color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.4); padding: 8px 14px; border-radius: 10px;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-seed:hover { background: var(--accent-amber); color: #000; }
     .btn-logout {
       background: rgba(239, 68, 68, 0.15); color: var(--accent-red);
       border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 10px;
@@ -227,6 +233,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="btn-seed" onclick="seedDefaultData()">⚡ Seed Initial Tasks & Demo Data</button>
         <span class="badge-admin">● SUPER ADMIN ACTIVE</span>
         <button class="btn-logout" onclick="logoutAdmin()">Lock Panel</button>
       </div>
@@ -657,12 +664,93 @@
       });
     }
 
+    // Seed Initial Default Tasks, Demo User & Pending Submission
+    async function seedDefaultData() {
+      if (!confirm("Seed default earnable tasks, sample user profile & pending test submission into Firestore ('task-gullak')?")) return;
+
+      try {
+        // 1. Task 1
+        await db.collection("tasks").add({
+          title: "Task Gullak App Welcome Bonus",
+          subtitle: "Complete profile setup & claim ₹5 bonus",
+          category: "Checklist",
+          rewardAmount: 5, rewardInr: 5,
+          targetTotal: 5000, completedCount: 0,
+          instructions: ["1. Open Task Gullak app", "2. Complete profile setup", "3. Claim ₹5 welcome reward"],
+          appUrl: "https://taskgullak.space", active: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Task 2
+        await db.collection("tasks").add({
+          title: "Rate Task Gullak 5 Stars",
+          subtitle: "Leave feedback on Play Store & earn ₹15",
+          category: "Survey",
+          rewardAmount: 15, rewardInr: 15,
+          targetTotal: 1000, completedCount: 0,
+          instructions: ["1. Open Play Store link", "2. Give 5 star rating with feedback", "3. Submit screenshot proof"],
+          appUrl: "https://play.google.com/store/apps/details?id=com.taskgullak.app", active: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 3. Task 3
+        await db.collection("tasks").add({
+          title: "Invite 3 Friends via Referral",
+          subtitle: "Earn 5% lifetime commission on friend rewards",
+          category: "Checklist",
+          rewardAmount: 25, rewardInr: 25,
+          targetTotal: 2000, completedCount: 0,
+          instructions: ["1. Copy your referral link from Refer tab", "2. Share with 3 friends", "3. Earn 5% lifetime commission"],
+          appUrl: "https://taskgullak.space", active: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 4. User
+        const demoUserRef = db.collection("users").doc("demo_earner_001");
+        await demoUserRef.set({
+          userId: "demo_earner_001",
+          fullName: "Sneh Verma (Demo Earner)",
+          email: "snehkumarverma2011@gmail.com",
+          walletBalance: 25,
+          completedTasksCount: 2,
+          pendingRewards: 15,
+          emailVerified: true,
+          isBanned: false,
+          banReason: "",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 5. Submission
+        await db.collection("submissions").add({
+          userId: "demo_earner_001",
+          userName: "Sneh Verma",
+          userEmail: "snehkumarverma2011@gmail.com",
+          taskId: "task_playstore_review",
+          taskTitle: "Rate Task Gullak 5 Stars",
+          category: "Survey",
+          rewardAmount: 15,
+          proofText: "Submitted 5-star review on Play Store as requested! Great app!",
+          status: "pending",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("🎉 Default tasks, user, and submission successfully seeded into Firestore ('task-gullak')!");
+      } catch (err) {
+        alert("Error seeding data: " + err.message);
+      }
+    }
+
     // Render Dashboard Table
     function renderDashboardSubmissions() {
       const tbody = document.getElementById("table-dashboard-submissions");
       const pending = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").slice(0, 5);
       if (pending.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Connected to Firestore ('task-gullak'). No pending submissions right now. Submissions uploaded from the mobile app will appear here automatically in real time.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Connected to Firestore ('task-gullak'). No pending submissions right now. Submissions uploaded from the mobile app will appear here automatically in real time. <br><br><button class="btn-seed" onclick="seedDefaultData()">⚡ Click here to seed default tasks & demo data</button></td></tr>`;
         return;
       }
       tbody.innerHTML = pending.map(s => `
@@ -681,7 +769,7 @@
     function renderTasksTable() {
       const tbody = document.getElementById("table-tasks-body");
       if (stateTasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No tasks created yet. Click "+ Add New Task" to create earnable tasks for users.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No tasks created yet. Click "+ Add New Task" or click "⚡ Seed Initial Tasks" above.</td></tr>`;
         return;
       }
       tbody.innerHTML = stateTasks.map(t => `
