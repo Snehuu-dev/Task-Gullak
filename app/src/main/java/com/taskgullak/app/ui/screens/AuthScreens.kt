@@ -298,6 +298,7 @@ fun signOutUser(
 ) {
     FirebaseAuth.getInstance().signOut()
     FirebaseEmailDispatchService.clearEmailSession(context)
+    com.taskgullak.app.util.TaskGullakNotificationHelper.clearNotificationStateForLogout(context)
     scope.launch {
         try {
             credentialManager.clearCredentialState(ClearCredentialStateRequest())

@@ -30,8 +30,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 data class ReceivedPushNotification(
     val id: String,
@@ -66,10 +64,26 @@ object TaskGullakNotificationHelper {
     private val _dismissedIdsFlow = MutableStateFlow<Set<String>>(emptySet())
     val dismissedIdsFlow: StateFlow<Set<String>> = _dismissedIdsFlow.asStateFlow()
 
+    private fun getActiveUserKey(context: Context): String {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        if (!uid.isNullOrBlank()) return uid
+        val email = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.getSavedUserEmail(context)
+        if (email.isNotBlank()) return email.lowercase().replace("@", "_at_").replace(".", "_")
+        return "guest_user"
+    }
+
+    @Synchronized
+    fun clearNotificationStateForLogout(context: Context) {
+        _receivedPushFlow.value = emptyList()
+        _dismissedIdsFlow.value = emptySet()
+    }
+
     @Synchronized
     fun loadPersistedPushHistory(context: Context): List<ReceivedPushNotification> {
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        val raw = prefs.getString(KEY_PUSH_HISTORY_JSON, null)
+        val userHistoryKey = "${KEY_PUSH_HISTORY_JSON}_$userKey"
+        val raw = prefs.getString(userHistoryKey, null) ?: prefs.getString(KEY_PUSH_HISTORY_JSON, null)
         if (raw.isNullOrBlank()) {
             _receivedPushFlow.value = emptyList()
             return emptyList()
@@ -106,8 +120,14 @@ object TaskGullakNotificationHelper {
         category: String = "fcm_push",
         timestampMillis: Long = System.currentTimeMillis()
     ) {
+        val userKey = getActiveUserKey(context)
+        val dismissed = loadDismissedNotificationIds(context)
+        if (dismissed.contains(id) || dismissed.contains("push_$id") || dismissed.contains(id.removePrefix("push_"))) {
+            return
+        }
+
         val current = loadPersistedPushHistory(context).toMutableList()
-        if (current.none { it.id == id }) {
+        if (current.none { it.id == id || it.id == id.removePrefix("push_") || "push_${it.id}" == id }) {
             current.add(
                 0,
                 ReceivedPushNotification(
@@ -134,15 +154,21 @@ object TaskGullakNotificationHelper {
 
     @Synchronized
     fun clearPushNotificationHistory(context: Context) {
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_PUSH_HISTORY_JSON).apply()
+        prefs.edit()
+            .remove("${KEY_PUSH_HISTORY_JSON}_$userKey")
+            .remove(KEY_PUSH_HISTORY_JSON)
+            .apply()
         _receivedPushFlow.value = emptyList()
     }
 
     @Synchronized
     fun loadDismissedNotificationIds(context: Context): Set<String> {
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        val saved = prefs.getStringSet(KEY_DISMISSED_NOTIFICATION_IDS, emptySet()).orEmpty()
+        val userDismissedKey = "${KEY_DISMISSED_NOTIFICATION_IDS}_$userKey"
+        val saved = prefs.getStringSet(userDismissedKey, null) ?: prefs.getStringSet(KEY_DISMISSED_NOTIFICATION_IDS, emptySet()).orEmpty()
         _dismissedIdsFlow.value = saved
         return saved
     }
@@ -150,29 +176,65 @@ object TaskGullakNotificationHelper {
     @Synchronized
     fun deleteNotificationById(context: Context, notificationId: String) {
         if (notificationId.isBlank()) return
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        val dismissed = HashSet(prefs.getStringSet(KEY_DISMISSED_NOTIFICATION_IDS, emptySet()).orEmpty())
+        val userDismissedKey = "${KEY_DISMISSED_NOTIFICATION_IDS}_$userKey"
+        val dismissed = HashSet(loadDismissedNotificationIds(context))
+
         dismissed.add(notificationId)
-        prefs.edit().putStringSet(KEY_DISMISSED_NOTIFICATION_IDS, dismissed).apply()
+        if (notificationId.startsWith("push_")) {
+            dismissed.add(notificationId.removePrefix("push_"))
+        } else {
+            dismissed.add("push_$notificationId")
+        }
+        if (notificationId.startsWith("broadcast_")) {
+            dismissed.add(notificationId.removePrefix("broadcast_"))
+        } else {
+            dismissed.add("broadcast_$notificationId")
+        }
+
+        prefs.edit()
+            .putStringSet(userDismissedKey, dismissed)
+            .putStringSet(KEY_DISMISSED_NOTIFICATION_IDS, dismissed)
+            .apply()
         _dismissedIdsFlow.value = dismissed
 
+        markEventSeenSilently(context, notificationId)
         if (notificationId.startsWith("push_")) {
-            val rawPushId = notificationId.removePrefix("push_")
-            val remaining = loadPersistedPushHistory(context).filterNot { it.id == rawPushId }
-            savePushHistoryList(context, remaining)
-            _receivedPushFlow.value = remaining
+            markEventSeenSilently(context, "broadcast_${notificationId.removePrefix("push_")}")
         }
+
+        val rawPushId = notificationId.removePrefix("push_")
+        val remaining = loadPersistedPushHistory(context).filterNot {
+            it.id == rawPushId || it.id == notificationId || "push_${it.id}" == notificationId
+        }
+        savePushHistoryList(context, remaining)
+        _receivedPushFlow.value = remaining
     }
 
     @Synchronized
     fun deleteAllNotifications(context: Context, allNotificationIds: List<String>) {
+        if (allNotificationIds.isEmpty()) return
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        val dismissed = HashSet(prefs.getStringSet(KEY_DISMISSED_NOTIFICATION_IDS, emptySet()).orEmpty())
-        dismissed.addAll(allNotificationIds)
+        val userDismissedKey = "${KEY_DISMISSED_NOTIFICATION_IDS}_$userKey"
+        val userHistoryKey = "${KEY_PUSH_HISTORY_JSON}_$userKey"
+        val dismissed = HashSet(loadDismissedNotificationIds(context))
+
+        allNotificationIds.forEach { id ->
+            dismissed.add(id)
+            if (id.startsWith("push_")) dismissed.add(id.removePrefix("push_")) else dismissed.add("push_$id")
+            if (id.startsWith("broadcast_")) dismissed.add(id.removePrefix("broadcast_")) else dismissed.add("broadcast_$id")
+            markEventSeenSilently(context, id)
+        }
+
         prefs.edit()
+            .putStringSet(userDismissedKey, dismissed)
             .putStringSet(KEY_DISMISSED_NOTIFICATION_IDS, dismissed)
+            .remove(userHistoryKey)
             .remove(KEY_PUSH_HISTORY_JSON)
             .apply()
+
         _dismissedIdsFlow.value = dismissed
         _receivedPushFlow.value = emptyList()
     }
@@ -190,8 +252,12 @@ object TaskGullakNotificationHelper {
             }
             arr.put(obj)
         }
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_PUSH_HISTORY_JSON, arr.toString()).apply()
+        prefs.edit()
+            .putString("${KEY_PUSH_HISTORY_JSON}_$userKey", arr.toString())
+            .putString(KEY_PUSH_HISTORY_JSON, arr.toString())
+            .apply()
     }
 
     fun saveFcmToken(context: Context, token: String) {
@@ -257,11 +323,21 @@ object TaskGullakNotificationHelper {
         title: String,
         message: String
     ) {
-        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(uniqueKey, false)) {
+        val dismissed = loadDismissedNotificationIds(context)
+        if (dismissed.contains(uniqueKey) || dismissed.contains(uniqueKey.removePrefix("push_"))) {
             return
         }
-        prefs.edit().putBoolean(uniqueKey, true).apply()
+
+        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val userKey = getActiveUserKey(context)
+        val scopedEventKey = "${uniqueKey}_$userKey"
+        if (prefs.getBoolean(scopedEventKey, false) || prefs.getBoolean(uniqueKey, false)) {
+            return
+        }
+        prefs.edit()
+            .putBoolean(scopedEventKey, true)
+            .putBoolean(uniqueKey, true)
+            .apply()
 
         ensureNotificationChannel(context)
         if (!hasNotificationPermission(context)) {
@@ -300,27 +376,41 @@ object TaskGullakNotificationHelper {
     @Synchronized
     fun markEventSeenSilently(context: Context, uniqueKey: String) {
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(uniqueKey, false)) {
-            prefs.edit().putBoolean(uniqueKey, true).apply()
-        }
+        val userKey = getActiveUserKey(context)
+        val scopedEventKey = "${uniqueKey}_$userKey"
+        prefs.edit()
+            .putBoolean(scopedEventKey, true)
+            .putBoolean(uniqueKey, true)
+            .apply()
     }
 
     @Synchronized
     fun isEventAlreadySeen(context: Context, uniqueKey: String): Boolean {
+        val dismissed = loadDismissedNotificationIds(context)
+        if (dismissed.contains(uniqueKey) || dismissed.contains(uniqueKey.removePrefix("push_"))) {
+            return true
+        }
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        return prefs.getBoolean(uniqueKey, false)
+        val userKey = getActiveUserKey(context)
+        val scopedEventKey = "${uniqueKey}_$userKey"
+        return prefs.getBoolean(scopedEventKey, false) || prefs.getBoolean(uniqueKey, false)
     }
 
     @Synchronized
     fun isBaselineInitialized(context: Context, scopeKey: String): Boolean {
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        return prefs.getBoolean("${KEY_INITIALIZED_BASELINE}_$scopeKey", false)
+        return prefs.getBoolean("${KEY_INITIALIZED_BASELINE}_${scopeKey}_$userKey", false)
     }
 
     @Synchronized
     fun setBaselineInitialized(context: Context, scopeKey: String) {
+        val userKey = getActiveUserKey(context)
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("${KEY_INITIALIZED_BASELINE}_$scopeKey", true).apply()
+        prefs.edit()
+            .putBoolean("${KEY_INITIALIZED_BASELINE}_${scopeKey}_$userKey", true)
+            .putBoolean("${KEY_INITIALIZED_BASELINE}_$scopeKey", true)
+            .apply()
     }
 
     @Synchronized
@@ -473,10 +563,11 @@ object TaskGullakNotificationHelper {
     fun processUserProfileSnapshot(context: Context, profile: UserProfile) {
         if (profile.userId.isBlank()) return
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
-        val hasBalKey = "${KEY_HAS_LAST_WALLET_BALANCE}_${profile.userId}"
-        val balKey = "${KEY_LAST_WALLET_BALANCE}_${profile.userId}"
-        val hasBanKey = "${KEY_HAS_LAST_BANNED_STATE}_${profile.userId}"
-        val banKey = "${KEY_LAST_BANNED_STATE}_${profile.userId}"
+        val userKey = getActiveUserKey(context)
+        val hasBalKey = "${KEY_HAS_LAST_WALLET_BALANCE}_${profile.userId}_$userKey"
+        val balKey = "${KEY_LAST_WALLET_BALANCE}_${profile.userId}_$userKey"
+        val hasBanKey = "${KEY_HAS_LAST_BANNED_STATE}_${profile.userId}_$userKey"
+        val banKey = "${KEY_LAST_BANNED_STATE}_${profile.userId}_$userKey"
 
         if (prefs.getBoolean(hasBalKey, false)) {
             val oldBal = prefs.getLong(balKey, profile.walletBalance)
@@ -532,10 +623,6 @@ object TaskGullakNotificationHelper {
             .apply()
     }
 
-    /**
-     * High-quality proof screenshot compressor using maxDimensionPx = 1280, jpegQuality = 92,
-     * and ARGB_8888 encoding for crisp screenshot verification in Admin Panel.
-     */
     suspend fun encodeProofScreenshotHighQuality(
         context: Context,
         uri: Uri,
