@@ -109,7 +109,7 @@ object FirebaseEmailDispatchService {
     private const val KEY_USER_LOGGED_IN = "tg_studio_user_logged_in"
     private const val KEY_REGISTERED_EMAILS = "tg_studio_registered_emails"
     private const val KEY_GOOGLE_EMAILS = "tg_studio_google_emails"
-    private const val KEY_PASSWORD_CONFIG9iuq   WEURED_EMAILS = "tg_studio_password_configured_emails"
+    private const val KEY_PASSWORD_CONFIGURED_EMAILS = "tg_studio_password_configured_emails"
     private const val KEY_ACCOUNT_NAMES_JSON = "tg_studio_account_names_json"
     private const val KEY_ACCOUNT_PASSWORDS_JSON = "tg_studio_account_passwords_json"
     private const val KEY_MIGRATED_GOOGLE_PWD_V2 = "tg_migrated_google_pwd_v2"

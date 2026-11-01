@@ -862,16 +862,6 @@ fun SignupScreen(
         isSignupLoading = true
         coroutineScope.launch {
             // 2b. Single Account Per Phone Check (1 device = 1 account)
-            val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
-                context = context,
-                candidateEmail = cleanEmail,
-                candidatePhoneE164 = ""
-            )
-            if (singleDeviceErr != null) {
-                isSignupLoading = false
-                emailError = singleDeviceErr
-                return@launch
-            }
 
             try {
                 val result = FirebaseEmailDispatchService.registerEmailAccountAndSendVerification(
@@ -1810,15 +1800,6 @@ private fun GooglePasswordSetupCard(
         confirmPasswordError = null
         phoneOtpError = null
 
-        val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
-            context = context,
-            candidateEmail = setup.email,
-            candidatePhoneE164 = ""
-        )
-        if (singleDeviceErr != null) {
-            passwordError = singleDeviceErr
-            return
-        }
 
         if (password.isEmpty()) {
             passwordError = "Please enter a password."
@@ -1840,6 +1821,16 @@ private fun GooglePasswordSetupCard(
 
         isSaving = true
         coroutineScope.launch {
+            val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
+                context = context,
+                candidateEmail = setup.email,
+                candidatePhoneE164 = String()
+            )
+            if (singleDeviceErr != null) {
+                isSaving = false
+                passwordError = singleDeviceErr
+                return@launch
+            }
             try {
                 FirebaseEmailDispatchService.completeGoogleAccountPasswordSetup(
                     context = context,
