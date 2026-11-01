@@ -3932,7 +3932,6 @@ internal fun ProfileTabShellContent(
     val currentBatch = remember(effectiveCompletedCount) {
         FirebaseEmailDispatchService.getCurrentUnlockedOrNextBatch(effectiveCompletedCount)
     }
-
     if (showAvatarPickerSheet) {
         AvatarPickerModalBottomSheet(
             currentAvatarId = currentAvatarId,
