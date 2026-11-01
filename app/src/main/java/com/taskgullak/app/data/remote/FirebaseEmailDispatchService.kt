@@ -109,7 +109,7 @@ object FirebaseEmailDispatchService {
     private const val KEY_USER_LOGGED_IN = "tg_studio_user_logged_in"
     private const val KEY_REGISTERED_EMAILS = "tg_studio_registered_emails"
     private const val KEY_GOOGLE_EMAILS = "tg_studio_google_emails"
-    private const val KEY_PASSWORD_CONFIGURED_EMAILS = "tg_studio_password_configured_emails"
+    private const val KEY_PASSWORD_CONFIG9iuq   WEURED_EMAILS = "tg_studio_password_configured_emails"
     private const val KEY_ACCOUNT_NAMES_JSON = "tg_studio_account_names_json"
     private const val KEY_ACCOUNT_PASSWORDS_JSON = "tg_studio_account_passwords_json"
     private const val KEY_MIGRATED_GOOGLE_PWD_V2 = "tg_migrated_google_pwd_v2"
@@ -1610,18 +1610,21 @@ object FirebaseEmailDispatchService {
      * Enforces the "1 Account Per Phone" rule when creating an account or setting up a password.
      * Returns null if allowed, or an error message if another account is already bound to this phone.
      */
-    fun checkSingleAccountPerPhoneRule(
+    suspend fun checkSingleAccountPerPhoneRule(
         context: Context,
         candidateEmail: String,
         candidatePhoneE164: String = ""
-    ): String? {
+    ): String? = withContext(Dispatchers.IO) {
         val cleanCandidate = candidateEmail.trim().lowercase()
+        val deviceId = getDeviceHardwareId(context)
+        
+        // 1. Check local preferences first (fast)
         val existingOwnerEmail = getDeviceOwnerEmail(context)
         if (existingOwnerEmail.isNotBlank() &&
             cleanCandidate.isNotBlank() &&
             !existingOwnerEmail.equals(cleanCandidate, ignoreCase = true)
         ) {
-            return "Only 1 account is allowed per phone. This device is already registered with $existingOwnerEmail."
+            return@withContext "Only 1 account is allowed per phone. This device is already registered with $existingOwnerEmail."
         }
         val existingOwnerPhone = getDeviceOwnerPhone(context)
         if (existingOwnerPhone.isNotBlank() &&
@@ -1630,9 +1633,27 @@ object FirebaseEmailDispatchService {
             existingOwnerEmail.isNotBlank() &&
             !existingOwnerEmail.equals(cleanCandidate, ignoreCase = true)
         ) {
-            return "Only 1 account can be created on this phone (linked to $existingOwnerPhone)."
+            return@withContext "Only 1 account can be created on this phone (linked to $existingOwnerPhone)."
         }
-        return null
+
+        // 2. Check Firestore backend (strict enforcement across re-installs/clear data)
+        try {
+            val db = resolveFirestoreInstance(context)
+            val doc = db.collection("device_accounts").document(deviceId).get().await()
+            if (doc.exists()) {
+                val dbOwnerEmail = doc.getString("ownerEmail").orEmpty().trim().lowercase()
+                if (dbOwnerEmail.isNotBlank() && dbOwnerEmail != cleanCandidate) {
+                    // Update local preferences to restore the lock if it was cleared
+                    val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
+                    prefs.edit().putString(KEY_DEVICE_OWNER_EMAIL, dbOwnerEmail).apply()
+                    return@withContext "Only 1 account is allowed per phone. This device is already registered with $dbOwnerEmail."
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check device_accounts in Firestore: ${e.message}")
+        }
+        
+        return@withContext null
     }
 
     fun bindDeviceToAccount(

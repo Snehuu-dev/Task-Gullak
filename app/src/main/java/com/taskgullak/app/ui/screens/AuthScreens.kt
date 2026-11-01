@@ -853,40 +853,6 @@ fun SignupScreen(
             }
             return
         }
-        // 2b. Single Account Per Phone Check (1 device = 1 account)
-        val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
-            context = context,
-            candidateEmail = cleanEmail,
-            candidatePhoneE164 = ""
-        )
-        if (singleDeviceErr != null) {
-            emailError = singleDeviceErr
-            return
-        }
-        // 2c. Check if account already exists
-        if (FirebaseEmailDispatchService.isEmailRegisteredLocally(context, cleanEmail) ||
-            FirebaseEmailDispatchService.isPasswordConfiguredLocally(context, cleanEmail)
-        ) {
-            emailError = "An account with this email already exists. Please log in instead."
-            return
-        }
-        // 3. Strict Specific Password Complexity Check
-        val pwdErr = checkPasswordComplexity(password)
-        if (pwdErr != null) {
-            passwordError = pwdErr
-            if (!termsAccepted) {
-                termsError = "You must agree to the Terms of Service and Privacy Policy to create an account."
-            }
-            return
-        }
-        // 4. Confirm Password Match Check
-        if (confirmPassword.isEmpty() || password != confirmPassword) {
-            confirmPasswordError = "Passwords do not match."
-            if (!termsAccepted) {
-                termsError = "You must agree to the Terms of Service and Privacy Policy to create an account."
-            }
-            return
-        }
         // 5. Mandatory Checkbox Check
         if (!termsAccepted) {
             termsError = "You must agree to the Terms of Service and Privacy Policy to create an account."
@@ -895,6 +861,18 @@ fun SignupScreen(
 
         isSignupLoading = true
         coroutineScope.launch {
+            // 2b. Single Account Per Phone Check (1 device = 1 account)
+            val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
+                context = context,
+                candidateEmail = cleanEmail,
+                candidatePhoneE164 = ""
+            )
+            if (singleDeviceErr != null) {
+                isSignupLoading = false
+                emailError = singleDeviceErr
+                return@launch
+            }
+
             try {
                 val result = FirebaseEmailDispatchService.registerEmailAccountAndSendVerification(
                     context = context,
