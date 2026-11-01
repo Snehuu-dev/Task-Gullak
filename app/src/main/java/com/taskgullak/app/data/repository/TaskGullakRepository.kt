@@ -713,13 +713,30 @@ class TaskGullakRepository(
             .collection("submissions")
             .snapshots()
             .map { querySnapshot ->
-                querySnapshot.toObjects(
-                    TaskSubmission::class.java,
-                    DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                )
+                querySnapshot.documents.mapNotNull { doc ->
+                    runCatching {
+                        val data = doc.data ?: return@mapNotNull null
+                        TaskSubmission(
+                            id = (data["id"] as? String)?.ifBlank { null } ?: doc.id,
+                            userId = (data["userId"] as? String) ?: userId,
+                            userName = (data["userName"] as? String) ?: "",
+                            userEmail = (data["userEmail"] as? String) ?: "",
+                            taskId = (data["taskId"] as? String) ?: "",
+                            taskTitle = (data["taskTitle"] as? String) ?: "",
+                            category = (data["category"] as? String) ?: "Task",
+                            rewardAmount = ((data["rewardAmount"] as? Number) ?: (data["reward"] as? Number))?.toLong() ?: 0L,
+                            proofText = (data["proofText"] as? String) ?: "",
+                            screenshotBase64 = (data["screenshotBase64"] as? String) ?: "",
+                            status = (data["status"] as? String) ?: "pending",
+                            adminNote = (data["adminNote"] as? String) ?: "",
+                            createdAt = doc.getTimestamp("createdAt"),
+                            updatedAt = doc.getTimestamp("updatedAt")
+                        )
+                    }.getOrNull()
+                }
             }
             .catch { error ->
-                Log.w("TaskGullakRepository", "Subcollection submissions not accessible ($path), falling back to root: ${error.message}")
+                Log.w("TaskGullakRepository", "Subcollection submissions read note ($path): ${error.message}")
                 emit(emptyList())
             }
     }
@@ -730,16 +747,31 @@ class TaskGullakRepository(
             .whereEqualTo("userId", userId)
             .snapshots()
             .map { querySnapshot ->
-                querySnapshot.toObjects(
-                    TaskSubmission::class.java,
-                    DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                )
+                querySnapshot.documents.mapNotNull { doc ->
+                    runCatching {
+                        val data = doc.data ?: return@mapNotNull null
+                        TaskSubmission(
+                            id = (data["id"] as? String)?.ifBlank { null } ?: doc.id,
+                            userId = (data["userId"] as? String) ?: userId,
+                            userName = (data["userName"] as? String) ?: "",
+                            userEmail = (data["userEmail"] as? String) ?: "",
+                            taskId = (data["taskId"] as? String) ?: "",
+                            taskTitle = (data["taskTitle"] as? String) ?: "",
+                            category = (data["category"] as? String) ?: "Task",
+                            rewardAmount = ((data["rewardAmount"] as? Number) ?: (data["reward"] as? Number))?.toLong() ?: 0L,
+                            proofText = (data["proofText"] as? String) ?: "",
+                            screenshotBase64 = (data["screenshotBase64"] as? String) ?: "",
+                            status = (data["status"] as? String) ?: "pending",
+                            adminNote = (data["adminNote"] as? String) ?: "",
+                            createdAt = doc.getTimestamp("createdAt"),
+                            updatedAt = doc.getTimestamp("updatedAt")
+                        )
+                    }.getOrNull()
+                }
             }
             .catch { error ->
-                if (error is Exception) {
-                    handleFirestoreError(error, OperationType.LIST, path)
-                }
-                throw error
+                Log.w("TaskGullakRepository", "Root submissions read note ($path): ${error.message}")
+                emit(emptyList())
             }
     }
 
@@ -754,9 +786,6 @@ class TaskGullakRepository(
                     val isExplicitlyInactive = !isActive ||
                         doc.getString("status")?.equals("inactive", ignoreCase = true) == true
                     
-                    // Don't filter blockedUserIds here yet because we need uid context, we can just map and return.
-                    // Wait, we can pass uid to this function. But let's just map all and then ViewModel will filter out based on current user uid.
-                    // Wait, actually, let's map safely.
                     if (isExplicitlyInactive) {
                         null
                     } else {
@@ -780,10 +809,8 @@ class TaskGullakRepository(
                 }
             }
             .catch { error ->
-                if (error is Exception) {
-                    handleFirestoreError(error, OperationType.LIST, path)
-                }
-                throw error
+                Log.w("TaskGullakRepository", "Active tasks read note ($path): ${error.message}")
+                emit(emptyList())
             }
     }
 
@@ -804,16 +831,14 @@ class TaskGullakRepository(
                             type = (data["type"] as? String) ?: "broadcast",
                             targetUserId = (data["targetUserId"] as? String) ?: (data["targetUser"] as? String) ?: "all",
                             active = true,
-                            createdAt = data["createdAt"] as? Timestamp
+                            createdAt = doc.getTimestamp("createdAt")
                         )
                     }
                 }
             }
             .catch { error ->
-                if (error is Exception) {
-                    handleFirestoreError(error, OperationType.LIST, path)
-                }
-                throw error
+                Log.w("TaskGullakRepository", "Active broadcasts read note ($path): ${error.message}")
+                emit(emptyList())
             }
     }
 
@@ -825,16 +850,26 @@ class TaskGullakRepository(
             .whereEqualTo("userId", userId)
             .snapshots()
             .map { querySnapshot ->
-                querySnapshot.toObjects(
-                    WalletTransaction::class.java,
-                    DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                )
+                querySnapshot.documents.mapNotNull { doc ->
+                    runCatching {
+                        val data = doc.data ?: return@mapNotNull null
+                        WalletTransaction(
+                            id = (data["id"] as? String)?.ifBlank { null } ?: doc.id,
+                            userId = (data["userId"] as? String) ?: userId,
+                            amount = ((data["amount"] as? Number))?.toLong() ?: 0L,
+                            type = (data["type"] as? String) ?: "admin_credit",
+                            note = (data["note"] as? String) ?: "",
+                            status = (data["status"] as? String) ?: "completed",
+                            upiId = (data["upiId"] as? String) ?: "",
+                            createdAt = doc.getTimestamp("createdAt"),
+                            updatedAt = doc.getTimestamp("updatedAt")
+                        )
+                    }.getOrNull()
+                }
             }
             .catch { error ->
-                if (error is Exception) {
-                    handleFirestoreError(error, OperationType.LIST, path)
-                }
-                throw error
+                Log.w("TaskGullakRepository", "User transactions read note ($path): ${error.message}")
+                emit(emptyList())
             }
     }
 

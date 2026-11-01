@@ -9,7 +9,7 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.taskgullak.app" />
-                  <option name="mobileSdkAppId" value="1:402307564487:android:14d0295e2d3c2639274fe2" />
+                  <option name="mobileSdkAppId" value="1:402307564487:android:a17580232d1144ef274fe2" />
                   <option name="projectId" value="task-gullak" />
                   <option name="projectNumber" value="402307564487" />
                 </ConnectionSetting>

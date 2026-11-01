@@ -8,7 +8,7 @@ import com.google.firebase.firestore.ServerTimestamp
 
 @IgnoreExtraProperties
 data class UserProfile(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val userId: String = "",
     val fullName: String = "",
     val email: String = "",
@@ -44,7 +44,7 @@ data class UserProfile(
 
 @IgnoreExtraProperties
 data class MaintenanceConfig(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val enabled: Boolean = false,
     val maintenanceMode: Boolean = false,
     val active: Boolean = false,
@@ -56,7 +56,7 @@ data class MaintenanceConfig(
 
 @IgnoreExtraProperties
 data class ReferralCommissionEvent(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val referrerUserId: String = "",
     val referrerCode: String = "",
     val referredUserId: String = "",
@@ -83,7 +83,7 @@ data class AiTaskVerificationResult(
 
 @IgnoreExtraProperties
 data class TaskSubmission(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val userId: String = "",
     val userName: String = "",
     val userEmail: String = "",
@@ -108,7 +108,7 @@ data class TaskSubmission(
 
 @IgnoreExtraProperties
 data class AdminTask(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val title: String = "",
     val subtitle: String = "Install App and Rate",
     val category: String = "Task",
@@ -325,7 +325,7 @@ data class BroadcastNotification(
 
 @IgnoreExtraProperties
 data class WalletTransaction(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val userId: String = "",
     val amount: Long = 0L,
     val type: String = "admin_credit", // admin_credit, admin_deduct, task_reward, withdrawal, referral_commission
@@ -368,7 +368,7 @@ val DEFAULT_AVAILABLE_TASKS = emptyList<AvailableTask>()
 
 @IgnoreExtraProperties
 data class SupportTicket(
-    @DocumentId val id: String = "",
+    val id: String = "",
     val ticketId: String = "",
     val userId: String = "",
     val userName: String = "",
