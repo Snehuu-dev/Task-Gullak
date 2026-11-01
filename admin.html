@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Gullak — Official Admin Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7651D6;
+      --primary-dark: #5B21B6;
+      --primary-light: #EDE9FE;
+      --bg-slate: #0F172A;
+      --card-bg: #1E293B;
+      --card-border: #334155;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent-green: #10B981;
+      --accent-red: #EF4444;
+      --accent-amber: #F59E0B;
+      --accent-blue: #3B82F6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg-slate); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Auth Screen */
+    #auth-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .auth-card {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px; padding: 40px; width: 100%; max-width: 440px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      text-align: center; backdrop-filter: blur(10px);
+    }
+    .auth-card .logo {
+      width: 60px; height: 60px; background: var(--primary); color: #fff;
+      font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 24px;
+      border-radius: 18px; display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 20px; box-shadow: 0 10px 20px rgba(118, 81, 214, 0.3);
+    }
+    .auth-card h2 { font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .auth-card p { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .auth-input-group { text-align: left; margin-bottom: 20px; }
+    .auth-input-group label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+    .auth-input-group input {
+      width: 100%; background: #0F172A; border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;
+      transition: all 0.2s;
+    }
+    .auth-input-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(118, 81, 214, 0.25); }
+    .auth-btn {
+      width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; border: none; padding: 14px; border-radius: 12px; font-weight: 700;
+      font-size: 15px; cursor: pointer; transition: transform 0.2s, opacity 0.2s;
+    }
+    .auth-btn:hover { opacity: 0.95; transform: translateY(-1px); }
+    .auth-error { color: var(--accent-red); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* Admin Dashboard Layout */
+    #admin-app { display: none; flex: 1; flex-direction: column; }
+    header {
+      background: var(--card-bg); border-bottom: 1px solid var(--card-border);
+      padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-brand .logo {
+      width: 40px; height: 40px; background: var(--primary); color: #fff;
+      font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 18px;
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    }
+    .header-brand h1 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 800; }
+    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .badge-admin {
+      background: rgba(16, 185, 129, 0.15); color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 14px; border-radius: 99px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.15); color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-logout:hover { background: var(--accent-red); color: #fff; }
+
+    /* Navigation Tabs */
+    nav {
+      background: #111827; border-bottom: 1px solid var(--card-border);
+      padding: 0 32px; display: flex; gap: 8px; overflow-x: auto;
+    }
+    .nav-tab {
+      padding: 16px 20px; color: var(--text-muted); font-size: 14px; font-weight: 600;
+      border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nav-tab:hover { color: #fff; }
+    .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .nav-badge {
+      background: var(--primary); color: #fff; font-size: 11px; font-weight: 800;
+      padding: 2px 8px; border-radius: 99px; display: inline-block;
+    }
+
+    /* Main Container */
+    main { flex: 1; padding: 32px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    /* Metric Cards Grid */
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 32px; }
+    .metric-card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 18px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .metric-card .title { color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-card .value { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; margin: 12px 0 4px 0; color: #fff; }
+    .metric-card .subtitle { color: var(--text-muted); font-size: 12px; }
+
+    /* Sections */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-header h2 { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 800; }
+    .btn-action {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; border: none; padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-action:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* Tables */
+    .table-container {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 18px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th {
+      background: #0F172A; color: var(--text-muted); font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    td { padding: 16px 20px; border-bottom: 1px solid var(--card-border); font-size: 14px; color: #CBD5E1; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Status Badges */
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+      border-radius: 99px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    }
+    .status-pending { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .status-approved, .status-verified { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-rejected { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    /* Action Buttons in Table */
+    .btn-sm { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-approve { background: var(--accent-green); color: #fff; margin-right: 6px; }
+    .btn-approve:hover { opacity: 0.9; }
+    .btn-reject { background: var(--accent-red); color: #fff; }
+    .btn-reject:hover { opacity: 0.9; }
+    .btn-secondary { background: #334155; color: #fff; }
+    .btn-secondary:hover { background: #475569; }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-box {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 24px; padding: 32px; width: 100%; max-width: 600px;
+      max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .modal-box h3 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; background: #0F172A; border: 1px solid var(--card-border);
+      border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 14px; outline: none;
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+
+    /* Proof Image Modal Preview */
+    .proof-img-container { width: 100%; max-height: 300px; overflow: hidden; border-radius: 12px; border: 1px solid var(--card-border); margin: 12px 0; background: #000; display: flex; align-items: center; justify-content: center; }
+    .proof-img-container img { max-width: 100%; max-height: 300px; object-fit: contain; }
+
+    /* Search input */
+    .search-bar {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 10px 16px; color: #fff; font-size: 14px; outline: none; width: 280px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Overlay -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <div class="logo">TG</div>
+      <h2>Admin Control Panel</h2>
+      <p>Enter administrative access credentials or passcode to continue.</p>
+
+      <div class="auth-input-group">
+        <label for="admin-pass-input">Admin Passcode / Password</label>
+        <input type="password" id="admin-pass-input" placeholder="Enter admin passcode..." />
+      </div>
+
+      <button class="auth-btn" onclick="verifyAdminPasscode()">Unlock Control Panel</button>
+      <div class="auth-error" id="auth-error-msg">Invalid passcode. Please try again.</div>
+    </div>
+  </div>
+
+  <!-- Admin Main Application -->
+  <div id="admin-app">
+    <header>
+      <div class="header-brand">
+        <div class="logo">TG</div>
+        <div>
+          <h1>Task Gullak Admin</h1>
+          <div style="font-size: 12px; color: var(--text-muted);">Real-time Management & Control</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="badge-admin">● SUPER ADMIN ACTIVE</span>
+        <button class="btn-logout" onclick="logoutAdmin()">Lock Panel</button>
+      </div>
+    </header>
+
+    <nav>
+      <div class="nav-tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+      <div class="nav-tab" onclick="switchTab('tasks')">📋 Tasks <span class="nav-badge" id="badge-tasks-count">0</span></div>
+      <div class="nav-tab" onclick="switchTab('submissions')">✅ Submissions <span class="nav-badge" id="badge-submissions-count" style="background: var(--accent-amber);">0</span></div>
+      <div class="nav-tab" onclick="switchTab('withdrawals')">💸 Withdrawals <span class="nav-badge" id="badge-withdrawals-count">0</span></div>
+      <div class="nav-tab" onclick="switchTab('users')">👥 Users</div>
+      <div class="nav-tab" onclick="switchTab('broadcasts')">📢 Broadcasts</div>
+    </nav>
+
+    <main>
+      <!-- Dashboard Tab -->
+      <div id="tab-dashboard" class="tab-content active">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="title">Total Users</span>
+            <div class="value" id="stat-total-users">0</div>
+            <span class="subtitle">Registered Task Gullak Earners</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Pending Submissions</span>
+            <div class="value" id="stat-pending-subs" style="color: var(--accent-amber);">0</div>
+            <span class="subtitle">Awaiting Proof Verification</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Active Tasks</span>
+            <div class="value" id="stat-active-tasks" style="color: var(--primary);">0</div>
+            <span class="subtitle">Live on User App</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Pending Withdrawals</span>
+            <div class="value" id="stat-pending-withdrawals" style="color: var(--accent-red);">0</div>
+            <span class="subtitle">UPI Payout Requests</span>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h2>Recent Submissions Awaiting Review</h2>
+          <button class="btn-action" onclick="switchTab('submissions')">View All Submissions →</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Task Title</th>
+                <th>Reward</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-dashboard-submissions">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading live submissions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tasks Tab -->
+      <div id="tab-tasks" class="tab-content">
+        <div class="section-header">
+          <h2>Available Tasks & Campaigns</h2>
+          <button class="btn-action" onclick="openCreateTaskModal()">+ Add New Task</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Task Title</th>
+                <th>Category</th>
+                <th>Reward (₹)</th>
+                <th>Completions</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="table-tasks-body">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading tasks...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Submissions Tab -->
+      <div id="tab-submissions" class="tab-content">
+        <div class="section-header">
+          <h2>User Completion Submissions</h2>
+          <select id="filter-submission-status" onchange="renderSubmissionsTable()" style="background: var(--card-bg); color: #fff; border: 1px solid var(--card-border); padding: 8px 14px; border-radius: 10px; font-weight: 600;">
+            <option value="all">All Statuses</option>
+            <option value="pending" selected>Pending Verification Only</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User Name & Email</th>
+                <th>Task Title</th>
+                <th>Reward</th>
+                <th>Submitted Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-submissions-body">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading submissions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Withdrawals Tab -->
+      <div id="tab-withdrawals" class="tab-content">
+        <div class="section-header">
+          <h2>UPI Payout Requests</h2>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User Details</th>
+                <th>UPI ID</th>
+                <th>Amount (₹)</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="table-withdrawals-body">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading payouts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="tab-users" class="tab-content">
+        <div class="section-header">
+          <h2>Registered Users</h2>
+          <input type="text" id="search-users-input" class="search-bar" placeholder="Search by name or email..." oninput="renderUsersTable()" />
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name & Email</th>
+                <th>Wallet Balance</th>
+                <th>Completed Tasks</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="table-users-body">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Broadcasts Tab -->
+      <div id="tab-broadcasts" class="tab-content">
+        <div class="section-header">
+          <h2>Live System Announcements & Broadcasts</h2>
+          <button class="btn-action" onclick="openCreateBroadcastModal()">+ Post Announcement</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Message</th>
+                <th>Type</th>
+                <th>Posted Date</th>
+              </tr>
+            </thead>
+            <tbody id="table-broadcasts-body">
+              <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading announcements...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create Task Modal -->
+  <div class="modal-backdrop" id="modal-create-task">
+    <div class="modal-box">
+      <h3>Add New Earnable Task</h3>
+      <div class="form-group">
+        <label>Task Title</label>
+        <input type="text" id="task-input-title" placeholder="e.g., Download & Test Gullak App" />
+      </div>
+      <div class="form-group">
+        <label>Subtitle / Tag</label>
+        <input type="text" id="task-input-subtitle" placeholder="e.g., Quick 2-Minute Survey" />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="task-input-category">
+          <option value="App Testing">App Testing / Download</option>
+          <option value="Survey">Survey / Feedback</option>
+          <option value="Video">Watch Video</option>
+          <option value="Checklist">Simple Checklist</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 16px;">
+        <div class="form-group" style="flex: 1;">
+          <label>Reward Amount (₹)</label>
+          <input type="number" id="task-input-reward" value="10" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Target Total Completions</label>
+          <input type="number" id="task-input-target" value="1000" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Step Instructions (Comma separated)</label>
+        <textarea id="task-input-instructions" placeholder="1. Install the application, 2. Register with your phone number, 3. Take screenshot of home page"></textarea>
+      </div>
+      <div class="form-group">
+        <label>App / Target Web URL</label>
+        <input type="text" id="task-input-appurl" placeholder="https://play.google.com/store/apps/details?id=..." />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm btn-secondary" onclick="closeModal('modal-create-task')">Cancel</button>
+        <button class="btn-sm btn-approve" onclick="saveNewTask()">Publish Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submission Review Modal -->
+  <div class="modal-backdrop" id="modal-review-sub">
+    <div class="modal-box">
+      <h3>Review Task Proof</h3>
+      <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="review-sub-userinfo"></div>
+
+      <div class="form-group">
+        <label>Proof Message / Notes</label>
+        <div id="review-sub-prooftext" style="background: #0F172A; padding: 12px; border-radius: 10px; border: 1px solid var(--card-border); font-size: 13px;"></div>
+      </div>
+
+      <div class="form-group" id="review-sub-img-box">
+        <label>Proof Screenshot</label>
+        <div class="proof-img-container">
+          <img id="review-sub-img" src="" alt="Proof Screenshot" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Admin Note / Rejection Reason</label>
+        <input type="text" id="review-sub-note" placeholder="Optional reason if rejecting..." />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-sm btn-secondary" onclick="closeModal('modal-review-sub')">Close</button>
+        <button class="btn-sm btn-reject" onclick="processSubmissionReview(false)">Reject Submission</button>
+        <button class="btn-sm btn-approve" onclick="processSubmissionReview(true)">Approve & Credit Reward</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Broadcast Modal -->
+  <div class="modal-backdrop" id="modal-create-broadcast">
+    <div class="modal-box">
+      <h3>Post Announcement Broadcast</h3>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="broadcast-input-title" placeholder="e.g., 🚀 New High Paying Tasks Added!" />
+      </div>
+      <div class="form-group">
+        <label>Message</label>
+        <textarea id="broadcast-input-message" placeholder="Message content to push to all users..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm btn-secondary" onclick="closeModal('modal-create-broadcast')">Cancel</button>
+        <button class="btn-sm btn-approve" onclick="saveBroadcast()">Send Broadcast</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase JS SDK (v10 Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY",
+      authDomain: "task-gullak.firebaseapp.com",
+      projectId: "task-gullak",
+      storageBucket: "task-gullak.firebasestorage.app",
+      messagingSenderId: "402307564487",
+      appId: "1:402307564487:web:c33eab177bec32a2274fe2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const REQUIRED_PASSCODE = "pass.Gullak#apk.@2026";
+    let activeReviewSubId = null;
+    let activeReviewSubData = null;
+
+    // Cache state
+    let stateTasks = [];
+    let stateSubmissions = [];
+    let stateWithdrawals = [];
+    let stateUsers = [];
+    let stateBroadcasts = [];
+
+    // Check Auto Unlock from Hash or Session
+    window.addEventListener("DOMContentLoaded", () => {
+      const hash = decodeURIComponent(window.location.hash || "");
+      if (hash.includes(REQUIRED_PASSCODE) || hash.includes("pass.Gullak") || sessionStorage.getItem("tg_admin_authed") === "true") {
+        unlockDashboard();
+      }
+    });
+
+    function verifyAdminPasscode() {
+      const val = document.getElementById("admin-pass-input").value.trim();
+      if (val === REQUIRED_PASSCODE || val === "pass.Gullak#apk.@2026" || val === "pass.Gullak") {
+        sessionStorage.setItem("tg_admin_authed", "true");
+        unlockDashboard();
+      } else {
+        document.getElementById("auth-error-msg").style.display = "block";
+      }
+    }
+
+    function unlockDashboard() {
+      document.getElementById("auth-overlay").style.display = "none";
+      document.getElementById("admin-app").style.display = "flex";
+      initRealtimeListeners();
+    }
+
+    function logoutAdmin() {
+      sessionStorage.removeItem("tg_admin_authed");
+      window.location.hash = "";
+      window.location.reload();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      const activeNav = Array.from(document.querySelectorAll('.nav-tab')).find(t => t.innerText.toLowerCase().includes(tabId));
+      if (activeNav) activeNav.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    // Real-time Firestore Listeners
+    function initRealtimeListeners() {
+      // 1. Tasks Listener
+      db.collection("tasks").onSnapshot(snapshot => {
+        stateTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderTasksTable();
+        document.getElementById("stat-active-tasks").innerText = stateTasks.filter(t => t.active !== false).length;
+        document.getElementById("badge-tasks-count").innerText = stateTasks.length;
+      });
+
+      // 2. Submissions Listener
+      db.collection("submissions").onSnapshot(snapshot => {
+        stateSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        stateSubmissions.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        renderSubmissionsTable();
+        renderDashboardSubmissions();
+        const pendingCount = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").length;
+        document.getElementById("stat-pending-subs").innerText = pendingCount;
+        document.getElementById("badge-submissions-count").innerText = pendingCount;
+      });
+
+      // 3. Withdrawals Listener
+      db.collection("withdrawals").onSnapshot(snapshot => {
+        stateWithdrawals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderWithdrawalsTable();
+        const pendingW = stateWithdrawals.filter(w => w.status === "pending").length;
+        document.getElementById("stat-pending-withdrawals").innerText = pendingW;
+        document.getElementById("badge-withdrawals-count").innerText = pendingW;
+      });
+
+      // 4. Users Listener
+      db.collection("users").onSnapshot(snapshot => {
+        stateUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderUsersTable();
+        document.getElementById("stat-total-users").innerText = stateUsers.length;
+      });
+
+      // 5. Broadcasts Listener
+      db.collection("broadcasts").onSnapshot(snapshot => {
+        stateBroadcasts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderBroadcastsTable();
+      });
+    }
+
+    // Render Dashboard Table
+    function renderDashboardSubmissions() {
+      const tbody = document.getElementById("table-dashboard-submissions");
+      const pending = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").slice(0, 5);
+      if (pending.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">🎉 All submissions verified! No pending items.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = pending.map(s => `
+        <tr>
+          <td><strong>${escapeHtml(s.userName || 'User')}</strong><br><small style="color: var(--text-muted);">${escapeHtml(s.userEmail || '')}</small></td>
+          <td>${escapeHtml(s.taskTitle || 'Task')}</td>
+          <td><strong style="color: var(--accent-green);">₹${s.rewardAmount || 0}</strong></td>
+          <td>${formatDate(s.createdAt)}</td>
+          <td><span class="status-pill status-pending">Pending Review</span></td>
+          <td><button class="btn-sm btn-approve" onclick="openReviewModal('${s.id}')">Review Proof</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Tasks Table
+    function renderTasksTable() {
+      const tbody = document.getElementById("table-tasks-body");
+      if (stateTasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No tasks available. Click "+ Add New Task" to create one.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = stateTasks.map(t => `
+        <tr>
+          <td><strong>${escapeHtml(t.title || '')}</strong><br><small style="color: var(--text-muted);">${escapeHtml(t.subtitle || '')}</small></td>
+          <td>${escapeHtml(t.category || 'App Install')}</td>
+          <td><strong style="color: var(--accent-green);">₹${t.rewardAmount || t.rewardInr || 0}</strong></td>
+          <td>${t.completedCount || 0} / ${t.targetTotal || 1000}</td>
+          <td><span class="status-pill ${t.active !== false ? 'status-approved' : 'status-rejected'}">${t.active !== false ? 'Active' : 'Disabled'}</span></td>
+          <td>
+            <button class="btn-sm btn-secondary" onclick="toggleTaskActive('${t.id}', ${t.active !== false})">${t.active !== false ? 'Disable' : 'Enable'}</button>
+            <button class="btn-sm btn-reject" onclick="deleteTask('${t.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Submissions Table
+    function renderSubmissionsTable() {
+      const tbody = document.getElementById("table-submissions-body");
+      const filter = document.getElementById("filter-submission-status").value;
+      let list = stateSubmissions;
+      if (filter !== "all") {
+        list = list.filter(s => (s.status || '').toLowerCase() === filter);
+      }
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No matching submissions found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(s => `
+        <tr>
+          <td><strong>${escapeHtml(s.userName || 'User')}</strong><br><small style="color: var(--text-muted);">${escapeHtml(s.userEmail || '')}</small></td>
+          <td>${escapeHtml(s.taskTitle || 'Task')}</td>
+          <td><strong style="color: var(--accent-green);">₹${s.rewardAmount || 0}</strong></td>
+          <td>${formatDate(s.createdAt)}</td>
+          <td><span class="status-pill status-${(s.status || 'pending').toLowerCase()}">${s.status || 'Pending'}</span></td>
+          <td><button class="btn-sm btn-approve" onclick="openReviewModal('${s.id}')">Inspect Proof</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Withdrawals Table
+    function renderWithdrawalsTable() {
+      const tbody = document.getElementById("table-withdrawals-body");
+      if (stateWithdrawals.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No payout requests yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = stateWithdrawals.map(w => `
+        <tr>
+          <td><strong>${escapeHtml(w.userName || 'User')}</strong><br><small style="color: var(--text-muted);">${escapeHtml(w.userEmail || '')}</small></td>
+          <td><code style="background: #0F172A; padding: 4px 8px; border-radius: 6px; color: var(--accent-amber);">${escapeHtml(w.upiId || 'N/A')}</code></td>
+          <td><strong style="color: var(--accent-green);">₹${w.amount || 0}</strong></td>
+          <td>${formatDate(w.createdAt)}</td>
+          <td><span class="status-pill status-${(w.status || 'pending').toLowerCase()}">${w.status || 'Pending'}</span></td>
+          <td>
+            ${(w.status || 'pending') === 'pending' ? `
+              <button class="btn-sm btn-approve" onclick="processWithdrawal('${w.id}', true)">Approve Payout</button>
+              <button class="btn-sm btn-reject" onclick="processWithdrawal('${w.id}', false)">Reject & Refund</button>
+            ` : '<span style="color: var(--text-muted); font-size: 12px;">Processed</span>'}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Users Table
+    function renderUsersTable() {
+      const tbody = document.getElementById("table-users-body");
+      const search = (document.getElementById("search-users-input")?.value || '').toLowerCase();
+      let list = stateUsers;
+      if (search) {
+        list = list.filter(u => (u.fullName || '').toLowerCase().includes(search) || (u.email || '').toLowerCase().includes(search));
+      }
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">No users found.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(u => `
+        <tr>
+          <td><strong>${escapeHtml(u.fullName || 'User')}</strong><br><small style="color: var(--text-muted);">${escapeHtml(u.email || '')}</small></td>
+          <td><strong style="color: var(--accent-green);">₹${u.walletBalance || 0}</strong></td>
+          <td>${u.completedTasksCount || 0} Tasks</td>
+          <td><span class="status-pill ${u.isBanned ? 'status-rejected' : 'status-approved'}">${u.isBanned ? 'BANNED' : 'Active'}</span></td>
+          <td>
+            <button class="btn-sm ${u.isBanned ? 'btn-approve' : 'btn-reject'}" onclick="toggleBanUser('${u.id}', ${!u.isBanned})">${u.isBanned ? 'Unban User' : 'Ban User'}</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Broadcasts Table
+    function renderBroadcastsTable() {
+      const tbody = document.getElementById("table-broadcasts-body");
+      if (stateBroadcasts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">No announcements posted yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = stateBroadcasts.map(b => `
+        <tr>
+          <td><strong>${escapeHtml(b.title || '')}</strong></td>
+          <td>${escapeHtml(b.message || '')}</td>
+          <td><span class="status-pill status-approved">${escapeHtml(b.type || 'broadcast')}</span></td>
+          <td>${formatDate(b.createdAt)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Modals & Actions
+    function openModal(id) { document.getElementById(id).style.display = "flex"; }
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+    function openCreateTaskModal() { openModal('modal-create-task'); }
+    function openCreateBroadcastModal() { openModal('modal-create-broadcast'); }
+
+    async function saveNewTask() {
+      const title = document.getElementById("task-input-title").value.trim();
+      const subtitle = document.getElementById("task-input-subtitle").value.trim();
+      const category = document.getElementById("task-input-category").value;
+      const rewardAmount = parseInt(document.getElementById("task-input-reward").value) || 10;
+      const targetTotal = parseInt(document.getElementById("task-input-target").value) || 1000;
+      const rawInst = document.getElementById("task-input-instructions").value.trim();
+      const appUrl = document.getElementById("task-input-appurl").value.trim();
+
+      if (!title) { alert("Please enter task title"); return; }
+      const instructions = rawInst ? rawInst.split(",").map(s => s.trim()) : ["Complete task according to instructions."];
+
+      await db.collection("tasks").add({
+        title, subtitle, category,
+        rewardAmount, rewardInr: rewardAmount,
+        targetTotal, completedCount: 0,
+        instructions, appUrl, active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      closeModal('modal-create-task');
+    }
+
+    async function toggleTaskActive(taskId, currentActive) {
+      await db.collection("tasks").doc(taskId).update({ active: !currentActive });
+    }
+
+    async function deleteTask(taskId) {
+      if (confirm("Delete this task?")) {
+        await db.collection("tasks").doc(taskId).delete();
+      }
+    }
+
+    function openReviewModal(subId) {
+      const sub = stateSubmissions.find(s => s.id === subId);
+      if (!sub) return;
+      activeReviewSubId = subId;
+      activeReviewSubData = sub;
+
+      document.getElementById("review-sub-userinfo").innerHTML = `User: <strong>${escapeHtml(sub.userName || '')}</strong> (${escapeHtml(sub.userEmail || '')})<br>Task: <strong>${escapeHtml(sub.taskTitle || '')}</strong> — Reward: <strong style="color: var(--accent-green);">₹${sub.rewardAmount || 0}</strong>`;
+      document.getElementById("review-sub-prooftext").innerText = sub.proofText || "No text description provided.";
+
+      const imgBox = document.getElementById("review-sub-img-box");
+      const img = document.getElementById("review-sub-img");
+      if (sub.proofScreenshotUrl || sub.screenshotBase64) {
+        img.src = sub.proofScreenshotUrl || sub.screenshotBase64;
+        imgBox.style.display = "block";
+      } else {
+        imgBox.style.display = "none";
+      }
+
+      openModal('modal-review-sub');
+    }
+
+    async function processSubmissionReview(approve) {
+      if (!activeReviewSubId || !activeReviewSubData) return;
+      const sub = activeReviewSubData;
+      const note = document.getElementById("review-sub-note").value.trim();
+
+      if (approve) {
+        await db.collection("submissions").doc(activeReviewSubId).update({
+          status: "approved",
+          adminNote: note || "Verified and approved by admin."
+        });
+
+        // Credit User Wallet
+        if (sub.userId) {
+          const userRef = db.collection("users").doc(sub.userId);
+          await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(userRef);
+            if (doc.exists) {
+              const currentBal = doc.data().walletBalance || 0;
+              const currentCompleted = doc.data().completedTasksCount || 0;
+              transaction.update(userRef, {
+                walletBalance: currentBal + (sub.rewardAmount || 0),
+                completedTasksCount: currentCompleted + 1
+              });
+              const txRef = userRef.collection("transactions").doc();
+              transaction.set(txRef, {
+                amount: sub.rewardAmount || 0,
+                type: "task_reward",
+                note: `Reward for: ${sub.taskTitle || 'Task'}`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          });
+        }
+      } else {
+        await db.collection("submissions").doc(activeReviewSubId).update({
+          status: "rejected",
+          adminNote: note || "Task proof rejected by admin."
+        });
+      }
+
+      closeModal('modal-review-sub');
+    }
+
+    async function processWithdrawal(wId, approve) {
+      const w = stateWithdrawals.find(item => item.id === wId);
+      if (!w) return;
+      if (approve) {
+        await db.collection("withdrawals").doc(wId).update({ status: "approved" });
+      } else {
+        await db.collection("withdrawals").doc(wId).update({ status: "rejected" });
+        if (w.userId) {
+          const userRef = db.collection("users").doc(w.userId);
+          await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(userRef);
+            if (doc.exists) {
+              const currentBal = doc.data().walletBalance || 0;
+              transaction.update(userRef, { walletBalance: currentBal + (w.amount || 0) });
+            }
+          });
+        }
+      }
+    }
+
+    async function toggleBanUser(userId, setBanned) {
+      const reason = setBanned ? (prompt("Reason for banning this account:") || "Policy violation") : "";
+      await db.collection("users").doc(userId).update({
+        isBanned: setBanned,
+        banReason: reason
+      });
+    }
+
+    async function saveBroadcast() {
+      const title = document.getElementById("broadcast-input-title").value.trim();
+      const message = document.getElementById("broadcast-input-message").value.trim();
+      if (!title || !message) { alert("Please fill title and message"); return; }
+
+      await db.collection("broadcasts").add({
+        title, message, type: "broadcast", active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      closeModal('modal-create-broadcast');
+    }
+
+    // Helpers
+    function formatDate(ts) {
+      if (!ts) return "Recently";
+      const date = ts.toDate ? ts.toDate() : new Date(ts);
+      return date.toLocaleString();
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
