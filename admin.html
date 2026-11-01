@@ -223,7 +223,7 @@
         <div class="logo">TG</div>
         <div>
           <h1>Task Gullak Admin</h1>
-          <div style="font-size: 12px; color: var(--text-muted);">Real-time Management & Control</div>
+          <div style="font-size: 12px; color: var(--accent-green); font-weight: 600;">● Firebase Realtime Database Connected (`task-gullak`)</div>
         </div>
       </div>
       <div class="header-actions">
@@ -596,7 +596,7 @@
         renderTasksTable();
         document.getElementById("stat-active-tasks").innerText = stateTasks.filter(t => t.active !== false).length;
         document.getElementById("badge-tasks-count").innerText = stateTasks.length;
-      });
+      }, err => console.log("Tasks listener note:", err));
 
       // 2. Submissions Listener
       db.collection("submissions").onSnapshot(snapshot => {
@@ -607,7 +607,7 @@
         const pendingCount = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").length;
         document.getElementById("stat-pending-subs").innerText = pendingCount;
         document.getElementById("badge-submissions-count").innerText = pendingCount;
-      });
+      }, err => console.log("Submissions listener note:", err));
 
       // 3. Withdrawals Listener
       db.collection("withdrawals").onSnapshot(snapshot => {
@@ -616,20 +616,20 @@
         const pendingW = stateWithdrawals.filter(w => w.status === "pending").length;
         document.getElementById("stat-pending-withdrawals").innerText = pendingW;
         document.getElementById("badge-withdrawals-count").innerText = pendingW;
-      });
+      }, err => console.log("Withdrawals listener note:", err));
 
       // 4. Users Listener
       db.collection("users").onSnapshot(snapshot => {
         stateUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderUsersTable();
         document.getElementById("stat-total-users").innerText = stateUsers.length;
-      });
+      }, err => console.log("Users listener note:", err));
 
       // 5. Broadcasts Listener
       db.collection("broadcasts").onSnapshot(snapshot => {
         stateBroadcasts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderBroadcastsTable();
-      });
+      }, err => console.log("Broadcasts listener note:", err));
     }
 
     // Render Dashboard Table
@@ -637,7 +637,7 @@
       const tbody = document.getElementById("table-dashboard-submissions");
       const pending = stateSubmissions.filter(s => s.status === "pending" || s.status === "submitted").slice(0, 5);
       if (pending.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">🎉 All submissions verified! No pending items.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">🎉 All submissions verified! No pending items. Submissions uploaded from the Android app will appear here in real time.</td></tr>`;
         return;
       }
       tbody.innerHTML = pending.map(s => `
@@ -656,7 +656,7 @@
     function renderTasksTable() {
       const tbody = document.getElementById("table-tasks-body");
       if (stateTasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No tasks available. Click "+ Add New Task" to create one.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No tasks created yet. Click "+ Add New Task" to create earnable tasks for users.</td></tr>`;
         return;
       }
       tbody.innerHTML = stateTasks.map(t => `
@@ -683,7 +683,7 @@
         list = list.filter(s => (s.status || '').toLowerCase() === filter);
       }
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No matching submissions found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No matching task submissions found. Submissions submitted by app users will appear here automatically.</td></tr>`;
         return;
       }
       tbody.innerHTML = list.map(s => `
@@ -702,7 +702,7 @@
     function renderWithdrawalsTable() {
       const tbody = document.getElementById("table-withdrawals-body");
       if (stateWithdrawals.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No payout requests yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">No payout requests yet. Withdrawal requests submitted from the app's Wallet tab will appear here.</td></tr>`;
         return;
       }
       tbody.innerHTML = stateWithdrawals.map(w => `
@@ -731,7 +731,7 @@
         list = list.filter(u => (u.fullName || '').toLowerCase().includes(search) || (u.email || '').toLowerCase().includes(search));
       }
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">No users found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">No users found in database. When users log in or register on the Task Gullak Android app, they will automatically appear here in real time.</td></tr>`;
         return;
       }
       tbody.innerHTML = list.map(u => `
@@ -751,7 +751,7 @@
     function renderBroadcastsTable() {
       const tbody = document.getElementById("table-broadcasts-body");
       if (stateBroadcasts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">No announcements posted yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">No broadcasts posted yet. Click "+ Post Announcement" to push notifications to all users.</td></tr>`;
         return;
       }
       tbody.innerHTML = stateBroadcasts.map(b => `
@@ -787,13 +787,17 @@
         rewardAmount, rewardInr: rewardAmount,
         targetTotal, completedCount: 0,
         instructions, appUrl, active: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       closeModal('modal-create-task');
     }
 
     async function toggleTaskActive(taskId, currentActive) {
-      await db.collection("tasks").doc(taskId).update({ active: !currentActive });
+      await db.collection("tasks").doc(taskId).update({
+        active: !currentActive,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
 
     async function deleteTask(taskId) {
@@ -831,7 +835,8 @@
       if (approve) {
         await db.collection("submissions").doc(activeReviewSubId).update({
           status: "approved",
-          adminNote: note || "Verified and approved by admin."
+          adminNote: note || "Verified and approved by admin.",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         // Credit User Wallet
@@ -844,10 +849,12 @@
               const currentCompleted = doc.data().completedTasksCount || 0;
               transaction.update(userRef, {
                 walletBalance: currentBal + (sub.rewardAmount || 0),
-                completedTasksCount: currentCompleted + 1
+                completedTasksCount: currentCompleted + 1,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
               });
               const txRef = userRef.collection("transactions").doc();
               transaction.set(txRef, {
+                userId: sub.userId,
                 amount: sub.rewardAmount || 0,
                 type: "task_reward",
                 note: `Reward for: ${sub.taskTitle || 'Task'}`,
@@ -859,7 +866,8 @@
       } else {
         await db.collection("submissions").doc(activeReviewSubId).update({
           status: "rejected",
-          adminNote: note || "Task proof rejected by admin."
+          adminNote: note || "Task proof rejected by admin.",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
 
@@ -879,7 +887,10 @@
             const doc = await transaction.get(userRef);
             if (doc.exists) {
               const currentBal = doc.data().walletBalance || 0;
-              transaction.update(userRef, { walletBalance: currentBal + (w.amount || 0) });
+              transaction.update(userRef, {
+                walletBalance: currentBal + (w.amount || 0),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
             }
           });
         }
@@ -890,7 +901,8 @@
       const reason = setBanned ? (prompt("Reason for banning this account:") || "Policy violation") : "";
       await db.collection("users").doc(userId).update({
         isBanned: setBanned,
-        banReason: reason
+        banReason: reason,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
 
@@ -901,7 +913,8 @@
 
       await db.collection("broadcasts").add({
         title, message, type: "broadcast", active: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       closeModal('modal-create-broadcast');
     }
