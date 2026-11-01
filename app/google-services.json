@@ -75,10 +75,63 @@
       "client_info": {
         "mobilesdk_app_id": "1:402307564487:android:14d0295e2d3c2639274fe2",
         "android_client_info": {
+          "package_name": "com.example.taskgullak"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "402307564487-gtb5vb8neibg1naa4cv403iplqlvarb7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.taskgullak",
+            "certificate_hash": "3b54a1a20e94f56e6f35376cc8fac8ca6f38cc45"
+          }
+        },
+        {
+          "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJhZHDJnN4wX2R6S9hGb_XTh9b8rSvFhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402307564487:android:a17580232d1144ef274fe2",
+        "android_client_info": {
           "package_name": "com.taskgullak.app"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "402307564487-9r5alusl54tea7qdu8uvqk8l5tab3roa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taskgullak.app",
+            "certificate_hash": "3b54a1a20e94f56e6f35376cc8fac8ca6f38cc45"
+          }
+        },
+        {
+          "client_id": "402307564487-eru6o6sbvjnk3mm6thol822mkr0mkb90.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taskgullak.app",
+            "certificate_hash": "b41fde968c6db4dc24545fb0696b2bd3f956f6d9"
+          }
+        },
         {
           "client_id": "402307564487-p5jign9p5d4o4o35hh0a8km83s30nfeg.apps.googleusercontent.com",
           "client_type": 3
