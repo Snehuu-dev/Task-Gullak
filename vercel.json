@@ -2,6 +2,10 @@
   "version": 2,
   "builds": [
     {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "privacy.html",
       "use": "@vercel/static"
     },
@@ -26,6 +30,14 @@
     {
       "src": "/delete",
       "dest": "/delete.html"
+    },
+    {
+      "src": "/admin(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
