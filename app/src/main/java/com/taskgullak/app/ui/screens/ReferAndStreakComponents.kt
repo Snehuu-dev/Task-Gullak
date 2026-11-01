@@ -174,7 +174,7 @@ fun ExactReferAndEarnScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(205.dp)
+                        .height(235.dp)
                         .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
                         .background(
                             Brush.linearGradient(
@@ -263,8 +263,8 @@ fun ExactReferAndEarnScreen(
                         // Animated Referral Characters Illustration (Megaphone + Smartphone)
                         ReferralCharactersIllustration(
                             modifier = Modifier
-                                .size(width = 150.dp, height = 168.dp)
-                                .offset(y = 12.dp)
+                                .size(width = 165.dp, height = 200.dp)
+                                .offset(y = 4.dp)
                         )
                     }
                 }
@@ -276,7 +276,7 @@ fun ExactReferAndEarnScreen(
                     shadowElevation = 6.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 162.dp)
+                        .padding(top = 185.dp)
                 ) {
                     Column(
                         modifier = Modifier
