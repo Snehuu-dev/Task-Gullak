@@ -531,6 +531,11 @@ object TaskGullakNotificationHelper {
                 val uniqueKey = "tx_${tx.id}"
                 if (!isEventAlreadySeen(context, uniqueKey)) {
                     val typeLower = tx.type.lowercase()
+                    // Silently add referral commission directly to wallet without push notification
+                    if (typeLower.contains("referral")) {
+                        markEventSeenSilently(context, uniqueKey)
+                        return@forEach
+                    }
                     val isCredit = !typeLower.contains("deduct") && !typeLower.contains("debit")
                     val cleanNote = tx.note
                         .replace(Regex("bonus credited by admin", RegexOption.IGNORE_CASE), "Bonus received")

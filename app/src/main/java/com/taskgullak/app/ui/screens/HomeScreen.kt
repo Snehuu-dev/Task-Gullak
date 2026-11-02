@@ -194,6 +194,7 @@ fun HomeScreen(
     val vmIsRefreshing = viewModel?.isRefreshing?.collectAsStateWithLifecycle()?.value ?: false
     val referredUsers = viewModel?.referredUsersState?.collectAsStateWithLifecycle()?.value.orEmpty()
     val supportTickets = viewModel?.supportTicketsState?.collectAsStateWithLifecycle()?.value.orEmpty()
+    val supportBotMessages = viewModel?.supportBotMessagesState?.collectAsStateWithLifecycle()?.value.orEmpty()
     val maintenanceConfig = viewModel?.maintenanceState?.collectAsStateWithLifecycle()?.value
     val receivedPushList by TaskGullakNotificationHelper.receivedPushFlow.collectAsStateWithLifecycle()
 
@@ -1169,6 +1170,12 @@ fun HomeScreen(
                             remoteBio = profile?.bio.orEmpty(),
                             remoteUsername = profile?.username.orEmpty(),
                             remoteBannerId = profile?.bannerId.orEmpty(),
+                            referredByCode = profile?.referredByCode.orEmpty(),
+                            supportBotMessages = supportBotMessages,
+                            onSendSupportBotMessage = { text: String -> viewModel?.sendSupportBotMessage(text) },
+                            onConfirmSupportBotAction = { actionType: String, actionData: String ->
+                                viewModel?.executeSupportBotAction(actionType, actionData, context)
+                            },
                             onSelectAvatar = { chosenId: String ->
                                 localAvatarId = chosenId
                                 FirebaseEmailDispatchService.saveUserAvatarId(

@@ -117,14 +117,25 @@ fun ExactReferAndEarnScreen(
         FirebaseEmailDispatchService.getReferralSummaryState(context)
     }
 
-    val combinedFriends = remember(baseSummary.referredFriends, liveReferredUsers, baseSummary.referralCode) {
+    val currentUserEmail = remember { FirebaseEmailDispatchService.getSavedUserEmail(context).trim().lowercase() }
+    val currentUserId = remember { FirebaseEmailDispatchService.resolveActiveFirestoreUserId(context) }
+
+    val combinedFriends = remember(baseSummary.referredFriends, liveReferredUsers, baseSummary.referralCode, currentUserEmail, currentUserId) {
         val byEmail = LinkedHashMap<String, ReferralFriendRecord>()
         baseSummary.referredFriends.forEach { friend ->
-            val key = friend.email.lowercase().ifBlank { friend.name.lowercase() }
+            val friendEmailClean = friend.email.trim().lowercase()
+            if (friendEmailClean.isNotBlank() && friendEmailClean == currentUserEmail) return@forEach
+            val key = friendEmailClean.ifBlank { friend.name.lowercase() }
             byEmail[key] = friend
         }
         liveReferredUsers.forEach { user ->
-            val key = user.email.lowercase().ifBlank { user.userId.lowercase() }
+            val userEmailClean = user.email.trim().lowercase()
+            if ((userEmailClean.isNotBlank() && userEmailClean == currentUserEmail) ||
+                user.userId == currentUserId || user.id == currentUserId
+            ) {
+                return@forEach // Skip self! A user cannot be listed as their own referred friend
+            }
+            val key = userEmailClean.ifBlank { user.userId.lowercase() }
             val completed = user.completedTasksCount.toInt()
             val estCommission = (completed * 2.5)
             byEmail[key] = ReferralFriendRecord(
@@ -139,19 +150,8 @@ fun ExactReferAndEarnScreen(
     }
 
     val totalFriendsCount = combinedFriends.size
-    val directBonusTotal = remember(baseSummary.totalReferralBonusEarned, totalFriendsCount) {
-        if (totalFriendsCount == 0) 0.0 else maxOf(baseSummary.totalReferralBonusEarned, totalFriendsCount * 5.0)
-    }
-    val lifetimeBonusTotal = remember(baseSummary.totalLifetimeCommissionEarned, combinedFriends) {
-        if (combinedFriends.isEmpty()) {
-            baseSummary.totalLifetimeCommissionEarned
-        } else {
-            maxOf(
-                baseSummary.totalLifetimeCommissionEarned,
-                combinedFriends.sumOf { it.lifetimeCommissionEarned }
-            )
-        }
-    }
+    val directBonusTotal = maxOf(baseSummary.totalReferralBonusEarned, totalFriendsCount * 5.0)
+    val lifetimeBonusTotal = baseSummary.totalLifetimeCommissionEarned
     val summary = remember(baseSummary, combinedFriends, totalFriendsCount, directBonusTotal, lifetimeBonusTotal) {
         baseSummary.copy(
             totalReferredFriends = totalFriendsCount,
@@ -166,203 +166,198 @@ fun ExactReferAndEarnScreen(
             .fillMaxWidth()
             .padding(contentPadding)
             .testTag("refer_screen"),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-            // 1. DARK EMERALD HERO BANNER + OVERLAPPING WHITE STATS & HOW IT WORKS CARD
-            Box(modifier = Modifier.fillMaxWidth()) {
-                // Dark Emerald Hero Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(235.dp)
-                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF0E3F33),
-                                    Color(0xFF165B4A),
-                                    Color(0xFF1D725D)
-                                )
-                            )
+        // 1. DARK EMERALD HERO BANNER
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0E3F33),
+                            Color(0xFF165B4A),
+                            Color(0xFF1D725D)
                         )
-                        .padding(horizontal = 18.dp, vertical = 16.dp)
-                        .testTag("refer_hero_banner")
+                    )
+                )
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .testTag("refer_hero_banner")
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFF287A65).copy(alpha = 0.85f))
+                            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.35f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.5.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(Color(0xFF287A65).copy(alpha = 0.85f))
-                                    .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.35f), RoundedCornerShape(999.dp))
-                                    .padding(horizontal = 11.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "REFER & EARN",
-                                    color = Color(0xFFA7F3D0),
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.5.sp,
-                                    letterSpacing = 0.9.sp
-                                )
-                            }
-
-                            Text(
-                                text = buildAnnotatedString {
-                                    withStyle(
-                                        SpanStyle(
-                                            color = Color.White,
-                                            fontFamily = PoppinsFontFamily,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 23.sp
-                                        )
-                                    ) {
-                                        append("Invite Friends.\n")
-                                    }
-                                    withStyle(
-                                        SpanStyle(
-                                            color = Color(0xFF4ADE80),
-                                            fontFamily = PoppinsFontFamily,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 23.sp
-                                        )
-                                    ) {
-                                        append("Earn ")
-                                    }
-                                    withStyle(
-                                        SpanStyle(
-                                            color = Color.White,
-                                            fontFamily = PoppinsFontFamily,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 23.sp
-                                        )
-                                    ) {
-                                        append("Together.")
-                                    }
-                                },
-                                lineHeight = 27.sp
-                            )
-
-                            Text(
-                                text = "Earn 5% lifetime commission on friend's completed tasks — without any deduction from friend's earnings!",
-                                color = Color(0xFFD1FAE5).copy(alpha = 0.88f),
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                        }
-
-                        // Animated Referral Characters Illustration (Megaphone + Smartphone)
-                        ReferralCharactersIllustration(
-                            modifier = Modifier
-                                .size(width = 165.dp, height = 200.dp)
-                                .offset(y = 4.dp)
+                        Text(
+                            text = "REFER & EARN",
+                            color = Color(0xFFA7F3D0),
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            letterSpacing = 0.9.sp
                         )
                     }
+
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = Color.White,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 20.sp
+                                )
+                            ) {
+                                append("Invite Friends.\n")
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = Color(0xFF4ADE80),
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 20.sp
+                                )
+                            ) {
+                                append("Earn ")
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = Color.White,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 20.sp
+                                )
+                            ) {
+                                append("Together.")
+                            }
+                        },
+                        lineHeight = 24.sp
+                    )
+
+                    Text(
+                        text = "Earn 5% lifetime commission on friend's completed tasks — zero deduction!",
+                        color = Color(0xFFD1FAE5).copy(alpha = 0.88f),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 10.5.sp,
+                        lineHeight = 14.5.sp
+                    )
                 }
 
-                // White Elevated Summary & How It Works Card
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White,
-                    shadowElevation = 6.dp,
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Animated Referral Characters Illustration (Full-body crisp graphic)
+                ReferralCharactersIllustration(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 185.dp)
+                        .size(width = 95.dp, height = 142.dp)
+                )
+            }
+        }
+
+        // 2. WHITE ELEVATED STATS & HOW IT WORKS CARD
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            shadowElevation = 4.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 3 Summary Boxes: Direct Referral Bonus | FRIEND GETS | Lifetime Task Bonus (%)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
+                    ReferStatMiniBox(
+                        modifier = Modifier.weight(1f),
+                        topLabel = "DIRECT BONUS",
+                        mainValue = "₹${summary.perReferralBonus}",
+                        subLabel = "Direct Referral"
+                    )
+                    ReferStatMiniBox(
+                        modifier = Modifier.weight(1f),
+                        topLabel = "FRIEND GETS",
+                        mainValue = "₹${summary.friendBonusAfterFirstWithdraw}",
+                        subLabel = "After 1st Withdraw"
+                    )
+                    ReferStatMiniBox(
+                        modifier = Modifier.weight(1f),
+                        topLabel = "LIFETIME %",
+                        mainValue = "${summary.lifetimeCommissionPercent}%",
+                        subLabel = "Task Commission"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ✨ HOW IT WORKS ✨ Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFFE5E7EB)
+                    )
+                    Text(
+                        text = "✨  HOW IT WORKS  ✨",
+                        color = Color(0xFF6B7280),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFFE5E7EB)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 01 -> 02 -> 03 -> 04 Stepper
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(
+                        color = Color(0xFFBBF7D0),
+                        thickness = 2.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(horizontal = 36.dp)
+                            .align(Alignment.TopCenter)
+                            .padding(top = 19.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // 3 Summary Boxes: Direct Referral Bonus | FRIEND GETS | Lifetime Task Bonus (%)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ReferStatMiniBox(
-                                modifier = Modifier.weight(1f),
-                                topLabel = "DIRECT BONUS",
-                                mainValue = "₹${summary.perReferralBonus}",
-                                subLabel = "Direct Referral"
-                            )
-                            ReferStatMiniBox(
-                                modifier = Modifier.weight(1f),
-                                topLabel = "FRIEND GETS",
-                                mainValue = "₹${summary.friendBonusAfterFirstWithdraw}",
-                                subLabel = "After 1st Withdraw"
-                            )
-                            ReferStatMiniBox(
-                                modifier = Modifier.weight(1f),
-                                topLabel = "LIFETIME %",
-                                mainValue = "${summary.lifetimeCommissionPercent}%",
-                                subLabel = "Task Commission"
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // ✨ HOW IT WORKS ✨ Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            HorizontalDivider(
-                                modifier = Modifier.weight(1f),
-                                color = Color(0xFFE5E7EB)
-                            )
-                            Text(
-                                text = "✨  HOW IT WORKS  ✨",
-                                color = Color(0xFF6B7280),
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp,
-                                letterSpacing = 1.sp
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.weight(1f),
-                                color = Color(0xFFE5E7EB)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // 01 -> 02 -> 03 -> 04 Stepper
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            HorizontalDivider(
-                                color = Color(0xFFBBF7D0),
-                                thickness = 2.dp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 36.dp)
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 19.dp)
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                HowItWorksStepItem(number = "01", label = "Share Code")
-                                HowItWorksStepItem(number = "02", label = "Friend Joins")
-                                HowItWorksStepItem(number = "03", label = "Completes Task")
-                                HowItWorksStepItem(number = "04", label = "You Earn")
-                            }
-                        }
+                        HowItWorksStepItem(number = "01", label = "Share Code")
+                        HowItWorksStepItem(number = "02", label = "Friend Joins")
+                        HowItWorksStepItem(number = "03", label = "Completes Task")
+                        HowItWorksStepItem(number = "04", label = "You Earn")
                     }
                 }
             }
+        }
 
-            // 2. MINT REFERRAL CODE & LINK CARD (https://taskgullak.space/dl?ref=...)
+        // 3. MINT REFERRAL CODE & LINK CARD (https://taskgullak.space/dl?ref=...)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -897,19 +892,8 @@ private fun HowItWorksStepItem(
 
 @Composable
 private fun ReferralCharactersIllustration(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "characters_float")
-    val floatOffset by transition.animateFloat(
-        initialValue = -3f,
-        targetValue = 3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "characters_bob"
-    )
-
     Box(
-        modifier = modifier.offset(y = floatOffset.dp),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Image(

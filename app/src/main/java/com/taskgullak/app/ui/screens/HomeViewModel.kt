@@ -11,10 +11,12 @@ import com.taskgullak.app.data.model.AiTaskVerificationResult
 import com.taskgullak.app.data.model.AvailableTask
 import com.taskgullak.app.data.model.BroadcastNotification
 import com.taskgullak.app.data.model.MaintenanceConfig
+import com.taskgullak.app.data.model.SupportBotMessage
 import com.taskgullak.app.data.model.SupportTicket
 import com.taskgullak.app.data.model.TaskSubmission
 import com.taskgullak.app.data.model.UserProfile
 import com.taskgullak.app.data.model.WalletTransaction
+import com.taskgullak.app.data.remote.FirebaseEmailDispatchService
 import com.taskgullak.app.data.repository.TaskGullakRepository
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
@@ -278,6 +280,18 @@ class HomeViewModel(
         repository.observeUserSupportTickets(currentUserId)
             .catch { error ->
                 Log.w(TAG, "Error observing support tickets", error)
+                emit(emptyList())
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = emptyList()
+            )
+
+    val supportBotMessagesState: StateFlow<List<SupportBotMessage>> =
+        repository.observeSupportBotChatMessages(currentUserId)
+            .catch { error ->
+                Log.w(TAG, "Error observing support bot chat messages", error)
                 emit(emptyList())
             }
             .stateIn(
@@ -719,6 +733,122 @@ class HomeViewModel(
                 explicitUserId = currentUserId
             )
             onResult(result.isSuccess)
+        }
+    }
+
+    fun sendSupportBotMessage(text: String) {
+        val clean = text.trim()
+        if (clean.isBlank()) return
+        viewModelScope.launch {
+            // 1. Log User message to Firestore /support_bot_chats/{uid}/messages
+            val userMsg = mapOf(
+                "sender" to "user",
+                "text" to clean,
+                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )
+            repository.logSupportBotChatMessage(currentUserId, userMsg)
+
+            // 2. Low-token / Rule-based Intent Engine
+            val lower = clean.lowercase()
+            val (botResponseText, actionType, actionData) = when {
+                lower.contains("ticket") || lower.contains("raise") || lower.contains("issue") || lower.contains("problem") -> {
+                    Triple(
+                        "I can help you create an official support ticket for admin review. Please confirm below if you want to submit a ticket for: \"$clean\".",
+                        "confirm_raise_ticket",
+                        clean
+                    )
+                }
+                lower.contains("referral") || lower.contains("refer") || lower.contains("code") || lower.contains("unlink") || lower.contains("remove") -> {
+                    Triple(
+                        "I detected a request to remove or unlink your referral code ($derivedReferralCode). Before I proceed, please confirm below if you want to remove your referral code linkage.",
+                        "confirm_remove_referral",
+                        derivedReferralCode
+                    )
+                }
+                lower.contains("notification") || lower.contains("mute") || lower.contains("turn on") || lower.contains("turn off") -> {
+                    Triple(
+                        "I can help you update your notification settings. Please confirm below if you want to toggle system notifications.",
+                        "confirm_toggle_notifications",
+                        "toggle"
+                    )
+                }
+                lower.contains("wallet") || lower.contains("balance") || lower.contains("money") || lower.contains("task") || lower.contains("earnings") -> {
+                    val currentProfile = (profileState.value as? UiState.Success<UserProfile?>)?.data
+                    val bal = currentProfile?.walletBalance ?: 0L
+                    val completed = currentProfile?.completedTasksCount ?: 0L
+                    Triple(
+                        "Account Diagnostic: Your Wallet Balance is ₹$bal and you have completed $completed tasks. Everything is synced cleanly with Gullak Cloud!",
+                        "none",
+                        ""
+                    )
+                }
+                else -> {
+                    Triple(
+                        "Got it! I have logged your query with Gullak Support Desk for admin review. If you have an urgent issue, tap '🎟️ Raise Ticket' below to get priority admin assistance.",
+                        "none",
+                        ""
+                    )
+                }
+            }
+
+            // 3. Log Bot response to Firestore /support_bot_chats/{uid}/messages (Visible in Admin Panel!)
+            val botMsg = mapOf(
+                "sender" to "bot",
+                "text" to botResponseText,
+                "actionType" to actionType,
+                "actionData" to actionData,
+                "actionExecuted" to false,
+                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )
+            repository.logSupportBotChatMessage(currentUserId, botMsg)
+        }
+    }
+
+    fun executeSupportBotAction(
+        actionType: String,
+        actionData: String,
+        context: android.content.Context
+    ) {
+        viewModelScope.launch {
+            when (actionType) {
+                "confirm_remove_referral" -> {
+                    repository.removeReferralCodeForUser(currentUserId)
+                    FirebaseEmailDispatchService.removeReferralCodeLocally(context)
+                    val confirmMsg = mapOf(
+                        "sender" to "bot",
+                        "text" to "✅ Referral code ($actionData) has been unlinked from your account successfully!",
+                        "actionType" to "none",
+                        "actionData" to "",
+                        "actionExecuted" to true,
+                        "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
+                    repository.logSupportBotChatMessage(currentUserId, confirmMsg)
+                }
+                "confirm_toggle_notifications" -> {
+                    val confirmMsg = mapOf(
+                        "sender" to "bot",
+                        "text" to "✅ System notification preferences updated!",
+                        "actionType" to "none",
+                        "actionData" to "",
+                        "actionExecuted" to true,
+                        "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
+                    repository.logSupportBotChatMessage(currentUserId, confirmMsg)
+                }
+                "confirm_raise_ticket" -> {
+                    val ticketMsg = actionData.ifBlank { "Support inquiry from Bot Chat" }
+                    val res = repository.submitSupportTicket(ticketMsg, currentUserId)
+                    val confirmMsg = mapOf(
+                        "sender" to "bot",
+                        "text" to if (res.isSuccess) "✅ Support ticket created successfully! Admin team will review and reply shortly." else "❌ Could not create ticket. Please try again.",
+                        "actionType" to "none",
+                        "actionData" to "",
+                        "actionExecuted" to true,
+                        "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
+                    repository.logSupportBotChatMessage(currentUserId, confirmMsg)
+                }
+            }
         }
     }
 

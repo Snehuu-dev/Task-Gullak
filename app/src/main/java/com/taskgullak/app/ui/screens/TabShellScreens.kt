@@ -93,6 +93,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import com.taskgullak.app.R
 import com.taskgullak.app.data.model.AvailableTask
+import com.taskgullak.app.data.model.SupportBotMessage
 import com.taskgullak.app.data.model.SupportTicket
 import com.taskgullak.app.data.model.TaskSubmission
 import com.taskgullak.app.data.model.UserProfile
@@ -3869,8 +3870,12 @@ internal fun ProfileTabShellContent(
     remoteBio: String = "",
     remoteUsername: String = "",
     remoteBannerId: String = "",
+    referredByCode: String = "",
     supportTickets: List<SupportTicket> = emptyList(),
+    supportBotMessages: List<SupportBotMessage> = emptyList(),
     onSubmitSupportTicket: (String) -> Unit = {},
+    onSendSupportBotMessage: (String) -> Unit = {},
+    onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },
     onSelectAvatar: (String) -> Unit = {},
     onSaveBioAndCustomization: (bannerId: String, username: String, bio: String) -> Unit = { _, _, _ -> },
     onSaveDisplayName: (String, (Boolean, String) -> Unit) -> Unit = { _, cb -> cb(true, "Saved") },
@@ -3884,6 +3889,7 @@ internal fun ProfileTabShellContent(
     var notificationsEnabled by remember { mutableStateOf(true) }
     var showAvatarPickerSheet by remember { mutableStateOf(false) }
     var showHelpSupportSheet by remember { mutableStateOf(false) }
+    var showSupportBotSheet by remember { mutableStateOf(false) }
     var showBannerAndBioSheet by remember { mutableStateOf(false) }
     var showAllBatchesSheet by remember { mutableStateOf(false) }
     var flowerAnimationBatch by remember { mutableStateOf<AchievementBatchInfo?>(null) }
@@ -3950,6 +3956,7 @@ internal fun ProfileTabShellContent(
             walletIdCode = walletIdCode,
             supportTickets = supportTickets,
             onSubmitTicket = onSubmitSupportTicket,
+            onOpenSupportBot = { },
             onDismiss = { showHelpSupportSheet = false }
         )
     }

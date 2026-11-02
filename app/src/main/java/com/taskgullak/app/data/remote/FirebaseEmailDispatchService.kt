@@ -456,16 +456,9 @@ object FirebaseEmailDispatchService {
         val cleanEmail = rawEmail.trim().lowercase()
         if (cleanEmail.isBlank()) return@withContext false
 
-        if (isPasswordConfiguredLocally(context, cleanEmail)) {
-            return@withContext true
-        }
-
-        val apiKey = getTaskGullakApiKey(context)
-        if (apiKey.isBlank()) return@withContext false
-
         try {
-            // Check 1: Firestore users collection
-            val firestore = FirebaseFirestore.getInstance()
+            // Source of Truth: Check Firestore users collection
+            val firestore = resolveFirestoreInstance(context)
             val userSnap = firestore.collection("users")
                 .whereEqualTo("email", cleanEmail)
                 .limit(1)
@@ -475,25 +468,6 @@ object FirebaseEmailDispatchService {
                 markPasswordConfiguredLocally(context, cleanEmail)
                 markEmailRegistered(context, cleanEmail)
                 return@withContext true
-            }
-
-            // Check 2: Firebase Auth IdentityToolkit
-            val payload = JSONObject().apply {
-                put("identifier", cleanEmail)
-                put("continueUri", "https://task-gullak.firebaseapp.com")
-            }
-            val (statusCode, responseJson) = postIdentityToolkitJson(
-                endpoint = "accounts:createAuthUri",
-                apiKey = apiKey,
-                payload = payload
-            )
-            if (statusCode in 200..299 && responseJson != null) {
-                val registered = responseJson.optBoolean("registered", false)
-                if (registered) {
-                    markPasswordConfiguredLocally(context, cleanEmail)
-                    markEmailRegistered(context, cleanEmail)
-                    return@withContext true
-                }
             }
         } catch (e: CancellationException) {
             throw e
@@ -954,8 +928,29 @@ object FirebaseEmailDispatchService {
         val cleanEmail = rawEmail.trim().lowercase()
         val apiKey = getTaskGullakApiKey(context)
 
-        // Pre-check: if account is already known locally, reject immediately
+        // Pre-check: if account is already known locally or in Firestore, reject immediately
         if (isEmailRegisteredLocally(context, cleanEmail) || isPasswordConfiguredLocally(context, cleanEmail)) {
+            return@withContext EmailDispatchResult(
+                success = false,
+                title = "Email already registered",
+                message = "An account with this email already exists. Please log in instead.",
+                statusType = "error"
+            )
+        }
+
+        // Firestore Check: reject if email already exists in Firestore /users collection
+        val isFirestoreEmailExists = runCatching {
+            val db = resolveFirestoreInstance(context)
+            val existingSnap = db.collection("users")
+                .whereEqualTo("email", cleanEmail)
+                .limit(1)
+                .get()
+                .await()
+            !existingSnap.isEmpty
+        }.getOrDefault(false)
+
+        if (isFirestoreEmailExists) {
+            markEmailRegistered(context, cleanEmail)
             return@withContext EmailDispatchResult(
                 success = false,
                 title = "Email already registered",
@@ -1695,20 +1690,37 @@ object FirebaseEmailDispatchService {
             val uid = firebaseUser?.uid.orEmpty().ifBlank { deriveFirestoreUserIdFromEmail(cleanEmail) }
             val db = resolveFirestoreInstance(context)
 
-            // 1. Delete user document in Firestore /users/{uid}
-            if (uid.isNotBlank()) {
-                db.collection("users").document(uid).delete().await()
+            // 1. Completely delete user document and associated user records in Firestore
+            if (uid.isNotBlank() || cleanEmail.isNotBlank()) {
+                if (uid.isNotBlank()) {
+                    runCatching { db.collection("users").document(uid).delete().await() }
+                }
+                if (cleanEmail.isNotBlank()) {
+                    runCatching {
+                        val userByEmail = db.collection("users").whereEqualTo("email", cleanEmail).get().await()
+                        userByEmail.documents.forEach { doc -> doc.reference.delete() }
+                    }
+                }
                 val deviceId = getDeviceHardwareId(context)
-                db.collection("device_accounts").document(deviceId).delete().await()
+                runCatching { db.collection("device_accounts").document(deviceId).delete().await() }
+                runCatching { db.collection("device_locks").document(deviceId).delete().await() }
+                runCatching {
+                    val referrals = db.collection("referrals").whereEqualTo("referredEmail", cleanEmail).get().await()
+                    referrals.documents.forEach { doc -> doc.reference.delete() }
+                }
+                runCatching {
+                    val submissions = db.collection("submissions").whereEqualTo("userId", uid).get().await()
+                    submissions.documents.forEach { doc -> doc.reference.delete() }
+                }
             }
 
-            // 2. Clear local SharedPreferences & session
+            // 2. Wipe ALL local SharedPreferences session, credentials & caches
             val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
             prefs.edit().clear().apply()
 
-            // 3. Delete Firebase Auth user
-            firebaseUser?.delete()?.await()
-            FirebaseAuth.getInstance().signOut()
+            // 3. Delete Firebase Auth user & sign out
+            runCatching { firebaseUser?.delete()?.await() }
+            runCatching { FirebaseAuth.getInstance().signOut() }
 
             true
         }.getOrDefault(false)
@@ -1957,6 +1969,17 @@ object FirebaseEmailDispatchService {
         return prefs.getString(KEY_REFERRED_BY_CODE, "").orEmpty().trim().uppercase()
     }
 
+    fun removeReferralCodeLocally(context: Context, email: String = "") {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
+        val cleanEmail = email.trim().lowercase().ifBlank { getSavedUserEmail(context).trim().lowercase() }
+        prefs.edit().apply {
+            remove(KEY_REFERRED_BY_CODE)
+            if (cleanEmail.isNotBlank()) {
+                remove("${KEY_REFERRED_BY_CODE}_$cleanEmail")
+            }
+        }.apply()
+    }
+
     fun applyReferralCodeOnSignup(
         context: Context,
         enteredCodeOrUrl: String,
@@ -1976,30 +1999,16 @@ object FirebaseEmailDispatchService {
         if (extractedCode.equals(ownCode, ignoreCase = true)) return false
 
         val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
-        val currentBonus = prefs.getFloat(KEY_REFERRAL_BONUS_EARNED, 0.0f)
-        val friendsArr = runCatching {
-            val existingStr = prefs.getString(KEY_REFERRED_FRIENDS_JSON, "").orEmpty()
-            if (existingStr.isNotBlank()) JSONArray(existingStr) else JSONArray()
-        }.getOrDefault(JSONArray())
         val displayFriend = newUserName.trim().ifBlank {
             cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }.ifBlank { "Gullak Friend" }
         }
-        friendsArr.put(
-            JSONObject().apply {
-                put("name", displayFriend)
-                put("email", cleanEmail)
-                put("joinedAtLabel", "Joined via $extractedCode • +₹5 Login Bonus")
-                put("tasksCompleted", 0)
-                put("lifetimeCommissionEarned", 5.0)
-            }
-        )
+        
+        // Save who referred this user on the new user's local device
         prefs.edit().apply {
             putString(KEY_REFERRED_BY_CODE, extractedCode)
             if (cleanEmail.isNotBlank()) {
                 putString("${KEY_REFERRED_BY_CODE}_$cleanEmail", extractedCode)
             }
-            putFloat(KEY_REFERRAL_BONUS_EARNED, currentBonus + 5.0f)
-            putString(KEY_REFERRED_FRIENDS_JSON, friendsArr.toString())
         }.apply()
 
         runCatching {
@@ -2015,7 +2024,6 @@ object FirebaseEmailDispatchService {
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-            // Also credit ₹5 immediately to the referrer's wallet in Firestore when found by referralCode
             db.collection("users")
                 .whereEqualTo("referralCode", extractedCode)
                 .limit(1)
@@ -2024,31 +2032,36 @@ object FirebaseEmailDispatchService {
                     val referrerSnap = querySnap.documents.firstOrNull() ?: return@addOnSuccessListener
                     val referrerUid = referrerSnap.getString("userId")?.takeIf { it.isNotBlank() } ?: referrerSnap.id
                     val referredUid = deriveFirestoreUserIdFromEmail(cleanEmail)
-                    if (referrerUid.isBlank() || referrerUid == referredUid) return@addOnSuccessListener
-                    val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
-                    val currentComm = referrerSnap.getLong("referralCommissionEarned") ?: 0L
-                    val referrerRef = db.collection("users").document(referrerUid)
-                    referrerRef.update(
-                        mapOf(
-                            "walletBalance" to (currentWallet + 5L),
-                            "referralCommissionEarned" to (currentComm + 5L),
-                            "updatedAt" to FieldValue.serverTimestamp()
+                    if (referrerUid.isBlank() || referrerUid == referredUid || referredUid.isBlank()) return@addOnSuccessListener
+                    
+                    val eventId = "login_bonus_${referrerUid}_initial_login_${referredUid}"
+                        .replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
+                        .take(120)
+                    val eventDocRef = db.collection("referral_commissions").document(eventId)
+                    
+                    eventDocRef.get().addOnSuccessListener { existingSnap ->
+                        if (existingSnap.exists()) return@addOnSuccessListener // Already credited once for this email!
+
+                        val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
+                        val currentComm = referrerSnap.getLong("referralCommissionEarned") ?: 0L
+                        val referrerRef = db.collection("users").document(referrerUid)
+                        referrerRef.update(
+                            mapOf(
+                                "walletBalance" to (currentWallet + 5L),
+                                "referralCommissionEarned" to (currentComm + 5L),
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
                         )
-                    )
-                    referrerRef.collection("transactions").document().set(
-                        mapOf(
-                            "userId" to referrerUid,
-                            "amount" to 5L,
-                            "type" to "referral_commission",
-                            "note" to "Referral Login Bonus: $displayFriend logged in (+₹5)",
-                            "createdAt" to FieldValue.serverTimestamp()
+                        referrerRef.collection("transactions").document().set(
+                            mapOf(
+                                "userId" to referrerUid,
+                                "amount" to 5L,
+                                "type" to "referral_commission",
+                                "note" to "Referral Login Bonus: $displayFriend logged in (+₹5)",
+                                "createdAt" to FieldValue.serverTimestamp()
+                            )
                         )
-                    )
-                    if (referredUid.isNotBlank()) {
-                        val eventId = "login_bonus_${referrerUid}_initial_login_${referredUid}"
-                            .replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
-                            .take(120)
-                        db.collection("referral_commissions").document(eventId).set(
+                        eventDocRef.set(
                             mapOf(
                                 "referrerUserId" to referrerUid,
                                 "referredUserId" to referredUid,

@@ -656,6 +656,9 @@
           const uSnap = await tx.get(userRef);
           const curBal = uSnap.exists() ? Number(uSnap.data().walletBalance || 0) : 0;
           const curCount = uSnap.exists() ? Number(uSnap.data().completedTasksCount || 0) : 0;
+          const referredByCode = uSnap.exists() ? (uSnap.data().referredByCode || '') : '';
+          const referredByUserId = uSnap.exists() ? (uSnap.data().referredByUserId || '') : '';
+
           tx.update(subRef, {
             status: 'approved',
             adminNote: 'Approved & credited by Admin',
@@ -665,6 +668,7 @@
             tx.update(userRef, {
               walletBalance: curBal + reward,
               completedTasksCount: curCount + 1,
+              lastCompletedTaskReward: reward,
               updatedAt: serverTimestamp()
             });
           }
@@ -676,6 +680,50 @@
             note: `Approved: ${sub.taskTitle || 'Task'}`,
             createdAt: serverTimestamp()
           });
+
+          // --- CREDIT 5% REFERRAL COMMISSION TO REFERRER'S WALLET ---
+          if (reward > 0 && (referredByCode || referredByUserId)) {
+            const commAmount = Math.max(1, Math.round(reward * 0.05)); // 5% of task reward
+            let referrerUid = referredByUserId;
+            if (!referrerUid && referredByCode) {
+              const q = query(collection(db, "users"), where("referralCode", "==", referredByCode.toUpperCase()), limit(1));
+              const qSnap = await getDocs(q);
+              if (!qSnap.empty) {
+                referrerUid = qSnap.docs[0].id;
+              }
+            }
+            if (referrerUid && referrerUid !== sub.userId) {
+              const referrerRef = doc(db, "users", referrerUid);
+              const refSnap = await tx.get(referrerRef);
+              if (refSnap.exists()) {
+                const refBal = Number(refSnap.data().walletBalance || 0);
+                const refComm = Number(refSnap.data().referralCommissionEarned || 0);
+                tx.update(referrerRef, {
+                  walletBalance: refBal + commAmount,
+                  referralCommissionEarned: refComm + commAmount,
+                  updatedAt: serverTimestamp()
+                });
+                const refTxRef = doc(collection(db, "users", referrerUid, "transactions"));
+                tx.set(refTxRef, {
+                  userId: referrerUid,
+                  amount: commAmount,
+                  type: 'referral_commission',
+                  note: `5% Referral Commission: ${sub.userName || 'Friend'} completed ${sub.taskTitle || 'Task'} (+₹${commAmount})`,
+                  createdAt: serverTimestamp()
+                });
+                const eventId = `comm_${referrerUid}_${sub.userId}_${curCount + 1}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+                const eventRef = doc(db, "referral_commissions", eventId);
+                tx.set(eventRef, {
+                  referrerUserId: referrerUid,
+                  referredUserId: sub.userId,
+                  taskRewardAmount: reward,
+                  commissionAmount: commAmount,
+                  taskTitle: sub.taskTitle || 'Task',
+                  createdAt: serverTimestamp()
+                });
+              }
+            }
+          }
         });
         showToast(`Approved & credited ₹${reward} to ${sub.userName}!`);
       } catch (e) {

@@ -386,6 +386,18 @@ data class SupportTicket(
 }
 
 @IgnoreExtraProperties
+data class SupportBotMessage(
+    val id: String = "",
+    val userId: String = "",
+    val sender: String = "bot", // "user", "bot", "admin"
+    val text: String = "",
+    val actionType: String = "", // "none", "confirm_remove_referral", "confirm_toggle_notifications", "confirm_raise_ticket"
+    val actionData: String = "",
+    val actionExecuted: Boolean = false,
+    @ServerTimestamp val createdAt: Timestamp? = null
+)
+
+@IgnoreExtraProperties
 data class TaskCommentItem(
     val id: String = "",
     val appTitle: String = "",

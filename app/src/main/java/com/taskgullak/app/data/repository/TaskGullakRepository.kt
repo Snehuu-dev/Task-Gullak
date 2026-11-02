@@ -8,6 +8,7 @@ import com.taskgullak.app.data.model.AiTaskVerificationResult
 import com.taskgullak.app.data.model.BroadcastNotification
 import com.taskgullak.app.data.model.MaintenanceConfig
 import com.taskgullak.app.data.model.ReferralCommissionEvent
+import com.taskgullak.app.data.model.SupportBotMessage
 import com.taskgullak.app.data.model.SupportTicket
 import com.taskgullak.app.data.model.TaskSubmission
 import com.taskgullak.app.data.model.UserProfile
@@ -20,6 +21,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -151,32 +153,6 @@ class TaskGullakRepository(
                     )?.copy(id = doc.id, userId = doc.getString("userId") ?: doc.id)
                 }
             }
-            .onEach { referredUsers ->
-                referredUsers.forEach { referredProfile ->
-                    if (referredProfile.userId != referrerUserId) {
-                        runCatching {
-                            creditReferrerOnReferredUserLogin(
-                                referredUserId = referredProfile.userId,
-                                referredUserName = referredProfile.fullName.ifBlank { "Referred Friend" },
-                                referredUserEmail = referredProfile.email,
-                                referredByCode = referredProfile.referredByCode.ifBlank { cleanCode },
-                                referrerUserId = referrerUserId,
-                                loginBonusInr = DEFAULT_REFERRAL_LOGIN_BONUS_INR,
-                                loginEventKey = "initial_login_${referredProfile.userId}"
-                            )
-                        }
-                        if (referredProfile.completedTasksCount > referredProfile.lastCreditedCompletedTasksCount) {
-                            runCatching {
-                                processReferredUserTaskCompletions(
-                                    referredProfile = referredProfile,
-                                    explicitReferrerUserId = referrerUserId,
-                                    commissionRatePercent = commissionRatePercent
-                                )
-                            }
-                        }
-                    }
-                }
-            }
             .catch { error ->
                 if (error is Exception) {
                     handleFirestoreError(error, OperationType.LIST, path)
@@ -254,7 +230,26 @@ class TaskGullakRepository(
                 .limit(1)
                 .get()
                 .await()
-            snap.documents.firstOrNull()?.id
+            val directDoc = snap.documents.firstOrNull()
+            if (directDoc != null) {
+                return directDoc.getString("userId")?.takeIf { it.isNotBlank() } ?: directDoc.id
+            }
+
+            // Fallback: Scan Firestore users to match derived referral code from email
+            val allUsersSnap = db.collection("users").get().await()
+            for (doc in allUsersSnap.documents) {
+                val userEmail = doc.getString("email").orEmpty()
+                val userUid = doc.getString("userId")?.takeIf { it.isNotBlank() } ?: doc.id
+                val codeFromEmail = deriveReferralCodeFromEmail(userEmail, userUid)
+                if (codeFromEmail.equals(clean, ignoreCase = true)) {
+                    // Backfill referralCode on the referrer's document so future direct queries succeed
+                    runCatching {
+                        db.collection("users").document(userUid).update("referralCode", codeFromEmail).await()
+                    }
+                    return userUid
+                }
+            }
+            null
         } catch (_: Exception) {
             null
         }
@@ -313,14 +308,9 @@ class TaskGullakRepository(
             )
             commissionDocRef.set(commissionPayload).await()
 
-            // 2. Credit referrer's Firestore /users/{referrerUserId} wallet in real-time
-            val referrerQuerySnap = db.collection("users")
-                .whereEqualTo("userId", referrerUserId)
-                .limit(1)
-                .get()
-                .await()
-            val referrerSnap = referrerQuerySnap.documents.firstOrNull()
-            if (referrerSnap != null && referrerSnap.exists()) {
+            // 2. Credit referrer's Firestore /users/{referrerUserId} wallet directly by document ID
+            val referrerSnap = referrerDocRef.get().await()
+            if (referrerSnap.exists()) {
                 val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
                 val currentCommissionEarned = referrerSnap.getLong("referralCommissionEarned") ?: 0L
                 referrerDocRef.update(
@@ -370,40 +360,20 @@ class TaskGullakRepository(
         if ((cleanCode.isBlank() && cleanReferrerId.isBlank()) || loginBonusInr <= 0L) {
             return Result.success(0L)
         }
-        return try {
-            val referrerSnap = when {
-                cleanReferrerId.isNotBlank() -> {
-                    db.collection("users")
-                        .whereEqualTo("userId", cleanReferrerId)
-                        .limit(1)
-                        .get()
-                        .await()
-                        .documents
-                        .firstOrNull()
-                        ?: runCatching { db.collection("users").document(cleanReferrerId).get().await() }
-                            .getOrNull()
-                            ?.takeIf { it.exists() }
-                }
-                else -> null
-            } ?: if (cleanCode.isNotBlank()) {
-                db.collection("users")
-                    .whereEqualTo("referralCode", cleanCode)
-                    .limit(1)
-                    .get()
-                    .await()
-                    .documents
-                    .firstOrNull()
-            } else {
-                null
-            }
+        val resolvedReferrerUid = when {
+            cleanReferrerId.isNotBlank() -> cleanReferrerId
+            cleanCode.isNotBlank() -> resolveReferrerUserIdByCode(cleanCode)
+            else -> null
+        } ?: return Result.success(0L)
 
-            if (referrerSnap == null || !referrerSnap.exists()) {
-                return Result.success(0L)
-            }
-            val resolvedReferrerUid = referrerSnap.getString("userId")
-                ?.takeIf { it.isNotBlank() }
-                ?: referrerSnap.id
-            if (resolvedReferrerUid.isBlank() || (cleanReferredId.isNotBlank() && resolvedReferrerUid == cleanReferredId)) {
+        if (cleanReferredId.isNotBlank() && resolvedReferrerUid == cleanReferredId) {
+            return Result.success(0L)
+        }
+
+        return try {
+            val referrerDocRef = db.collection("users").document(resolvedReferrerUid)
+            val referrerSnap = referrerDocRef.get().await()
+            if (!referrerSnap.exists()) {
                 return Result.success(0L)
             }
 
@@ -411,20 +381,37 @@ class TaskGullakRepository(
                 loginEventKey.isNotBlank() ->
                     "login_bonus_${resolvedReferrerUid}_${loginEventKey}"
                 cleanReferredId.isNotBlank() ->
-                    "login_bonus_${resolvedReferrerUid}_${cleanReferredId}_${System.currentTimeMillis()}"
+                    "login_bonus_${resolvedReferrerUid}_${cleanReferredId}"
+                referredUserEmail.isNotBlank() ->
+                    "login_bonus_${resolvedReferrerUid}_${referredUserEmail.trim().lowercase().replace("@", "_at_")}"
                 else ->
-                    "login_bonus_${resolvedReferrerUid}_${System.currentTimeMillis()}"
+                    "login_bonus_${resolvedReferrerUid}_${cleanCode}"
             }.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(120)
 
             val eventDocRef = db.collection("referral_commissions").document(rawEventId)
-            if (loginEventKey.isNotBlank()) {
-                val existingEvent = runCatching { eventDocRef.get().await() }.getOrNull()
-                if (existingEvent != null && existingEvent.exists()) {
-                    return Result.success(0L)
-                }
+            val existingEvent = runCatching { eventDocRef.get().await() }.getOrNull()
+            if (existingEvent != null && existingEvent.exists()) {
+                return Result.success(0L)
             }
 
-            val referrerDocRef = db.collection("users").document(resolvedReferrerUid)
+            val displayFriend = referredUserName.trim().ifBlank {
+                referredUserEmail.trim().substringBefore("@").ifBlank { "Friend" }
+            }
+
+            // Write the event document FIRST to guarantee idempotency across concurrent syncs
+            eventDocRef.set(
+                mapOf(
+                    "referrerUserId" to resolvedReferrerUid,
+                    "referredUserId" to cleanReferredId,
+                    "referredUserName" to displayFriend,
+                    "referredUserEmail" to referredUserEmail.trim().take(150),
+                    "referredByCode" to cleanCode,
+                    "commissionAmount" to loginBonusInr,
+                    "type" to "referral_login_bonus",
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
             val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
             val currentCommissionEarned = referrerSnap.getLong("referralCommissionEarned") ?: 0L
             referrerDocRef.update(
@@ -435,9 +422,6 @@ class TaskGullakRepository(
                 )
             ).await()
 
-            val displayFriend = referredUserName.trim().ifBlank {
-                referredUserEmail.trim().substringBefore("@").ifBlank { "Friend" }
-            }
             val txRef = referrerDocRef.collection("transactions").document()
             val noteText = "Referral Login Bonus: $displayFriend logged in (+₹$loginBonusInr)"
             txRef.set(
@@ -449,21 +433,6 @@ class TaskGullakRepository(
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             ).await()
-
-            runCatching {
-                eventDocRef.set(
-                    mapOf(
-                        "referrerUserId" to resolvedReferrerUid,
-                        "referredUserId" to cleanReferredId,
-                        "referredUserName" to displayFriend,
-                        "referredUserEmail" to referredUserEmail.trim().take(150),
-                        "referredByCode" to cleanCode,
-                        "commissionAmount" to loginBonusInr,
-                        "type" to "referral_login_bonus",
-                        "createdAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
-            }
 
             // Ensure referred user's document also links referredByUserId if missing
             if (cleanReferredId.isNotBlank()) {
@@ -1261,6 +1230,20 @@ class TaskGullakRepository(
                 }
                 userRef.update(updates).await()
 
+                // Trigger 5% lifetime referral commission to referrer on task completion
+                if ((effectiveStatus == "approved" || autoVerify) && (effectiveRewardAmount > 0L || rewardAmount > 0L)) {
+                    runCatching {
+                        val updatedUserSnap = userRef.get().await()
+                        val updatedProfile = updatedUserSnap.toObject(UserProfile::class.java)?.copy(id = uid, userId = uid)
+                        if (updatedProfile != null && (updatedProfile.referredByCode.isNotBlank() || updatedProfile.referredByUserId.isNotBlank())) {
+                            processReferredUserTaskCompletions(
+                                referredProfile = updatedProfile,
+                                explicitReferrerUserId = updatedProfile.referredByUserId.takeIf { it.isNotBlank() }
+                            )
+                        }
+                    }
+                }
+
                 // Record a WalletTransaction when verification credits reward
                 if (aiVerification != null && effectiveStatus == "approved" && effectiveRewardAmount > 0L) {
                     runCatching {
@@ -1353,6 +1336,54 @@ class TaskGullakRepository(
                 Log.e("TaskGullakRepo", "Error observing support tickets", e)
                 emit(emptyList())
             }
+    }
+
+    suspend fun removeReferralCodeForUser(userId: String): Result<Unit> {
+        val uid = requireUserId(userId)
+        return try {
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "referredByCode" to "",
+                    "referredByUserId" to "",
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun logSupportBotChatMessage(userId: String, message: Map<String, Any>): Result<Unit> {
+        val uid = requireUserId(userId)
+        return try {
+            val chatRef = db.collection("support_bot_chats")
+                .document(uid)
+                .collection("messages")
+                .document()
+            chatRef.set(message + ("userId" to uid)).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeSupportBotChatMessages(userId: String): Flow<List<SupportBotMessage>> {
+        val uid = requireUserId(userId)
+        val cutoffMillis = System.currentTimeMillis() - 86_400_000L
+        return db.collection("support_bot_chats")
+            .document(uid)
+            .collection("messages")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull { doc ->
+                    val msg = doc.toObject(SupportBotMessage::class.java)?.copy(id = doc.id)
+                    val time = msg?.createdAt?.toDate()?.time ?: System.currentTimeMillis()
+                    if (time >= cutoffMillis) msg else null
+                }
+            }
+            .catch { emit(emptyList()) }
     }
 
     companion object {
