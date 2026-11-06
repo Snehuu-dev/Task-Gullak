@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -125,6 +126,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -2732,15 +2734,14 @@ private fun TaskSubmittedCelebrationDialog(
     aiVerificationResult: AiTaskVerificationResult? = null,
     onDismiss: () -> Unit
 ) {
-    val pct = aiVerificationResult?.completionPercentage ?: 100
     val creditedInr = aiVerificationResult?.creditedRewardInr ?: task.rewardInr.toLong()
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(24.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFFF59E0B).copy(alpha = 0.2f))
-                .clip(RoundedCornerShape(28.dp)),
+                .shadow(20.dp, RoundedCornerShape(32.dp), ambientColor = Color(0xFFB9A8E8))
+                .clip(RoundedCornerShape(32.dp)),
             color = Color.White
         ) {
             Column(
@@ -2748,317 +2749,350 @@ private fun TaskSubmittedCelebrationDialog(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color(0xFFFEF9C3), Color(0xFFFFFFFF))
+                            listOf(Color(0xFFFFF1C9), Color(0xFFF8F4FF), Color.White)
                         )
                     )
-                    .padding(horizontal = 20.dp, vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 3D Animated Coin & Heart-Smile Badge with glowing golden aura
-                val infiniteTransition = rememberInfiniteTransition(label = "celebration_3d_anim")
-                val scalePulse by infiniteTransition.animateFloat(
-                    initialValue = 0.94f,
-                    targetValue = 1.08f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1200, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "scale_pulse"
-                )
-                val floatBobbing by infiniteTransition.animateFloat(
-                    initialValue = -5f,
-                    targetValue = 5f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1600, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "float_bobbing"
-                )
-
+                // Hero Section with wave background, 3D bouncing coins, and 3D heart eyes smiley
                 Box(
-                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(120.dp)
-                        .offset(y = floatBobbing.dp)
-                        .scale(scalePulse)
-                ) {
-                    // Glowing outer aura ring
-                    Box(
-                        modifier = Modifier
-                            .size(108.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFEF08A).copy(alpha = 0.5f))
-                            .border(3.dp, Color(0xFFFDE047), CircleShape)
-                    )
-                    // Inner 3D graphic container with 3D Coin Graphic
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(90.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(Color(0xFFFEF9C3), Color(0xFFFDE047))
-                                )
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFFFFD95D), Color(0xFFFFEBA2), Color(0xFFFFF8E6), Color.White)
                             )
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_referral_gift_3d),
-                            contentDescription = "3D Success Coin",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(68.dp)
                         )
-                    }
-                    // 3D Heart-Smile Badge overlay at bottom right
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White,
-                        shadowElevation = 6.dp,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(38.dp)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(0xFFFEF08A))
-                        ) {
-                            Text(
-                                text = "😍",
-                                fontSize = 20.sp,
-                                textAlign = TextAlign.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val wave = Path().apply {
+                            moveTo(0f, size.height * .70f)
+                            cubicTo(
+                                size.width * .27f,
+                                size.height * .87f,
+                                size.width * .68f,
+                                size.height * .61f,
+                                size.width,
+                                size.height * .73f
                             )
+                            lineTo(size.width, size.height)
+                            lineTo(0f, size.height)
+                            close()
                         }
+                        drawPath(wave, Color.White.copy(alpha = .88f))
                     }
+
+                    // Bouncing 3D Rupee Coins
+                    CelebrationBouncingCoin(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 20.dp)
+                            .offset(y = (-10).dp),
+                        size = 46.dp,
+                        duration = 1550
+                    )
+                    CelebrationBouncingCoin(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 32.dp, end = 28.dp),
+                        size = 42.dp,
+                        duration = 1850
+                    )
+                    CelebrationBouncingCoin(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 64.dp)
+                            .offset(y = 30.dp),
+                        size = 34.dp,
+                        duration = 1350
+                    )
+
+                    // Pulse-animated 3D Heart Eyes Smiley
+                    val pulse = rememberInfiniteTransition(label = "smileyPulse")
+                    val scale by pulse.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.05f,
+                        animationSpec = infiniteRepeatable(
+                            tween(1500, easing = FastOutSlowInEasing),
+                            RepeatMode.Reverse
+                        ),
+                        label = "smileyScale"
+                    )
+                    Image(
+                        painter = painterResource(id = R.drawable.heart_smile_3d),
+                        contentDescription = "3D heart eyes smiley",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = 12.dp)
+                            .size(140.dp)
+                            .scale(scale)
+                    )
                 }
 
-                // Title & Subtitle
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Submission successful!",
+                    color = Color(0xFF11113F),
+                    fontSize = 22.sp,
+                    lineHeight = 28.sp,
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Your proof has been submitted.",
+                    color = Color(0xFF85849F),
+                    fontSize = 13.5.sp,
+                    fontFamily = InterFontFamily,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "It will be verified soon.",
+                    color = Color(0xFF85849F),
+                    fontSize = 13.5.sp,
+                    fontFamily = InterFontFamily,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Reward Card
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFFF5F1FF), Color(0xFFF0EDFF))
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
                 ) {
-                    Text(
-                        text = "Submission successful!",
-                        color = Color(0xFF1E1B4B),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Your proof has been submitted.\nIt will be verified soon.",
-                        color = Color(0xFF475569),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-                }
-
-                // Details Card Container (Reward Amount & Estimated Payment Time)
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFEDE9FE)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Reward Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Reward Row
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = Color(0xFF17B967).copy(alpha = .25f))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0xFF17B967).copy(alpha = .18f), Color(0xFF17B967).copy(alpha = .08f))
+                                    ),
+                                    RoundedCornerShape(18.dp)
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFDCFCE7)),
+                                    .background(Color(0xFF17B967), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
                                 Text(
-                                    text = "Reward amount",
-                                    color = Color(0xFF64748B),
-                                    fontFamily = InterFontFamily,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    text = "₹$creditedInr",
-                                    color = Color(0xFF1E1B4B),
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp
+                                    text = "✓",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Reward amount",
+                                color = Color(0xFF85849F),
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "₹$creditedInr",
+                                color = Color(0xFF11113F),
+                                fontFamily = PoppinsFontFamily,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
 
-                        HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0xFFDCD7ED))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                        // Payment Estimate Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Payout Row
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = Color(0xFF6744DC).copy(alpha = .25f))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0xFF6744DC).copy(alpha = .18f), Color(0xFF6744DC).copy(alpha = .08f))
+                                    ),
+                                    RoundedCornerShape(18.dp)
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF3E8FF)),
+                                    .background(Color(0xFF6744DC), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.AccessTime,
-                                    contentDescription = null,
-                                    tint = Color(0xFF7C3AED),
-                                    modifier = Modifier.size(20.dp)
+                                Text(
+                                    text = "▦",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                            Column {
-                                Text(
-                                    text = "You will get paid in",
-                                    color = Color(0xFF64748B),
-                                    fontFamily = InterFontFamily,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    text = "7–8 days",
-                                    color = Color(0xFF1E1B4B),
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 17.sp
-                                )
-                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "You will get paid in",
+                                color = Color(0xFF85849F),
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "1–2 days",
+                                color = Color(0xFF11113F),
+                                fontFamily = PoppinsFontFamily,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
                         }
                     }
                 }
 
-                // 3 Features Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Feature 1
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFEF3C7)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "🪙", fontSize = 15.sp)
-                        }
-                        Text(
-                            text = "On-time\npayments",
-                            color = Color(0xFF334155),
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 9.5.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    // Feature 2
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEDE9FE)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.VerifiedUser,
-                                contentDescription = null,
-                                tint = Color(0xFF6D28D9),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Text(
-                            text = "Trusted",
-                            color = Color(0xFF334155),
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 9.5.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    // Feature 3
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFDCFCE7)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ThumbUp,
-                                contentDescription = null,
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Text(
-                            text = "100%\nreliable",
-                            color = Color(0xFF334155),
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 9.5.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // Primary Button: "Back to offers"
+                // Trust Indicators Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF4F46E5), Color(0xFF4338CA))
-                            )
-                        )
-                        .clickable { onDismiss() },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Text(
-                        text = "Back to offers",
-                        color = Color.White,
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    CelebrationTrustItem("₹", "On-time\npayments", Color(0xFFE3A21C), Color(0xFFFFF0C9))
+                    CelebrationTrustItem("✓", "Trusted", Color(0xFF7048DF), Color(0xFFECE4FF))
+                    CelebrationTrustItem("+", "100%\nreliable", Color(0xFF18B968), Color(0xFFE0FFEC))
+                }
+
+                Spacer(modifier = Modifier.height(22.dp))
+
+                // Back to Offers Button
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .height(52.dp)
+                        .shadow(8.dp, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF7050F2), Color(0xFF3547E8))
+                                ),
+                                RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Back to offers",
+                            color = Color.White,
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CelebrationBouncingCoin(modifier: Modifier = Modifier, size: Dp, duration: Int) {
+    val transition = rememberInfiniteTransition(label = "coinBounce")
+    val y by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -8f,
+        animationSpec = infiniteRepeatable(
+            tween(duration, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
+        label = "coinY"
+    )
+    Image(
+        painter = painterResource(id = R.drawable.rupee_coin_3d),
+        contentDescription = "Gold rupee coin",
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+            .offset(y = y.dp)
+            .size(size)
+    )
+}
+
+@Composable
+private fun CelebrationTrustItem(symbol: String, label: String, tint: Color, bg: Color) {
+    Column(
+        modifier = Modifier.width(82.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = tint.copy(alpha = .22f))
+                .background(bg, RoundedCornerShape(18.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(tint, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = symbol,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            color = Color(0xFF25243B),
+            fontFamily = InterFontFamily,
+            fontSize = 11.5.sp,
+            lineHeight = 15.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

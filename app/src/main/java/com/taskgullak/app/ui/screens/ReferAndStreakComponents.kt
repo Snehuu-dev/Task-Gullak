@@ -182,16 +182,18 @@ fun ExactReferAndEarnScreen(
                         )
                     )
                 )
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(start = 16.dp, top = 16.dp, end = 12.dp, bottom = 0.dp)
                 .testTag("refer_hero_banner")
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
@@ -259,10 +261,11 @@ fun ExactReferAndEarnScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Animated Referral Characters Illustration (Full-body crisp graphic)
+                // Animated Referral Characters Illustration attached to bottom border
                 ReferralCharactersIllustration(
                     modifier = Modifier
-                        .size(width = 95.dp, height = 142.dp)
+                        .size(width = 135.dp, height = 165.dp)
+                        .align(Alignment.Bottom)
                 )
             }
         }
