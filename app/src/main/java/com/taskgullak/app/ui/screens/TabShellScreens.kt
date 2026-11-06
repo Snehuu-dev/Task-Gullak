@@ -84,6 +84,8 @@ import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.GroupWork
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
@@ -2743,7 +2745,7 @@ private fun TaskSubmittedCelebrationDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Heart-Eyes Emoji with glowing golden halo ring
+                // 3D Gift Illustration with glowing golden halo ring
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(110.dp)
@@ -2755,10 +2757,11 @@ private fun TaskSubmittedCelebrationDialog(
                             .background(Color(0xFFFEF08A).copy(alpha = 0.6f))
                             .border(3.dp, Color(0xFFFDE047), CircleShape)
                     )
-                    Text(
-                        text = "😍",
-                        fontSize = 48.sp,
-                        textAlign = TextAlign.Center
+                    Image(
+                        painter = painterResource(id = R.drawable.img_referral_gift_3d),
+                        contentDescription = "3D Task Success Graphic",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(72.dp)
                     )
                 }
 
@@ -3076,12 +3079,23 @@ internal fun WalletTabShellContent(
     var localWithdrawError by remember { mutableStateOf<String?>(null) }
     var showWithdrawForm by remember { mutableStateOf(true) }
     var selectedWithdrawalForReceipt by remember { mutableStateOf<WalletTransaction?>(null) }
+    var submittedWithdrawalSuccess by remember { mutableStateOf<Triple<Long, String, String>?>(null) }
 
     if (selectedWithdrawalForReceipt != null) {
         WithdrawalPaymentStatusModal(
             transaction = selectedWithdrawalForReceipt!!,
             fallbackUpiId = savedUpiId,
             onDismiss = { selectedWithdrawalForReceipt = null }
+        )
+    }
+
+    if (submittedWithdrawalSuccess != null) {
+        val (amt, method, details) = submittedWithdrawalSuccess!!
+        WithdrawalSubmittedSuccessModal(
+            amount = amt,
+            payoutMethod = method,
+            payoutDetails = details,
+            onDismiss = { submittedWithdrawalSuccess = null }
         )
     }
 
@@ -3125,6 +3139,7 @@ internal fun WalletTabShellContent(
             }
             else -> {
                 onRequestWithdrawal(parsedAmount, methodLabel, cleanDetails)
+                submittedWithdrawalSuccess = Triple(parsedAmount, methodLabel, cleanDetails)
                 withdrawAmountInput = ""
             }
         }
@@ -4598,6 +4613,168 @@ private fun ProfileSettingRow(
                 tint = Color(0xFF94A3B8),
                 modifier = Modifier.size(16.dp)
             )
+        }
+    }
+}
+
+/**
+ * 3D Animated Withdrawal Submitted Success Modal
+ */
+@Composable
+private fun WithdrawalSubmittedSuccessModal(
+    amount: Long,
+    payoutMethod: String,
+    payoutDetails: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(24.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFF10B981).copy(alpha = 0.25f))
+                .clip(RoundedCornerShape(28.dp)),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFFDCFCE7), Color(0xFFFFFFFF))
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 3D Gift Graphic with glowing emerald halo ring
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(110.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFBBF7D0).copy(alpha = 0.6f))
+                            .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                    )
+                    Image(
+                        painter = painterResource(id = R.drawable.img_referral_gift_3d),
+                        contentDescription = "3D Withdrawal Success",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(72.dp)
+                    )
+                }
+
+                // Title & Subtitle
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Withdrawal Submitted!",
+                        color = Color(0xFF065F46),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Your payout request has been sent.\nAdmin review is in progress.",
+                        color = Color(0xFF047857),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+
+                // Details Container Card
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFFF0FDF4),
+                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFDCFCE7)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Requested Amount",
+                                    color = Color(0xFF15803D),
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "₹$amount",
+                                    color = Color(0xFF065F46),
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 18.sp
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = Color(0xFFBBF7D0))
+
+                        Column {
+                            Text(
+                                text = "Payout Method: $payoutMethod",
+                                color = Color(0xFF166534),
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                            Text(
+                                text = "Details: $payoutDetails",
+                                color = Color(0xFF15803D),
+                                fontFamily = InterFontFamily,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+
+                // Done Button
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                ) {
+                    Text(
+                        text = "Done • View History",
+                        color = Color.White,
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
         }
     }
 }
