@@ -1,34 +1,17 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "admin.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "privacy.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "delete.html",
-      "use": "@vercel/static"
-    }
-  ],
+  "cleanUrls": true,
   "routes": [
     {
       "src": "/privacy",
       "dest": "/privacy.html"
     },
     {
-      "src": "/delete.acc",
+      "src": "/delete-account",
       "dest": "/delete.html"
     },
     {
-      "src": "/delete-account",
+      "src": "/delete.acc",
       "dest": "/delete.html"
     },
     {
@@ -36,16 +19,8 @@
       "dest": "/delete.html"
     },
     {
-      "src": "/admin(.*)",
-      "dest": "/admin.html"
-    },
-    {
       "src": "/admin",
       "dest": "/admin.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
     }
   ]
 }
