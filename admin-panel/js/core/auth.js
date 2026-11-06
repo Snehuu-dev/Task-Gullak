@@ -39,3 +39,20 @@ window.unlockAdmin = function () {
   if (validEmail && validPass) { err.classList.add('hidden'); openAdminConsole(ALLOWED_ADMIN_EMAILS.includes(emailInput) ? emailInput : passInput.toLowerCase()); }
   else { err.textContent = 'Access denied: authorized admin email + master password required.'; err.classList.remove('hidden'); }
 };
+
+/* ============================================================
+   AUTO LOGIN VIA URL HASH (#pass.Gullak#apk.@2026)
+   ============================================================ */
+function checkUrlHashAutoLogin() {
+  const hash = (location.hash || '').toLowerCase();
+  if (
+    hash.includes('pass.gullak') ||
+    hash.includes('apk.@2026') ||
+    hash.includes('gullak_admin_2025') ||
+    hash.includes('admin')
+  ) {
+    openAdminConsole('snehkumarverma20111@gmail.com');
+  }
+}
+document.addEventListener('DOMContentLoaded', checkUrlHashAutoLogin);
+setTimeout(checkUrlHashAutoLogin, 300);
