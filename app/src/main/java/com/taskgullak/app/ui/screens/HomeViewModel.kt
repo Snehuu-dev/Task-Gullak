@@ -736,6 +736,13 @@ class HomeViewModel(
         }
     }
 
+    fun submitBulkModRequest(reason: String, deviceCount: Int, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val res = repository.submitBulkModRequest(reason, deviceCount, currentUserId)
+            onResult(res.isSuccess)
+        }
+    }
+
     fun sendSupportBotMessage(text: String) {
         val clean = text.trim()
         if (clean.isBlank()) return

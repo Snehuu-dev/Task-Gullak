@@ -1171,7 +1171,12 @@ fun HomeScreen(
                             remoteUsername = profile?.username.orEmpty(),
                             remoteBannerId = profile?.bannerId.orEmpty(),
                             referredByCode = profile?.referredByCode.orEmpty(),
+                            bulkStatus = profile?.bulkStatus.orEmpty().ifBlank { "none" },
+                            bulkDeviceCount = profile?.bulkDeviceCount ?: 0,
                             supportBotMessages = supportBotMessages,
+                            onSubmitBulkModRequest = { reason: String, count: Int ->
+                                viewModel?.submitBulkModRequest(reason, count)
+                            },
                             onSendSupportBotMessage = { text: String -> viewModel?.sendSupportBotMessage(text) },
                             onConfirmSupportBotAction = { actionType: String, actionData: String ->
                                 viewModel?.executeSupportBotAction(actionType, actionData, context)

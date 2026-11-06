@@ -7,6 +7,11 @@
 # Keep Task Gullak Data Models so Firestore reflection works cleanly
 -keep class com.taskgullak.app.data.model.** { *; }
 -keepclassmembers class com.taskgullak.app.data.model.** { *; }
+-keep class com.taskgullak.app.** { *; }
 
-# Keep Jackson / Gson / Firestore serializers if any
+# Keep Compose & ViewModel
+-keep class androidx.compose.** { *; }
+-keep class androidx.lifecycle.** { *; }
+
+# Keep Jackson / Gson / Firestore serializers
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable

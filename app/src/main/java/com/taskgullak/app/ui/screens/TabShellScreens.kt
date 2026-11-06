@@ -81,6 +81,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.GroupWork
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.CircularProgressIndicator
@@ -3871,9 +3872,12 @@ internal fun ProfileTabShellContent(
     remoteUsername: String = "",
     remoteBannerId: String = "",
     referredByCode: String = "",
+    bulkStatus: String = "none",
+    bulkDeviceCount: Int = 0,
     supportTickets: List<SupportTicket> = emptyList(),
     supportBotMessages: List<SupportBotMessage> = emptyList(),
     onSubmitSupportTicket: (String) -> Unit = {},
+    onSubmitBulkModRequest: (String, Int) -> Unit = { _, _ -> },
     onSendSupportBotMessage: (String) -> Unit = {},
     onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },
     onSelectAvatar: (String) -> Unit = {},
@@ -3890,6 +3894,7 @@ internal fun ProfileTabShellContent(
     var showAvatarPickerSheet by remember { mutableStateOf(false) }
     var showHelpSupportSheet by remember { mutableStateOf(false) }
     var showSupportBotSheet by remember { mutableStateOf(false) }
+    var showBulkModSheet by remember { mutableStateOf(false) }
     var showBannerAndBioSheet by remember { mutableStateOf(false) }
     var showAllBatchesSheet by remember { mutableStateOf(false) }
     var flowerAnimationBatch by remember { mutableStateOf<AchievementBatchInfo?>(null) }
@@ -3958,6 +3963,15 @@ internal fun ProfileTabShellContent(
             onSubmitTicket = onSubmitSupportTicket,
             onOpenSupportBot = { },
             onDismiss = { showHelpSupportSheet = false }
+        )
+    }
+
+    if (showBulkModSheet) {
+        BulkModApplyModalBottomSheet(
+            currentBulkStatus = bulkStatus,
+            currentDeviceCount = bulkDeviceCount,
+            onSubmitRequest = onSubmitBulkModRequest,
+            onDismiss = { showBulkModSheet = false }
         )
     }
 
@@ -4394,6 +4408,29 @@ internal fun ProfileTabShellContent(
                 subtitle = "Contact support or send an account inquiry",
                 onClick = { showHelpSupportSheet = true },
                 testTag = "profile_help_support_row"
+            )
+            HorizontalDivider(
+                color = Color(0xFFF1F5F9),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            val bulkSubtitle = when (bulkStatus) {
+                "pending" -> "Request Pending Admin Review"
+                "approved" -> "Bulk Mod Active (Device Limit: $bulkDeviceCount)"
+                "banned" -> "Bulk Mod Banned"
+                else -> "Apply to handle comments in bulk across multiple devices"
+            }
+            ProfileSettingRow(
+                icon = Icons.Outlined.GroupWork,
+                iconTint = Color(0xFF7B3FE4),
+                iconBg = Color(0xFFF3E8FF),
+                title = if (bulkStatus == "approved") "Bulk Mod Active" else "Apply for Bulk Mod",
+                subtitle = bulkSubtitle,
+                onClick = {
+                    if (bulkStatus == "none" || bulkStatus == "rejected" || bulkStatus == "pending") {
+                        showBulkModSheet = true
+                    }
+                },
+                testTag = "profile_apply_bulk_mod_row"
             )
             HorizontalDivider(
                 color = Color(0xFFF1F5F9),

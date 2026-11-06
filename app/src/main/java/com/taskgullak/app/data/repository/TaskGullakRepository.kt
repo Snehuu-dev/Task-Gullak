@@ -5,7 +5,10 @@ import android.util.Log
 import com.taskgullak.app.R
 import com.taskgullak.app.data.model.AdminTask
 import com.taskgullak.app.data.model.AiTaskVerificationResult
+import com.taskgullak.app.data.model.AvailableTask
 import com.taskgullak.app.data.model.BroadcastNotification
+import com.taskgullak.app.data.model.BulkCommentAllocation
+import com.taskgullak.app.data.model.BulkModRequest
 import com.taskgullak.app.data.model.MaintenanceConfig
 import com.taskgullak.app.data.model.ReferralCommissionEvent
 import com.taskgullak.app.data.model.SupportBotMessage
@@ -1384,6 +1387,115 @@ class TaskGullakRepository(
                 }
             }
             .catch { emit(emptyList()) }
+    }
+
+    suspend fun submitBulkModRequest(
+        reason: String,
+        deviceCount: Int,
+        explicitUserId: String? = null
+    ): Result<String> {
+        val uid = requireUserId(explicitUserId)
+        val cleanReason = reason.trim().take(1000)
+        val safeDeviceCount = deviceCount.coerceIn(1, 100)
+        if (cleanReason.isBlank()) {
+            return Result.failure(IllegalArgumentException("Please specify why you need Bulk Mod status."))
+        }
+
+        return try {
+            val userRef = db.collection("users").document(uid)
+            val userSnap = userRef.get().await()
+            val userName = userSnap.getString("fullName")?.takeIf { it.isNotBlank() } ?: "Task Gullak Member"
+            val userEmail = userSnap.getString("email")?.takeIf { it.isNotBlank() } ?: "member@taskgullak.app"
+
+            val reqRef = db.collection("bulk_mod_requests").document()
+            val payload = mapOf(
+                "id" to reqRef.id,
+                "userId" to uid,
+                "userName" to userName,
+                "userEmail" to userEmail,
+                "reason" to cleanReason,
+                "deviceCount" to safeDeviceCount,
+                "approvedLimit" to safeDeviceCount,
+                "status" to "pending",
+                "adminNote" to "",
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            reqRef.set(payload).await()
+
+            userRef.update(
+                mapOf(
+                    "bulkStatus" to "pending",
+                    "bulkDeviceCount" to safeDeviceCount,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            Result.success(reqRef.id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeUserBulkModRequest(explicitUserId: String? = null): Flow<BulkModRequest?> {
+        val uid = auth.currentUser?.uid ?: explicitUserId.orEmpty()
+        if (uid.isBlank()) return kotlinx.coroutines.flow.flowOf(null)
+        return db.collection("bulk_mod_requests")
+            .whereEqualTo("userId", uid)
+            .snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull { doc ->
+                    doc.toObject(BulkModRequest::class.java)?.copy(id = doc.id)
+                }.maxByOrNull { it.createdAt?.toDate()?.time ?: 0L }
+            }
+            .catch { emit(null) }
+    }
+
+    fun observeBulkAllocations(offerId: String, explicitUserId: String? = null): Flow<List<BulkCommentAllocation>> {
+        val uid = auth.currentUser?.uid ?: explicitUserId.orEmpty()
+        if (uid.isBlank()) return kotlinx.coroutines.flow.flowOf(emptyList())
+        return db.collection("bulk_comment_allocations")
+            .whereEqualTo("userId", uid)
+            .whereEqualTo("offerId", offerId)
+            .whereEqualTo("status", "taken")
+            .snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull { doc ->
+                    doc.toObject(BulkCommentAllocation::class.java)?.copy(id = doc.id)
+                }
+            }
+            .catch { emit(emptyList()) }
+    }
+
+    suspend fun returnBulkComment(allocationId: String): Result<Unit> {
+        if (allocationId.isBlank()) return Result.success(Unit)
+        return try {
+            val allocRef = db.collection("bulk_comment_allocations").document(allocationId)
+            val allocSnap = allocRef.get().await()
+            if (allocSnap.exists()) {
+                val commentId = allocSnap.getString("commentId").orEmpty()
+                allocRef.update(
+                    mapOf(
+                        "status" to "returned",
+                        "returnedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+
+                if (commentId.isNotBlank()) {
+                    runCatching {
+                        db.collection("task_comments").document(commentId).update(
+                            mapOf(
+                                "status" to "available",
+                                "assignedUser" to ""
+                            )
+                        ).await()
+                    }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     companion object {

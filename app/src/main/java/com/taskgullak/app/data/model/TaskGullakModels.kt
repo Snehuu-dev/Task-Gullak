@@ -38,6 +38,9 @@ data class UserProfile(
     val lastCompletedTaskReward: Long = 50L,
     val dailyStreakDays: Long = 1L,
     val lastStreakDate: String = "",
+    val bulkStatus: String = "none", // none | pending | approved | rejected | banned
+    val bulkDeviceCount: Int = 0,
+    val bulkApprovedLimit: Int = 0,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
@@ -395,6 +398,33 @@ data class SupportBotMessage(
     val actionData: String = "",
     val actionExecuted: Boolean = false,
     @ServerTimestamp val createdAt: Timestamp? = null
+)
+
+@IgnoreExtraProperties
+data class BulkModRequest(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val userEmail: String = "",
+    val reason: String = "",
+    val deviceCount: Int = 1,
+    val approvedLimit: Int = 1,
+    val status: String = "pending", // pending, approved, rejected, banned
+    val adminNote: String = "",
+    @ServerTimestamp val createdAt: Timestamp? = null,
+    @ServerTimestamp val updatedAt: Timestamp? = null
+)
+
+@IgnoreExtraProperties
+data class BulkCommentAllocation(
+    val id: String = "",
+    val userId: String = "",
+    val offerId: String = "",
+    val commentId: String = "",
+    val commentText: String = "",
+    val status: String = "taken", // taken, submitted, returned
+    @ServerTimestamp val takenAt: Timestamp? = null,
+    @ServerTimestamp val returnedAt: Timestamp? = null
 )
 
 @IgnoreExtraProperties
