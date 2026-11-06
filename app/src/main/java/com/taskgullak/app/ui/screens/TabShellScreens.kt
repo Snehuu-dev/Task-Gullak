@@ -11,7 +11,11 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.outlined.AssignmentTurnedIn
 import androidx.compose.material3.LinearProgressIndicator
@@ -116,6 +120,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -1324,9 +1329,14 @@ internal fun OffersTabShellContent(
                 onCopyComment = onCopyStartTimer,
                 onDismiss = { activeTaskForProof = null },
                 onSubmit = { proofMsg, screenshotB64 ->
-                    onSubmitTaskProof(currentTask, proofMsg, screenshotB64) { aiResult ->
-                        activeTaskForProof = null
-                        celebratedSubmittedTask = Pair(currentTask, aiResult)
+                    val submittedTask = currentTask
+                    activeTaskForProof = null
+                    celebratedSubmittedTask = Pair(submittedTask, null)
+
+                    onSubmitTaskProof(submittedTask, proofMsg, screenshotB64) { aiResult ->
+                        if (celebratedSubmittedTask?.first?.id == submittedTask.id) {
+                            celebratedSubmittedTask = Pair(submittedTask, aiResult)
+                        }
                     }
                 }
             )
@@ -2745,24 +2755,83 @@ private fun TaskSubmittedCelebrationDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 3D Gift Illustration with glowing golden halo ring
+                // 3D Animated Coin & Heart-Smile Badge with glowing golden aura
+                val infiniteTransition = rememberInfiniteTransition(label = "celebration_3d_anim")
+                val scalePulse by infiniteTransition.animateFloat(
+                    initialValue = 0.94f,
+                    targetValue = 1.08f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "scale_pulse"
+                )
+                val floatBobbing by infiniteTransition.animateFloat(
+                    initialValue = -5f,
+                    targetValue = 5f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1600, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "float_bobbing"
+                )
+
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(110.dp)
+                    modifier = Modifier
+                        .size(120.dp)
+                        .offset(y = floatBobbing.dp)
+                        .scale(scalePulse)
                 ) {
+                    // Glowing outer aura ring
                     Box(
                         modifier = Modifier
-                            .size(96.dp)
+                            .size(108.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEF08A).copy(alpha = 0.6f))
+                            .background(Color(0xFFFEF08A).copy(alpha = 0.5f))
                             .border(3.dp, Color(0xFFFDE047), CircleShape)
                     )
-                    Image(
-                        painter = painterResource(id = R.drawable.img_referral_gift_3d),
-                        contentDescription = "3D Task Success Graphic",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(72.dp)
-                    )
+                    // Inner 3D graphic container with 3D Coin Graphic
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(90.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(Color(0xFFFEF9C3), Color(0xFFFDE047))
+                                )
+                            )
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_referral_gift_3d),
+                            contentDescription = "3D Success Coin",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(68.dp)
+                        )
+                    }
+                    // 3D Heart-Smile Badge overlay at bottom right
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 6.dp,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(38.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFFEF08A))
+                        ) {
+                            Text(
+                                text = "😍",
+                                fontSize = 20.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
 
                 // Title & Subtitle
