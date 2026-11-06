@@ -1,29 +1,11 @@
 {
-  "version": 2,
-  "framework": null,
-  "buildCommand": null,
-  "installCommand": null,
   "cleanUrls": true,
-  "routes": [
-    {
-      "src": "/privacy",
-      "dest": "/privacy.html"
-    },
-    {
-      "src": "/delete-account",
-      "dest": "/delete.html"
-    },
-    {
-      "src": "/delete.acc",
-      "dest": "/delete.html"
-    },
-    {
-      "src": "/delete",
-      "dest": "/delete.html"
-    },
-    {
-      "src": "/admin",
-      "dest": "/admin.html"
-    }
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/delete-account", "destination": "/delete.html" },
+    { "source": "/delete.acc", "destination": "/delete.html" },
+    { "source": "/delete", "destination": "/delete.html" },
+    { "source": "/admin", "destination": "/admin/index.html" }
   ]
 }
