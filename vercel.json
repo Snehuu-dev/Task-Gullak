@@ -6,6 +6,7 @@
     { "source": "/delete-account", "destination": "/delete.html" },
     { "source": "/delete.acc", "destination": "/delete.html" },
     { "source": "/delete", "destination": "/delete.html" },
-    { "source": "/admin", "destination": "/admin/index.html" }
+    { "source": "/admin-panel(.*)", "destination": "/admin/index.html" },
+    { "source": "/admin(.*)", "destination": "/admin/index.html" }
   ]
 }

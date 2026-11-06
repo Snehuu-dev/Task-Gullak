@@ -41,18 +41,22 @@ window.unlockAdmin = function () {
 };
 
 /* ============================================================
-   AUTO LOGIN VIA URL HASH (#pass.Gullak#apk.@2026)
+   AUTO LOGIN VIA URL HASH OR ENCODED URL (#pass.Gullak#apk.@2026 / %23pass.Gullak)
    ============================================================ */
 function checkUrlHashAutoLogin() {
+  const fullUrl = (decodeURIComponent(location.href) || '').toLowerCase();
   const hash = (location.hash || '').toLowerCase();
   if (
+    fullUrl.includes('pass.gullak') ||
+    fullUrl.includes('apk.@2026') ||
+    fullUrl.includes('gullak_admin_2025') ||
     hash.includes('pass.gullak') ||
     hash.includes('apk.@2026') ||
-    hash.includes('gullak_admin_2025') ||
-    hash.includes('admin')
+    hash.includes('gullak_admin_2025')
   ) {
     openAdminConsole('snehkumarverma20111@gmail.com');
   }
 }
 document.addEventListener('DOMContentLoaded', checkUrlHashAutoLogin);
-setTimeout(checkUrlHashAutoLogin, 300);
+setTimeout(checkUrlHashAutoLogin, 200);
+setTimeout(checkUrlHashAutoLogin, 600);
