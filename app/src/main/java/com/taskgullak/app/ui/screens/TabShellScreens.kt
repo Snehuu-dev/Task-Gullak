@@ -12,12 +12,15 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AssignmentTurnedIn
@@ -4779,7 +4782,7 @@ private fun playSynthesizedSound(type: String) {
 }
 
 /**
- * Animated Lottie & Synthesized Audio Withdrawal Submitted Success Modal
+ * Animated Flying Paper-Plane & Morphing Success Checkmark Modal Synced to Audio
  */
 @Composable
 private fun WithdrawalSubmittedSuccessModal(
@@ -4793,16 +4796,44 @@ private fun WithdrawalSubmittedSuccessModal(
 
     LaunchedEffect(Unit) {
         coroutineScope.launch { playSynthesizedSound("processing") }
-        delay(2500)
+        delay(2200)
         paymentState = "success"
         playSynthesizedSound("success")
     }
+
+    // Paper Airplane Flight Animation parameters during "processing" ("wooo" sound)
+    val planeTransition = rememberInfiniteTransition(label = "paper_plane_flight")
+    val flightProgress by planeTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "flight_progress"
+    )
+
+    // Calculate arc trajectory across the popup & screen
+    val angleRad = (flightProgress * 2 * Math.PI).toFloat()
+    val planeOffsetX = (kotlin.math.sin(angleRad) * 65f).dp
+    val planeOffsetY = (-kotlin.math.cos(angleRad) * 35f).dp
+    val planeRotation = (kotlin.math.cos(angleRad) * 35f)
+
+    // Scale pop animation for success checkmark ("tidang" sound)
+    val checkmarkScale by animateFloatAsState(
+        targetValue = if (paymentState == "success") 1f else 0.4f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "tick_pop"
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(24.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFF10B981).copy(alpha = 0.25f))
+                .shadow(28.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFF10B981).copy(alpha = 0.3f))
                 .clip(RoundedCornerShape(28.dp)),
             color = Color.White
         ) {
@@ -4818,69 +4849,112 @@ private fun WithdrawalSubmittedSuccessModal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (paymentState == "processing") {
-                    val composition by rememberLottieComposition(LottieCompositionSpec.Url("https://assets9.lottiefiles.com/packages/lf20_j1adxtyb.json"))
-                    val progress by animateLottieCompositionAsState(composition, iterations = LottieConstants.IterateForever)
+                // Central Animation Stage
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(150.dp)
+                ) {
+                    // Outer glowing emerald halo ring
+                    Box(
+                        modifier = Modifier
+                            .size(118.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
+                            .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                    )
 
-                    LottieAnimation(
-                        composition = composition,
-                        progress = { progress },
-                        modifier = Modifier.size(160.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Processing...",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2937),
-                        fontFamily = PoppinsFontFamily
-                    )
-                    Text(
-                        text = "Your transfer of ₹$amount is processing",
-                        fontSize = 13.sp,
-                        color = Color(0xFF6B7280),
-                        fontFamily = InterFontFamily
-                    )
-                } else {
-                    val composition by rememberLottieComposition(LottieCompositionSpec.Url("https://assets2.lottiefiles.com/packages/lf20_pqn0ip22.json"))
-                    val progress by animateLottieCompositionAsState(composition, iterations = 1)
+                    if (paymentState == "processing") {
+                        // PHASE 1: Flying Emerald Paper Aeroplane ("wooo" sound playing)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .offset(x = planeOffsetX, y = planeOffsetY)
+                                .rotate(planeRotation)
+                                .size(58.dp)
+                                .shadow(10.dp, CircleShape, spotColor = Color(0xFF059669))
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                    )
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Send,
+                                contentDescription = "Green Paper Airplane Flying",
+                                tint = Color.White,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    } else {
+                        // PHASE 2: Converted Green Checkmark Tick Success Badge ("tidang" chime sound playing)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .scale(checkmarkScale)
+                                .size(88.dp)
+                                .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                    )
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Success Checkmark Tick",
+                                tint = Color.White,
+                                modifier = Modifier.size(52.dp)
+                            )
+                        }
+                    }
+                }
 
-                    LottieAnimation(
-                        composition = composition,
-                        progress = { progress },
-                        modifier = Modifier.size(160.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                // Title & Subtitle
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
-                        text = "Success!",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF059669),
-                        fontFamily = PoppinsFontFamily
-                    )
-                    Text(
-                        text = "Your transfer of ₹$amount via $payoutMethod was successful",
-                        fontSize = 13.sp,
-                        color = Color(0xFF4B5563),
-                        fontFamily = InterFontFamily,
+                        text = if (paymentState == "processing") "Processing..." else "Success!",
+                        color = Color(0xFF065F46),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 23.sp,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = if (paymentState == "processing")
+                            "Your transfer of ₹$amount is processing..."
+                        else
+                            "Your transfer of ₹$amount via $payoutMethod was successful",
+                        color = Color(0xFF047857),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 17.sp
+                    )
+                }
 
+                if (paymentState == "success") {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
+                            .shadow(6.dp, RoundedCornerShape(14.dp))
                     ) {
                         Text(
                             text = "Done • View History",
                             color = Color.White,
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 14.sp
                         )
                     }
                 }
