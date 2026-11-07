@@ -2324,10 +2324,7 @@ private fun TaskGullakBottomNavBar(
 
     val animatedTabIndex by animateFloatAsState(
         targetValue = activeTab.index.toFloat(),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
         label = "nav_tab_slide"
     )
 
@@ -2541,10 +2538,7 @@ private fun TaskGullakBottomNavBar(
                 val isSelected = activeTab == tab
                 val iconLiftProgress by animateFloatAsState(
                     targetValue = if (isSelected) 1f else 0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
                     label = "icon_lift_${tab.name}"
                 )
 
