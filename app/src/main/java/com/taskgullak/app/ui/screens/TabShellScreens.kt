@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -149,6 +150,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.taskgullak.app.data.model.AiTaskVerificationResult
@@ -4733,14 +4735,15 @@ private fun WithdrawalSubmittedSuccessModal(
     payoutDetails: String,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var isFlyingSent by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(800)
+        delay(3200)
         isFlyingSent = true
         runCatching {
             val toneG = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
-            toneG.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 200)
+            toneG.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 250)
         }
     }
 
@@ -4780,36 +4783,66 @@ private fun WithdrawalSubmittedSuccessModal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Paper Plane Flying Animation Container
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(120.dp)
-                ) {
-                    // Outer glowing halo
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFBBF7D0).copy(alpha = 0.6f))
-                            .border(3.dp, Color(0xFF4ADE80), CircleShape)
-                    )
-                    // Flying Paper Plane Icon
+                // Payment Processing Video Animation or Paper Plane Flying Container
+                if (!isFlyingSent) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .offset(x = paperPlaneOffsetX, y = paperPlaneOffsetY)
-                            .rotate(planeRotation)
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF10B981))
-                            .shadow(8.dp, CircleShape)
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.Black)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.Send,
-                            contentDescription = "Paper Plane Flying",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                        AndroidView(
+                            factory = { ctx ->
+                                VideoView(ctx).apply {
+                                    val videoUri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.payment_processing_video}")
+                                    setVideoURI(videoUri)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        runCatching {
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                                mp.playbackParams = mp.playbackParams.setSpeed(1.6f)
+                                            }
+                                        }
+                                        mp.start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
+                    }
+                } else {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(120.dp)
+                    ) {
+                        // Outer glowing halo
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFBBF7D0).copy(alpha = 0.6f))
+                                .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                        )
+                        // Flying Paper Plane Icon
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .offset(x = paperPlaneOffsetX, y = paperPlaneOffsetY)
+                                .rotate(planeRotation)
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF10B981))
+                                .shadow(8.dp, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Send,
+                                contentDescription = "Paper Plane Flying",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                 }
 
@@ -4819,7 +4852,7 @@ private fun WithdrawalSubmittedSuccessModal(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = if (isFlyingSent) "Withdrawal Sent!" else "Processing Request...",
+                        text = if (isFlyingSent) "Withdrawal Sent!" else "Processing Payment Request...",
                         color = Color(0xFF065F46),
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -4830,7 +4863,7 @@ private fun WithdrawalSubmittedSuccessModal(
                         text = if (isFlyingSent)
                             "Your payout request has been submitted successfully."
                         else
-                            "Sending payout details to verification team...",
+                            "Verifying details & submitting request...",
                         color = Color(0xFF047857),
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium,

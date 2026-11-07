@@ -553,16 +553,43 @@ class TaskGullakRepository(
 
             if (isEligibleForFirstWithdrawBonus) {
                 runCatching {
+                    // 1. Credit ₹5 to User B (Referred user) transaction log
                     val bonusTxRef = userRef.collection("transactions").document()
                     bonusTxRef.set(
                         mapOf(
                             "userId" to uid,
                             "amount" to FIRST_WITHDRAWAL_REFERRAL_BONUS_INR,
-                            "type" to "referral_commission",
+                            "type" to "referral_bonus",
                             "note" to "1st Withdrawal Referral Bonus (+₹$FIRST_WITHDRAWAL_REFERRAL_BONUS_INR)",
                             "createdAt" to FieldValue.serverTimestamp()
                         )
                     ).await()
+
+                    // 2. ALSO Credit ₹5 to User A (Referrer who shared code)
+                    val referrerUid = referredByUserId.takeIf { it.isNotBlank() }
+                        ?: resolveReferrerUserIdByCode(referredByCode)
+                    if (referrerUid != null && referrerUid != uid) {
+                        val referrerRef = db.collection("users").document(referrerUid)
+                        referrerRef.update(
+                            mapOf(
+                                "walletBalance" to FieldValue.increment(FIRST_WITHDRAWAL_REFERRAL_BONUS_INR),
+                                "totalReferralBonusEarned" to FieldValue.increment(FIRST_WITHDRAWAL_REFERRAL_BONUS_INR),
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        ).await()
+
+                        val userBName = snap.getString("fullName").orEmpty().ifBlank { "Referred Friend" }
+                        val refTxRef = referrerRef.collection("transactions").document()
+                        refTxRef.set(
+                            mapOf(
+                                "userId" to referrerUid,
+                                "amount" to FIRST_WITHDRAWAL_REFERRAL_BONUS_INR,
+                                "type" to "referral_bonus",
+                                "note" to "Referral Bonus (+₹$FIRST_WITHDRAWAL_REFERRAL_BONUS_INR): $userBName completed 1st withdrawal",
+                                "createdAt" to FieldValue.serverTimestamp()
+                            )
+                        ).await()
+                    }
                 }
             }
 
