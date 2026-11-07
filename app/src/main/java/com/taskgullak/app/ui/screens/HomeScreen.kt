@@ -287,30 +287,38 @@ fun HomeScreen(
     val feedbackMsg = vmFeedbackMsg ?: localFeedbackMsg
     val withdrawFeedbackMsg = vmWithdrawFeedback ?: localWithdrawFeedback
 
-    val walletBalance = (
-        profile?.walletBalance ?: submissions
-            .filter { it.status == "verified" || it.status == "approved" }
-            .sumOf { it.rewardAmount }
+    val walletBalance = remember(profile?.walletBalance, submissions, localBalanceDeduction) {
+        (
+            profile?.walletBalance ?: submissions
+                .filter { it.status == "verified" || it.status == "approved" }
+                .sumOf { it.rewardAmount }
         ).let { (it - localBalanceDeduction).coerceAtLeast(0L) }
+    }
 
-    val displayName = (
-        localNameOverride?.takeIf { it.isNotBlank() }
-            ?: vmNameOverride?.takeIf { it.isNotBlank() }
-            ?: profile?.fullName?.takeIf { it.isNotBlank() }
-            ?: fallbackName
+    val displayName = remember(localNameOverride, vmNameOverride, profile?.fullName, fallbackName) {
+        (
+            localNameOverride?.takeIf { it.isNotBlank() }
+                ?: vmNameOverride?.takeIf { it.isNotBlank() }
+                ?: profile?.fullName?.takeIf { it.isNotBlank() }
+                ?: fallbackName
         )
-        .trim()
-        .ifBlank { "Divyanshu" }
-    val firstName = displayName.substringBefore(" ").ifBlank { "Divyanshu" }
-    val userInitial = firstName.firstOrNull()?.uppercaseChar()?.toString() ?: "D"
-    val displayEmail = (profile?.email?.takeIf { it.isNotBlank() } ?: fallbackEmail)
-        .trim()
-        .ifBlank { "member@taskgullak.app" }
+            .trim()
+            .ifBlank { "Divyanshu" }
+    }
+    val firstName = remember(displayName) { displayName.substringBefore(" ").ifBlank { "Divyanshu" } }
+    val userInitial = remember(firstName) { firstName.firstOrNull()?.uppercaseChar()?.toString() ?: "D" }
+    val displayEmail = remember(profile?.email, fallbackEmail) {
+        (profile?.email?.takeIf { it.isNotBlank() } ?: fallbackEmail)
+            .trim()
+            .ifBlank { "member@taskgullak.app" }
+    }
 
-    val currentAvatarId = vmSelectedAvatarId.takeIf { it.isNotBlank() }
-        ?: localAvatarId.takeIf { it.isNotBlank() }
-        ?: profile?.avatarId?.takeIf { it.isNotBlank() }
-        ?: ""
+    val currentAvatarId = remember(vmSelectedAvatarId, localAvatarId, profile?.avatarId) {
+        vmSelectedAvatarId.takeIf { it.isNotBlank() }
+            ?: localAvatarId.takeIf { it.isNotBlank() }
+            ?: profile?.avatarId?.takeIf { it.isNotBlank() }
+            ?: ""
+    }
 
     LaunchedEffect(profile?.avatarId) {
         val remoteAvatar = profile?.avatarId?.trim().orEmpty()
@@ -359,19 +367,27 @@ fun HomeScreen(
         "TG-${hash.take(8)}"
     }
 
-    val pendingCount = submissions.count {
-        val s = it.status.lowercase()
-        s == "pending" || s == "submitted" || s == "under_review"
+    val pendingCount = remember(submissions) {
+        submissions.count {
+            val s = it.status.lowercase()
+            s == "pending" || s == "submitted" || s == "under_review"
+        }
     }
-    val approvedCount = submissions.count {
-        val s = it.status.lowercase()
-        s == "verified" || s == "approved"
+    val approvedCount = remember(submissions) {
+        submissions.count {
+            val s = it.status.lowercase()
+            s == "verified" || s == "approved"
+        }
     }
-    val rejectedCount = submissions.count {
-        val s = it.status.lowercase()
-        s == "rejected" || s == "declined"
+    val rejectedCount = remember(submissions) {
+        submissions.count {
+            val s = it.status.lowercase()
+            s == "rejected" || s == "declined"
+        }
     }
-    val totalTasks = pendingCount + approvedCount + rejectedCount
+    val totalTasks = remember(pendingCount, approvedCount, rejectedCount) {
+        pendingCount + approvedCount + rejectedCount
+    }
 
     val pendingPct = if (totalTasks > 0) ((pendingCount * 100f) / totalTasks).roundToInt() else 0
     val approvedPct = if (totalTasks > 0) ((approvedCount * 100f) / totalTasks).roundToInt() else 0
