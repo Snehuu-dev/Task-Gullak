@@ -97,3 +97,57 @@ ACT.banToggle = async el => {
   await updateDoc(doc(db, 'users', u.id), { isBanned: ban, banReason: ban ? reason : '', bannedAt: ban ? serverTimestamp() : null, updatedAt: serverTimestamp() });
   logAction(ban ? 'user_block' : 'user_unblock', u.id, { reason }); toast(ban ? 'User blocked' : 'User unblocked', 'ok');
 };
+
+
+ACT.cleanDuplicates = async () => {
+  const emailMap = {};
+  const duplicateUsers = [];
+
+  S.users.forEach(u => {
+    const emailKey = (u.email || '').trim().toLowerCase();
+    if (!emailKey) return;
+    if (!emailMap[emailKey]) {
+      emailMap[emailKey] = [];
+    }
+    emailMap[emailKey].push(u);
+  });
+
+  Object.keys(emailMap).forEach(key => {
+    const group = emailMap[key];
+    if (group.length > 1) {
+      group.sort((a, b) => (num(b.walletBalance) - num(a.walletBalance)) || (userMs(b) - userMs(a)));
+      for (let i = 1; i < group.length; i++) {
+        duplicateUsers.push(group[i]);
+      }
+    }
+  });
+
+  if (duplicateUsers.length === 0) {
+    return toast('No duplicate user accounts found!', 'ok');
+  }
+
+  const v = await ask({
+    title: `Remove ${duplicateUsers.length} duplicate accounts?`,
+    body: `Found <b>${duplicateUsers.length}</b> secondary duplicate user accounts sharing emails. Secondary accounts will be blocked (1 account per user rule). Primary account with highest balance will be kept active.`,
+    ok: 'Clean Duplicates',
+    danger: true
+  });
+
+  if (!v) return;
+
+  let cleaned = 0;
+  for (const du of duplicateUsers) {
+    try {
+      await updateDoc(doc(db, 'users', du.id), {
+        isBanned: true,
+        banReason: 'Duplicate account removed (1 account per user rule)',
+        accountStatus: 'deleted',
+        updatedAt: serverTimestamp()
+      });
+      cleaned++;
+    } catch (_) {}
+  }
+
+  toast(`Cleaned ${cleaned} duplicate user accounts!`, 'ok');
+  logAction('clean_duplicate_users', 'bulk', { count: cleaned });
+};

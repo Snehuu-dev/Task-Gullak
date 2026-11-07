@@ -21,6 +21,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AssignmentTurnedIn
+import com.airbnb.lottie.compose.*
 import kotlinx.coroutines.delay
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.BorderStroke
@@ -4725,8 +4726,60 @@ private fun ProfileSettingRow(
     }
 }
 
+// Low-Level Audio Synthesis via AudioTrack to render clean sound waves natively
+private fun playSynthesizedSound(type: String) {
+    runCatching {
+        val sampleRate = 44100
+        val numSamples: Int
+        val generatedSnd: ShortArray
+
+        if (type == "processing") {
+            numSamples = (sampleRate * 2.0).toInt() // 2 Seconds swoosh
+            generatedSnd = ShortArray(numSamples)
+            for (i in 0 until numSamples) {
+                val t = i.toDouble() / sampleRate
+                val freq = 150.0 + (150.0 * (i.toDouble() / numSamples))
+                val envelope = 1.0 - (i.toDouble() / numSamples)
+                generatedSnd[i] = (kotlin.math.sin(2.0 * Math.PI * freq * t) * 32767.0 * 0.15 * envelope).toInt().toShort()
+            }
+        } else {
+            numSamples = (sampleRate * 0.8).toInt()
+            generatedSnd = ShortArray(numSamples)
+            val note1Freq = 523.25 // C5
+            val note2Freq = 783.99 // G5
+            val note2Delay = (sampleRate * 0.12).toInt()
+
+            for (i in 0 until numSamples) {
+                val t = i.toDouble() / sampleRate
+                var sample = 0.0
+
+                val env1 = kotlin.math.max(0.0, 1.0 - (i.toDouble() / (sampleRate * 0.4)))
+                sample += kotlin.math.sin(2.0 * Math.PI * note1Freq * t) * env1
+
+                if (i >= note2Delay) {
+                    val t2 = (i - note2Delay).toDouble() / sampleRate
+                    val env2 = kotlin.math.max(0.0, 1.0 - ((i - note2Delay).toDouble() / (sampleRate * 0.6)))
+                    sample += kotlin.math.sin(2.0 * Math.PI * note2Freq * t2) * env2
+                }
+                generatedSnd[i] = (sample * 32767.0 * 0.25).toInt().toShort()
+            }
+        }
+
+        val audioTrack = android.media.AudioTrack(
+            android.media.AudioManager.STREAM_MUSIC,
+            sampleRate,
+            android.media.AudioFormat.CHANNEL_OUT_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT,
+            generatedSnd.size * 2,
+            android.media.AudioTrack.MODE_STATIC
+        )
+        audioTrack.write(generatedSnd, 0, generatedSnd.size)
+        audioTrack.play()
+    }
+}
+
 /**
- * Animated Paper-Plane Withdrawal Submitted Success Modal
+ * Animated Lottie & Synthesized Audio Withdrawal Submitted Success Modal
  */
 @Composable
 private fun WithdrawalSubmittedSuccessModal(
@@ -4735,33 +4788,15 @@ private fun WithdrawalSubmittedSuccessModal(
     payoutDetails: String,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    var isFlyingSent by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    var paymentState by remember { mutableStateOf("processing") } // "processing" | "success"
 
     LaunchedEffect(Unit) {
-        delay(3200)
-        isFlyingSent = true
-        runCatching {
-            val toneG = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
-            toneG.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 250)
-        }
+        coroutineScope.launch { playSynthesizedSound("processing") }
+        delay(2500)
+        paymentState = "success"
+        playSynthesizedSound("success")
     }
-
-    val paperPlaneOffsetX by animateDpAsState(
-        targetValue = if (isFlyingSent) 45.dp else (-20).dp,
-        animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        label = "plane_x"
-    )
-    val paperPlaneOffsetY by animateDpAsState(
-        targetValue = if (isFlyingSent) (-30).dp else 10.dp,
-        animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        label = "plane_y"
-    )
-    val planeRotation by animateFloatAsState(
-        targetValue = if (isFlyingSent) (-25f) else 15f,
-        animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        label = "plane_rotation"
-    )
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -4783,178 +4818,71 @@ private fun WithdrawalSubmittedSuccessModal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Payment Processing Video Animation or Paper Plane Flying Container
-                if (!isFlyingSent) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.Black)
-                    ) {
-                        AndroidView(
-                            factory = { ctx ->
-                                VideoView(ctx).apply {
-                                    val videoUri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.payment_processing_video}")
-                                    setVideoURI(videoUri)
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        runCatching {
-                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                                mp.playbackParams = mp.playbackParams.setSpeed(1.6f)
-                                            }
-                                        }
-                                        mp.start()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                } else {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(120.dp)
-                    ) {
-                        // Outer glowing halo
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFBBF7D0).copy(alpha = 0.6f))
-                                .border(3.dp, Color(0xFF4ADE80), CircleShape)
-                        )
-                        // Flying Paper Plane Icon
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .offset(x = paperPlaneOffsetX, y = paperPlaneOffsetY)
-                                .rotate(planeRotation)
-                                .size(54.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF10B981))
-                                .shadow(8.dp, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.Send,
-                                contentDescription = "Paper Plane Flying",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-                }
+                if (paymentState == "processing") {
+                    val composition by rememberLottieComposition(LottieCompositionSpec.Url("https://assets9.lottiefiles.com/packages/lf20_j1adxtyb.json"))
+                    val progress by animateLottieCompositionAsState(composition, iterations = LottieConstants.IterateForever)
 
-                // Title & Subtitle
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                    LottieAnimation(
+                        composition = composition,
+                        progress = { progress },
+                        modifier = Modifier.size(160.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isFlyingSent) "Withdrawal Sent!" else "Processing Payment Request...",
-                        color = Color(0xFF065F46),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
+                        text = "Processing...",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937),
+                        fontFamily = PoppinsFontFamily
+                    )
+                    Text(
+                        text = "Your transfer of ₹$amount is processing",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280),
+                        fontFamily = InterFontFamily
+                    )
+                } else {
+                    val composition by rememberLottieComposition(LottieCompositionSpec.Url("https://assets2.lottiefiles.com/packages/lf20_pqn0ip22.json"))
+                    val progress by animateLottieCompositionAsState(composition, iterations = 1)
+
+                    LottieAnimation(
+                        composition = composition,
+                        progress = { progress },
+                        modifier = Modifier.size(160.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Success!",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF059669),
+                        fontFamily = PoppinsFontFamily
+                    )
+                    Text(
+                        text = "Your transfer of ₹$amount via $payoutMethod was successful",
+                        fontSize = 13.sp,
+                        color = Color(0xFF4B5563),
+                        fontFamily = InterFontFamily,
                         textAlign = TextAlign.Center
                     )
-                    Text(
-                        text = if (isFlyingSent)
-                            "Your payout request has been submitted successfully."
-                        else
-                            "Verifying details & submitting request...",
-                        color = Color(0xFF047857),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-                }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Details Container Card
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFDCFCE7)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Requested Amount",
-                                    color = Color(0xFF15803D),
-                                    fontFamily = InterFontFamily,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    text = "₹$amount",
-                                    color = Color(0xFF065F46),
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = Color(0xFFBBF7D0))
-
-                        Column {
-                            Text(
-                                text = "Payout Method: $payoutMethod",
-                                color = Color(0xFF166534),
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp
-                            )
-                            Text(
-                                text = "Details: $payoutDetails",
-                                color = Color(0xFF15803D),
-                                fontFamily = InterFontFamily,
-                                fontSize = 11.sp
-                            )
-                        }
+                        Text(
+                            text = "Done • View History",
+                            color = Color.White,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
-                }
-
-                // Done Button
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
-                ) {
-                    Text(
-                        text = "Done • View History",
-                        color = Color.White,
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
                 }
             }
         }

@@ -633,6 +633,7 @@ body,#login-screen{background:var(--page)!important}
           <select class="in" style="width:auto" data-in="usStatus"><option value="all">All users</option><option value="active">Active</option><option value="banned">Blocked</option><option value="balance">With balance</option></select>
           <select class="in" style="width:auto" data-in="usSort"><option value="recent">Newest first</option><option value="balance">Highest balance</option><option value="seen">Last active</option><option value="name">Name A–Z</option></select>
           <div class="row"><span class="fs12 muted">Joined</span><input type="date" class="in sm" style="width:auto" data-in="usFrom"><input type="date" class="in sm" style="width:auto" data-in="usTo"></div>
+          <button class="btn bad sm" data-act="cleanDuplicates"><i data-ic="trash" data-s="15"></i>Clean Duplicates</button>
         </div>
         <div class="table"><div class="thead cols-users"><span>User</span><span>Registered</span><span>Status</span><span>Wallet</span><span>Last active</span><span></span></div><div id="us-list"></div></div>
         <div id="us-pager"></div>
