@@ -12,12 +12,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AssignmentTurnedIn
+import kotlinx.coroutines.delay
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -4721,7 +4724,7 @@ private fun ProfileSettingRow(
 }
 
 /**
- * 3D Animated Withdrawal Submitted Success Modal
+ * Animated Paper-Plane Withdrawal Submitted Success Modal
  */
 @Composable
 private fun WithdrawalSubmittedSuccessModal(
@@ -4730,6 +4733,33 @@ private fun WithdrawalSubmittedSuccessModal(
     payoutDetails: String,
     onDismiss: () -> Unit
 ) {
+    var isFlyingSent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(800)
+        isFlyingSent = true
+        runCatching {
+            val toneG = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
+            toneG.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 200)
+        }
+    }
+
+    val paperPlaneOffsetX by animateDpAsState(
+        targetValue = if (isFlyingSent) 45.dp else (-20).dp,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "plane_x"
+    )
+    val paperPlaneOffsetY by animateDpAsState(
+        targetValue = if (isFlyingSent) (-30).dp else 10.dp,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "plane_y"
+    )
+    val planeRotation by animateFloatAsState(
+        targetValue = if (isFlyingSent) (-25f) else 15f,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "plane_rotation"
+    )
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -4750,24 +4780,37 @@ private fun WithdrawalSubmittedSuccessModal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 3D Gift Graphic with glowing emerald halo ring
+                // Paper Plane Flying Animation Container
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(110.dp)
+                    modifier = Modifier.size(120.dp)
                 ) {
+                    // Outer glowing halo
                     Box(
                         modifier = Modifier
-                            .size(96.dp)
+                            .size(100.dp)
                             .clip(CircleShape)
                             .background(Color(0xFFBBF7D0).copy(alpha = 0.6f))
                             .border(3.dp, Color(0xFF4ADE80), CircleShape)
                     )
-                    Image(
-                        painter = painterResource(id = R.drawable.img_referral_gift_3d),
-                        contentDescription = "3D Withdrawal Success",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(72.dp)
-                    )
+                    // Flying Paper Plane Icon
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .offset(x = paperPlaneOffsetX, y = paperPlaneOffsetY)
+                            .rotate(planeRotation)
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981))
+                            .shadow(8.dp, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Send,
+                            contentDescription = "Paper Plane Flying",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
 
                 // Title & Subtitle
@@ -4776,7 +4819,7 @@ private fun WithdrawalSubmittedSuccessModal(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Withdrawal Submitted!",
+                        text = if (isFlyingSent) "Withdrawal Sent!" else "Processing Request...",
                         color = Color(0xFF065F46),
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -4784,7 +4827,10 @@ private fun WithdrawalSubmittedSuccessModal(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = "Your payout request has been sent.\nAdmin review is in progress.",
+                        text = if (isFlyingSent)
+                            "Your payout request has been submitted successfully."
+                        else
+                            "Sending payout details to verification team...",
                         color = Color(0xFF047857),
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium,
