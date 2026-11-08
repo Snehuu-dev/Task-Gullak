@@ -391,6 +391,12 @@ fun HomeScreen(
         pendingCount + approvedCount + rejectedCount
     }
 
+    val totalWithdrawn = remember(transactions) {
+        transactions
+            .filter { it.type.equals("withdrawal", ignoreCase = true) }
+            .sumOf { it.amount }
+    }
+
     val pendingPct = if (totalTasks > 0) ((pendingCount * 100f) / totalTasks).roundToInt() else 0
     val approvedPct = if (totalTasks > 0) ((approvedCount * 100f) / totalTasks).roundToInt() else 0
     val rejectedPct = if (totalTasks > 0) ((rejectedCount * 100f) / totalTasks).roundToInt() else 0
@@ -1138,6 +1144,7 @@ fun HomeScreen(
                             isWithdrawing = vmIsWithdrawing,
                             withdrawFeedback = withdrawFeedbackMsg,
                             savedUpiId = savedUpi,
+                            precalculatedTotalWithdrawn = totalWithdrawn,
                             onSaveUpiId = { newUpi: String ->
                                 FirebaseEmailDispatchService.saveUpiId(context, newUpi, displayEmail)
                                 viewModel?.updateUpiId(newUpi)

@@ -3184,6 +3184,7 @@ internal fun WalletTabShellContent(
     isWithdrawing: Boolean = false,
     withdrawFeedback: String? = null,
     savedUpiId: String = "",
+    precalculatedTotalWithdrawn: Long = -1L,
     onSaveUpiId: (String) -> Unit = {},
     onClearWithdrawFeedback: () -> Unit = {},
     onRequestWithdrawal: (amount: Long, payoutMethod: String, payoutDetails: String) -> Unit = { _, _, _ -> }
@@ -3224,7 +3225,7 @@ internal fun WalletTabShellContent(
         }
     }
 
-    val totalWithdrawn = remember(transactions) {
+    val totalWithdrawn = if (precalculatedTotalWithdrawn >= 0L) precalculatedTotalWithdrawn else remember(transactions) {
         transactions
             .filter { it.type.equals("withdrawal", ignoreCase = true) }
             .sumOf { it.amount }
@@ -4903,7 +4904,7 @@ fun PaymentSuccessPopup(
                         )
 
                         if (paymentState == "processing") {
-                            // In-place Flying Green Paper Plane with motion (tilt, bobbing, wing pulse)
+                            // In-place Flying Green Paper Plane with motion (tilt, bobbing, wing pulse) — No green background circle!
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -4911,20 +4912,14 @@ fun PaymentSuccessPopup(
                                     .rotate(tiltAngle)
                                     .scale(wingPulse)
                                     .size(72.dp)
-                                    .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(Color(0xFF34D399), Color(0xFF059669))
-                                        )
-                                    )
-                                    .border(2.dp, Color(0xFFA7F3D0), CircleShape)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.Send,
                                     contentDescription = "Flying Green Paper Plane",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(36.dp)
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .shadow(8.dp, CircleShape, spotColor = Color(0xFF10B981))
                                 )
                             }
                         } else {
