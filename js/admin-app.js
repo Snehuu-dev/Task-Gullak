@@ -339,6 +339,7 @@ const VIEW_META = {
   approvals: ['Approval Management', 'Review proofs task-wise and approve or reject in bulk'],
   users: ['Users & Wallet', 'Profiles, wallet balance, history and account actions'],
   withdrawals: ['Withdrawal Management', 'Process UPI and bank payouts with full records'],
+  referrals: ['Referral Management', 'Track user referral links, bonuses, and 1% lifetime commissions'],
   reports: ['Monthly Records', 'Month-wise tasks, payouts, revenue and profit'],
   notifications: ['Push Notifications', 'Templates, custom messages and delivery history'],
   tickets: ['Support Tickets & Inquiries', 'User support messages and inquiry tickets'],
@@ -1762,11 +1763,12 @@ ACT.wdPay = async el => {
           const uData = us.data();
           const referredByUid = uData.referredByUserId || '';
           const referredByCode = uData.referredByCode || '';
+          const targetRefUid = referredByUid || (S.users.find(u => u.referralCode && u.referralCode.toUpperCase() === referredByCode.toUpperCase()) || {}).id || '';
           const withdrawAmt = num(v.paid);
 
           // 1. Check First Withdrawal Bonus Eligibility (₹5 for Referred User B, ₹5 for Referrer A)
           const firstWdClaimed = uData.firstWithdrawalBonusClaimed === true;
-          const isEligibleFirstWd = (referredByUid || referredByCode) && !firstWdClaimed;
+          const isEligibleFirstWd = (targetRefUid || referredByCode) && !firstWdClaimed;
 
           if (isEligibleFirstWd) {
             tx.update(uref, {
@@ -1785,8 +1787,8 @@ ACT.wdPay = async el => {
           }
 
           // 2. Credit 1% Lifetime Referral Commission to Referrer A
-          if (referredByUid) {
-            const referrerRef = doc(db, 'users', referredByUid);
+          if (targetRefUid) {
+            const referrerRef = doc(db, 'users', targetRefUid);
             const refSnap = await tx.get(referrerRef);
             if (refSnap.exists()) {
               const commAmount = Math.max(1, Math.round(withdrawAmt * 0.01));
@@ -1802,9 +1804,9 @@ ACT.wdPay = async el => {
               });
 
               // Log 1% Lifetime Commission Transaction
-              const commEventId = `comm_wd_${referredByUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-              tx.set(doc(db, 'users', referredByUid, 'transactions', commEventId), {
-                userId: referredByUid,
+              const commEventId = `comm_wd_${targetRefUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+              tx.set(doc(db, 'users', targetRefUid, 'transactions', commEventId), {
+                userId: targetRefUid,
                 amount: commAmount,
                 type: 'referral_commission',
                 note: `1% Lifetime Commission: ${w.userName || 'Friend'} withdrew ₹${withdrawAmt} (+₹${commAmount})`,
@@ -1814,9 +1816,9 @@ ACT.wdPay = async el => {
 
               // Log ₹5 Bonus Transaction for Referrer
               if (isEligibleFirstWd) {
-                const bonusEventId = `bonus_first_wd_${referredByUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-                tx.set(doc(db, 'users', referredByUid, 'transactions', bonusEventId), {
-                  userId: referredByUid,
+                const bonusEventId = `bonus_first_wd_${targetRefUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+                tx.set(doc(db, 'users', targetRefUid, 'transactions', bonusEventId), {
+                  userId: targetRefUid,
                   amount: 5,
                   type: 'referral_bonus',
                   note: `Referral Bonus (+₹5): ${w.userName || 'Friend'} completed 1st withdrawal`,
@@ -2068,10 +2070,11 @@ ACT.resolveTicket = async el => {
 };
 
 ACT.replyTicket = async el => {
+  const tid = el.dataset.id;
   const uid = el.dataset.uid, name = el.dataset.name || 'User'; if (!uid) return;
   const v = await ask({
     title: `Reply to ${name}`,
-    body: `Send a direct push notification reply to this user's app.`,
+    body: `Send a direct push notification reply to this user's app and record reply on support ticket.`,
     ok: 'Send Reply',
     fields: [
       { id: 'title', label: 'Notification Title', value: 'Support Reply — Task Gullak', required: true },
@@ -2080,6 +2083,16 @@ ACT.replyTicket = async el => {
   });
   if (!v) return;
   try {
+    if (tid) {
+      await updateDoc(doc(db, 'support_tickets', tid), {
+        status: 'resolved',
+        adminReply: v.message,
+        teamReply: v.message,
+        resolvedAt: serverTimestamp(),
+        resolvedBy: S.admin,
+        updatedAt: serverTimestamp()
+      });
+    }
     const ref = doc(collection(db, 'broadcasts'));
     await setDoc(ref, {
       id: ref.id,
@@ -2092,11 +2105,54 @@ ACT.replyTicket = async el => {
       createdBy: S.admin,
       createdAt: serverTimestamp()
     });
-    toast(`Reply notification sent to ${name}!`, 'ok');
-    logAction('reply_support_ticket', uid, { message: v.message });
+    toast(`Reply sent to ${name} & ticket resolved!`, 'ok');
+    logAction('reply_support_ticket', uid, { message: v.message, tid });
   } catch (e) {
     toast('Error: ' + e.message, 'bad');
   }
+};
+
+/* === REFERRAL MANAGEMENT VIEW === */
+RENDER.referrals = () => {
+  const users = S.users || [];
+  let totalReferrals = 0, totalBonus = 0, totalComm = 0;
+
+  users.forEach(u => {
+    if (u.referredByUserId || u.referredByCode) totalReferrals++;
+    totalBonus += (num(u.totalReferralBonusEarned) || 0);
+    totalComm += (num(u.totalLifetimeCommissionEarned) || num(u.referralCommissionEarned) || 0);
+  });
+
+  const countEl = $('#ref-total-count'); if (countEl) countEl.textContent = `${totalReferrals} connected referrals`;
+  const bonusEl = $('#ref-total-bonus'); if (bonusEl) bonusEl.textContent = inr(totalBonus);
+  const commEl = $('#ref-total-comm'); if (commEl) commEl.textContent = inr(totalComm);
+
+  const container = $('#referrals-user-list'); if (!container) return;
+  const referredUsersList = users.filter(u => (u.referralCode || u.referredByCode || u.totalReferralBonusEarned || u.totalLifetimeCommissionEarned));
+
+  if (!referredUsersList.length) {
+    setHTML(container, emptyHTML('gift', 'No active user referrals logged yet.'));
+    return;
+  }
+
+  setHTML(container, referredUsersList.map(u => {
+    const referredCount = users.filter(x => x.referredByUserId === u.id || (u.referralCode && x.referredByCode === u.referralCode)).length;
+    const bonus = num(u.totalReferralBonusEarned) || 0;
+    const comm = num(u.totalLifetimeCommissionEarned) || num(u.referralCommissionEarned) || 0;
+
+    return `<div class="card row between wrap gap10 mt10">
+      <div>
+        <div class="b fs14">${esc(u.fullName || u.username || 'User')} <span class="mono muted fs12">(${esc(u.email || u.id)})</span></div>
+        <div class="fs12 muted">Referral Code: <span class="pill brand mono">${esc(u.referralCode || '—')}</span> • Referred By: <span class="mono">${esc(u.referredByCode || '—')}</span></div>
+      </div>
+      <div class="row gap12">
+        <div class="text-right"><div class="muted fs11">Referred Friends</div><div class="b fs14 brand-t">${referredCount}</div></div>
+        <div class="text-right"><div class="muted fs11">Bonus Earned</div><div class="b fs14 ok-t">${inr(bonus)}</div></div>
+        <div class="text-right"><div class="muted fs11">1% Lifetime Comm</div><div class="b fs14 purple-t">${inr(comm)}</div></div>
+        <button class="btn ghost sm" data-act="openUser" data-id="${esc(u.id)}">View Profile</button>
+      </div>
+    </div>`;
+  }).join(''));
 };
 
 

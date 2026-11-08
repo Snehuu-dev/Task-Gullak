@@ -201,14 +201,6 @@ fun SupportBotContent(
                     onClick = { onSendMessage("I want to raise a support ticket") }
                 )
             }
-            if (referredByCode.isNotBlank()) {
-                item {
-                    BotActionChip(
-                        label = "🔗 Remove Referral ($referredByCode)",
-                        onClick = { onSendMessage("Remove my referral code") }
-                    )
-                }
-            }
             item {
                 BotActionChip(
                     label = if (notificationsEnabled) "🔔 Mute Notifications" else "🔔 Turn ON Notifications",

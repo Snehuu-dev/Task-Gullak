@@ -2013,67 +2013,39 @@ object FirebaseEmailDispatchService {
 
         runCatching {
             val db = resolveFirestoreInstance(context)
-            db.collection("referrals").add(
-                mapOf(
-                    "referrerCode" to extractedCode,
-                    "referredEmail" to cleanEmail,
-                    "referredName" to displayFriend,
-                    "referralLink" to "$REFERRAL_DOMAIN_BASE$extractedCode",
-                    "perReferralBonus" to 5,
-                    "lifetimeCommissionPercent" to 5,
-                    "createdAt" to FieldValue.serverTimestamp()
-                )
-            )
+            val referredUid = deriveFirestoreUserIdFromEmail(cleanEmail)
             db.collection("users")
                 .whereEqualTo("referralCode", extractedCode)
                 .limit(1)
                 .get()
                 .addOnSuccessListener { querySnap ->
-                    val referrerSnap = querySnap.documents.firstOrNull() ?: return@addOnSuccessListener
-                    val referrerUid = referrerSnap.getString("userId")?.takeIf { it.isNotBlank() } ?: referrerSnap.id
-                    val referredUid = deriveFirestoreUserIdFromEmail(cleanEmail)
-                    if (referrerUid.isBlank() || referrerUid == referredUid || referredUid.isBlank()) return@addOnSuccessListener
+                    val referrerSnap = querySnap.documents.firstOrNull()
+                    val referrerUid = referrerSnap?.getString("userId")?.takeIf { it.isNotBlank() } ?: referrerSnap?.id.orEmpty()
                     
-                    val eventId = "login_bonus_${referrerUid}_initial_login_${referredUid}"
-                        .replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
-                        .take(120)
-                    val eventDocRef = db.collection("referral_commissions").document(eventId)
-                    
-                    eventDocRef.get().addOnSuccessListener { existingSnap ->
-                        if (existingSnap.exists()) return@addOnSuccessListener // Already credited once for this email!
-
-                        val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
-                        val currentComm = referrerSnap.getLong("referralCommissionEarned") ?: 0L
-                        val referrerRef = db.collection("users").document(referrerUid)
-                        referrerRef.update(
-                            mapOf(
-                                "walletBalance" to (currentWallet + 5L),
-                                "referralCommissionEarned" to (currentComm + 5L),
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
+                    if (referredUid.isNotBlank()) {
+                        val updates = mutableMapOf<String, Any>(
+                            "referredByCode" to extractedCode,
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
-                        referrerRef.collection("transactions").document().set(
-                            mapOf(
-                                "userId" to referrerUid,
-                                "amount" to 5L,
-                                "type" to "referral_commission",
-                                "note" to "Referral Login Bonus: $displayFriend logged in (+₹5)",
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                        )
-                        eventDocRef.set(
-                            mapOf(
-                                "referrerUserId" to referrerUid,
-                                "referredUserId" to referredUid,
-                                "referredUserName" to displayFriend,
-                                "referredUserEmail" to cleanEmail,
-                                "referredByCode" to extractedCode,
-                                "commissionAmount" to 5L,
-                                "type" to "referral_login_bonus",
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                        )
+                        if (referrerUid.isNotBlank() && referrerUid != referredUid) {
+                            updates["referredByUserId"] = referrerUid
+                        }
+                        db.collection("users").document(referredUid).set(updates, com.google.firebase.firestore.SetOptions.merge())
                     }
+
+                    db.collection("referrals").add(
+                        mapOf(
+                            "referrerCode" to extractedCode,
+                            "referrerUserId" to referrerUid,
+                            "referredEmail" to cleanEmail,
+                            "referredUserId" to referredUid,
+                            "referredName" to displayFriend,
+                            "referralLink" to "$REFERRAL_DOMAIN_BASE$extractedCode",
+                            "perReferralBonus" to 5,
+                            "lifetimeCommissionPercent" to 1,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
                 }
         }
         return true

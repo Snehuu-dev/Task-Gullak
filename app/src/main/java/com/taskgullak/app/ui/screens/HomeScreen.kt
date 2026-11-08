@@ -193,6 +193,7 @@ fun HomeScreen(
     val vmIsSavingProfile = viewModel?.isSavingProfile?.collectAsStateWithLifecycle()?.value ?: false
     val vmIsRefreshing = viewModel?.isRefreshing?.collectAsStateWithLifecycle()?.value ?: false
     val referredUsers = viewModel?.referredUsersState?.collectAsStateWithLifecycle()?.value.orEmpty()
+    val referralSummary = viewModel?.referralSummaryState?.collectAsStateWithLifecycle()?.value
     val supportTickets = viewModel?.supportTicketsState?.collectAsStateWithLifecycle()?.value.orEmpty()
     val supportBotMessages = viewModel?.supportBotMessagesState?.collectAsStateWithLifecycle()?.value.orEmpty()
     val maintenanceConfig = viewModel?.maintenanceState?.collectAsStateWithLifecycle()?.value
@@ -1118,7 +1119,8 @@ fun HomeScreen(
                     item {
                         ReferTabShellContent(
                             walletIdCode = walletIdCode,
-                            referredUsers = referredUsers
+                            referredUsers = referredUsers,
+                            liveReferralSummary = referralSummary
                         )
                     }
                 }
@@ -1263,7 +1265,13 @@ fun HomeScreen(
                                 }
                             },
                             supportTickets = supportTickets,
-                            onSubmitSupportTicket = { msg: String -> viewModel?.submitSupportTicket(msg) },
+                            onSubmitSupportTicket = { msg: String, onComplete: (Boolean) -> Unit ->
+                                if (viewModel != null) {
+                                    viewModel.submitSupportTicket(msg, onComplete)
+                                } else {
+                                    onComplete(false)
+                                }
+                            },
                             onNavigateToWallet = { activeTab = HomeBottomTab.Wallet },
                             onNavigateToOffers = { activeTab = HomeBottomTab.Offers },
                             onNavigateToRefer = { activeTab = HomeBottomTab.Refer },

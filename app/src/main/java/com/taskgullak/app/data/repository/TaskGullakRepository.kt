@@ -49,17 +49,28 @@ private fun resolveRepositoryFirestore(context: Context): FirebaseFirestore {
 }
 
 class TaskGullakRepository(
-    private val db: FirebaseFirestore
+    private val db: FirebaseFirestore,
+    private val appContext: Context? = null
 ) {
-    constructor(context: Context) : this(resolveRepositoryFirestore(context))
+    constructor(context: Context) : this(resolveRepositoryFirestore(context), context.applicationContext)
 
     private val auth = FirebaseAuth.getInstance()
 
     private fun requireUserId(explicitUserId: String? = null): String {
         val candidate = explicitUserId?.trim().orEmpty()
         if (candidate.isNotBlank()) return candidate
-        return auth.currentUser?.uid
-            ?: throw IllegalStateException("User must be signed in before accessing Firestore.")
+        val authUid = auth.currentUser?.uid?.takeIf { it.isNotBlank() }
+        if (authUid != null) return authUid
+        if (appContext != null) {
+            val savedUid = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.resolveActiveFirestoreUserId(appContext)
+            if (!savedUid.isNullOrBlank()) return savedUid
+            val savedEmail = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.getSavedUserEmail(appContext).trim().lowercase()
+            if (savedEmail.isNotBlank()) {
+                val derived = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.deriveFirestoreUserIdFromEmail(savedEmail)
+                if (derived.isNotBlank()) return derived
+            }
+        }
+        return "usr_guest_${System.currentTimeMillis()}"
     }
 
     /**
@@ -495,22 +506,12 @@ class TaskGullakRepository(
                     IllegalArgumentException("Maximum withdrawal amount is ₹$currentBalance (Available: ₹$currentBalance).")
                 )
             }
-            val referredByCode = snap.getString("referredByCode").orEmpty()
-            val referredByUserId = snap.getString("referredByUserId").orEmpty()
-            val firstWithdrawalClaimed = snap.getBoolean("firstWithdrawalBonusClaimed") ?: false
-            val isEligibleForFirstWithdrawBonus =
-                (referredByCode.isNotBlank() || referredByUserId.isNotBlank()) && !firstWithdrawalClaimed
-            val bonusToAdd = if (isEligibleForFirstWithdrawBonus) FIRST_WITHDRAWAL_REFERRAL_BONUS_INR else 0L
-
-            val newBalance = (currentBalance - amount + bonusToAdd).coerceAtLeast(0L)
+            val newBalance = (currentBalance - amount).coerceAtLeast(0L)
             val userUpdates = mutableMapOf<String, Any>(
                 "walletBalance" to newBalance,
                 "upiId" to cleanDetails,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
-            if (isEligibleForFirstWithdrawBonus) {
-                userUpdates["firstWithdrawalBonusClaimed"] = true
-            }
             userRef.update(userUpdates).await()
 
             val txRef = userRef.collection("transactions").document()
@@ -549,48 +550,6 @@ class TaskGullakRepository(
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 ).await()
-            }
-
-            if (isEligibleForFirstWithdrawBonus) {
-                runCatching {
-                    // 1. Credit ₹5 to User B (Referred user) transaction log
-                    val bonusTxRef = userRef.collection("transactions").document()
-                    bonusTxRef.set(
-                        mapOf(
-                            "userId" to uid,
-                            "amount" to FIRST_WITHDRAWAL_REFERRAL_BONUS_INR,
-                            "type" to "referral_bonus",
-                            "note" to "1st Withdrawal Referral Bonus (+₹$FIRST_WITHDRAWAL_REFERRAL_BONUS_INR)",
-                            "createdAt" to FieldValue.serverTimestamp()
-                        )
-                    ).await()
-
-                    // 2. ALSO Credit ₹5 to User A (Referrer who shared code)
-                    val referrerUid = referredByUserId.takeIf { it.isNotBlank() }
-                        ?: resolveReferrerUserIdByCode(referredByCode)
-                    if (referrerUid != null && referrerUid != uid) {
-                        val referrerRef = db.collection("users").document(referrerUid)
-                        referrerRef.update(
-                            mapOf(
-                                "walletBalance" to FieldValue.increment(FIRST_WITHDRAWAL_REFERRAL_BONUS_INR),
-                                "totalReferralBonusEarned" to FieldValue.increment(FIRST_WITHDRAWAL_REFERRAL_BONUS_INR),
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
-                        ).await()
-
-                        val userBName = snap.getString("fullName").orEmpty().ifBlank { "Referred Friend" }
-                        val refTxRef = referrerRef.collection("transactions").document()
-                        refTxRef.set(
-                            mapOf(
-                                "userId" to referrerUid,
-                                "amount" to FIRST_WITHDRAWAL_REFERRAL_BONUS_INR,
-                                "type" to "referral_bonus",
-                                "note" to "Referral Bonus (+₹$FIRST_WITHDRAWAL_REFERRAL_BONUS_INR): $userBName completed 1st withdrawal",
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                        ).await()
-                    }
-                }
             }
 
             Result.success(txRef.id)
@@ -1321,28 +1280,44 @@ class TaskGullakRepository(
             return Result.failure(IllegalArgumentException("Please write a support ticket message."))
         }
         return try {
+            var userName = ""
+            var userEmail = ""
             val userRef = db.collection("users").document(uid)
-            val userSnap = userRef.get().await()
-            val userName = userSnap.getString("fullName").orEmpty().ifBlank { userSnap.getString("username").orEmpty().ifBlank { "Task Gullak User" } }
-            val userEmail = userSnap.getString("email").orEmpty()
+            val userSnap = runCatching { userRef.get().await() }.getOrNull()
+            if (userSnap != null && userSnap.exists()) {
+                userName = userSnap.getString("fullName").orEmpty().ifBlank { userSnap.getString("username").orEmpty() }
+                userEmail = userSnap.getString("email").orEmpty()
+            }
+            if (appContext != null) {
+                if (userName.isBlank()) {
+                    userName = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.getSavedUserName(appContext)
+                }
+                if (userEmail.isBlank()) {
+                    userEmail = com.taskgullak.app.data.remote.FirebaseEmailDispatchService.getSavedUserEmail(appContext)
+                }
+            }
+            if (userName.isBlank()) userName = auth.currentUser?.displayName.orEmpty().ifBlank { "Task Gullak Member" }
+            if (userEmail.isBlank()) userEmail = auth.currentUser?.email.orEmpty().ifBlank { "member@taskgullak.app" }
+
             val walletIdCode = "TG-${uid.take(8).uppercase()}"
 
             val ticketRef = db.collection("support_tickets").document()
-            ticketRef.set(
-                mapOf(
-                    "ticketId" to ticketRef.id,
-                    "userId" to uid,
-                    "userName" to userName,
-                    "userEmail" to userEmail,
-                    "walletIdCode" to walletIdCode,
-                    "message" to cleanMsg,
-                    "status" to "open",
-                    "teamReply" to "",
-                    "adminReply" to "",
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
+            val ticketData = mapOf(
+                "id" to ticketRef.id,
+                "ticketId" to ticketRef.id,
+                "userId" to uid,
+                "userName" to userName,
+                "userEmail" to userEmail,
+                "walletIdCode" to walletIdCode,
+                "message" to cleanMsg,
+                "status" to "open",
+                "teamReply" to "",
+                "adminReply" to "",
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            ticketRef.set(ticketData).await()
+            Log.d("TaskGullakRepo", "Successfully submitted support ticket ${ticketRef.id} for user $uid")
             Result.success(ticketRef.id)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -1414,6 +1389,50 @@ class TaskGullakRepository(
                 }
             }
             .catch { emit(emptyList()) }
+    }
+
+    fun observeLiveReferralSummary(explicitUserId: String? = null): Flow<com.taskgullak.app.data.remote.ReferralSummaryState> {
+        val uid = auth.currentUser?.uid ?: explicitUserId.orEmpty()
+        if (uid.isBlank()) {
+            return kotlinx.coroutines.flow.flowOf(com.taskgullak.app.data.remote.ReferralSummaryState(referralCode = "", referralLink = ""))
+        }
+        val userFlow = db.collection("users").document(uid).snapshots()
+        val friendsFlow = db.collection("users").whereEqualTo("referredByUserId", uid).snapshots()
+        return combine(userFlow, friendsFlow) { userSnap, friendsSnap ->
+            val myCode = userSnap.getString("referralCode").orEmpty()
+            val referredBy = userSnap.getString("referredByCode").orEmpty()
+            val bonusEarned = (userSnap.getLong("totalReferralBonusEarned") ?: 0L).toDouble()
+            val lifetimeEarned = (userSnap.getLong("totalLifetimeCommissionEarned") ?: userSnap.getLong("referralCommissionEarned") ?: 0L).toDouble()
+            val link = "https://taskgullak.space/?ref=$myCode"
+
+            val friendsList = friendsSnap.documents.mapNotNull { fDoc ->
+                val fName = fDoc.getString("fullName").orEmpty().ifBlank { fDoc.getString("username").orEmpty().ifBlank { "Gullak Member" } }
+                val fEmail = fDoc.getString("email").orEmpty()
+                val fTasks = (fDoc.getLong("completedTasksCount") ?: 0L).toInt()
+                com.taskgullak.app.data.remote.ReferralFriendRecord(
+                    name = fName,
+                    email = fEmail,
+                    joinedAtLabel = "Joined Member",
+                    tasksCompleted = fTasks,
+                    lifetimeCommissionEarned = 0.0
+                )
+            }
+            com.taskgullak.app.data.remote.ReferralSummaryState(
+                referralCode = myCode,
+                referralLink = link,
+                perReferralBonus = 5,
+                friendBonusAfterFirstWithdraw = 5,
+                lifetimeCommissionPercent = 1,
+                totalReferredFriends = friendsList.size,
+                totalReferralBonusEarned = bonusEarned,
+                totalLifetimeCommissionEarned = lifetimeEarned,
+                referredByCode = referredBy,
+                referredFriends = friendsList
+            )
+        }.catch { e ->
+            Log.e("TaskGullakRepo", "Error observing referral summary", e)
+            emit(com.taskgullak.app.data.remote.ReferralSummaryState(referralCode = "", referralLink = ""))
+        }
     }
 
     suspend fun submitBulkModRequest(

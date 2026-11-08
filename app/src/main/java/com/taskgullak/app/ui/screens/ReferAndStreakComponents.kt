@@ -106,6 +106,7 @@ import kotlin.math.sin
 @Composable
 fun ExactReferAndEarnScreen(
     liveReferredUsers: List<UserProfile> = emptyList(),
+    liveReferralSummary: ReferralSummaryState? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = LocalContext.current
@@ -117,12 +118,20 @@ fun ExactReferAndEarnScreen(
         FirebaseEmailDispatchService.getReferralSummaryState(context)
     }
 
+    val activeSummary: ReferralSummaryState = remember(baseSummary, liveReferralSummary) {
+        if (liveReferralSummary != null && liveReferralSummary.referralCode.isNotBlank()) {
+            liveReferralSummary
+        } else {
+            baseSummary
+        }
+    }
+
     val currentUserEmail = remember { FirebaseEmailDispatchService.getSavedUserEmail(context).trim().lowercase() }
     val currentUserId = remember { FirebaseEmailDispatchService.resolveActiveFirestoreUserId(context) }
 
-    val combinedFriends = remember(baseSummary.referredFriends, liveReferredUsers, baseSummary.referralCode, currentUserEmail, currentUserId) {
+    val combinedFriends = remember(activeSummary.referredFriends, liveReferredUsers, activeSummary.referralCode, currentUserEmail, currentUserId) {
         val byEmail = LinkedHashMap<String, ReferralFriendRecord>()
-        baseSummary.referredFriends.forEach { friend ->
+        activeSummary.referredFriends.forEach { friend ->
             val friendEmailClean = friend.email.trim().lowercase()
             if (friendEmailClean.isNotBlank() && friendEmailClean == currentUserEmail) return@forEach
             val key = friendEmailClean.ifBlank { friend.name.lowercase() }
@@ -141,7 +150,7 @@ fun ExactReferAndEarnScreen(
             byEmail[key] = ReferralFriendRecord(
                 name = user.fullName.ifBlank { "Referred Friend" },
                 email = user.email,
-                joinedAtLabel = "Joined via ${baseSummary.referralCode} • Active",
+                joinedAtLabel = "Joined via ${activeSummary.referralCode} • Active",
                 tasksCompleted = completed,
                 lifetimeCommissionEarned = estCommission
             )
@@ -150,10 +159,10 @@ fun ExactReferAndEarnScreen(
     }
 
     val totalFriendsCount = combinedFriends.size
-    val directBonusTotal = maxOf(baseSummary.totalReferralBonusEarned, totalFriendsCount * 5.0)
-    val lifetimeBonusTotal = baseSummary.totalLifetimeCommissionEarned
-    val summary = remember(baseSummary, combinedFriends, totalFriendsCount, directBonusTotal, lifetimeBonusTotal) {
-        baseSummary.copy(
+    val directBonusTotal = maxOf(activeSummary.totalReferralBonusEarned, totalFriendsCount * 5.0)
+    val lifetimeBonusTotal = activeSummary.totalLifetimeCommissionEarned
+    val summary = remember(activeSummary, combinedFriends, totalFriendsCount, directBonusTotal, lifetimeBonusTotal) {
+        activeSummary.copy(
             totalReferredFriends = totalFriendsCount,
             totalReferralBonusEarned = directBonusTotal,
             totalLifetimeCommissionEarned = lifetimeBonusTotal,

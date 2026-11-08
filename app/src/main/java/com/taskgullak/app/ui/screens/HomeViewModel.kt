@@ -288,6 +288,18 @@ class HomeViewModel(
                 initialValue = emptyList()
             )
 
+    val referralSummaryState: StateFlow<com.taskgullak.app.data.remote.ReferralSummaryState> =
+        repository.observeLiveReferralSummary(currentUserId)
+            .catch { error ->
+                Log.w(TAG, "Error observing live referral summary", error)
+                emit(com.taskgullak.app.data.remote.ReferralSummaryState(referralCode = "", referralLink = ""))
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = com.taskgullak.app.data.remote.ReferralSummaryState(referralCode = "", referralLink = "")
+            )
+
     val supportBotMessagesState: StateFlow<List<SupportBotMessage>> =
         repository.observeSupportBotChatMessages(currentUserId)
             .catch { error ->

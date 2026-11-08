@@ -86,6 +86,8 @@ service cloud.firestore {
                'referredByUserId',
                'referralCommissionRatePercent',
                'referralCommissionEarned',
+               'totalReferralBonusEarned',
+               'totalLifetimeCommissionEarned',
                'lastCreditedCompletedTasksCount',
                'lastCompletedTaskReward',
                'dailyStreakDays',
@@ -127,6 +129,8 @@ service cloud.firestore {
              (!('referredByUserId' in data) || (data.referredByUserId is string && data.referredByUserId.size() <= 128)) &&
              (!('referralCommissionRatePercent' in data) || (data.referralCommissionRatePercent is int && data.referralCommissionRatePercent >= 0 && data.referralCommissionRatePercent <= 100)) &&
              (!('referralCommissionEarned' in data) || (data.referralCommissionEarned is int && data.referralCommissionEarned <= 10000000)) &&
+             (!('totalReferralBonusEarned' in data) || (data.totalReferralBonusEarned is int && data.totalReferralBonusEarned <= 10000000)) &&
+             (!('totalLifetimeCommissionEarned' in data) || (data.totalLifetimeCommissionEarned is int && data.totalLifetimeCommissionEarned <= 10000000)) &&
              (!('lastCreditedCompletedTasksCount' in data) || (data.lastCreditedCompletedTasksCount is int && data.lastCreditedCompletedTasksCount >= 0 && data.lastCreditedCompletedTasksCount <= 100000)) &&
              (!('lastCompletedTaskReward' in data) || (data.lastCompletedTaskReward is int && data.lastCompletedTaskReward >= 0 && data.lastCompletedTaskReward <= 1000000)) &&
              (!('dailyStreakDays' in data) || (data.dailyStreakDays is int && data.dailyStreakDays >= 0 && data.dailyStreakDays <= 10000)) &&
@@ -269,7 +273,7 @@ service cloud.firestore {
              data.amount >= 1 &&
              data.amount <= 10000000 &&
              data.type is string &&
-             data.type in ['admin_credit', 'admin_deduct', 'task_reward', 'withdrawal', 'referral_commission'] &&
+             data.type in ['admin_credit', 'admin_deduct', 'task_reward', 'withdrawal', 'referral_commission', 'referral_bonus'] &&
              data.note is string &&
              data.note.size() >= 1 &&
              data.note.size() <= 300 &&
@@ -352,6 +356,12 @@ service cloud.firestore {
       allow get, list: if isSignedIn() || isAdmin() || request.auth == null;
       allow create, update: if isValidId(referralId) && (isSignedIn() || isAdmin() || request.auth == null);
       allow delete: if isValidId(referralId) && (isAdmin() || request.auth == null);
+    }
+
+    match /support_tickets/{ticketId} {
+      allow get, list: if isSignedIn() || isAdmin() || request.auth == null;
+      allow create, update: if isValidId(ticketId) && (isSignedIn() || isAdmin() || request.auth == null);
+      allow delete: if isValidId(ticketId) && (isAdmin() || request.auth == null);
     }
 
     match /submissions/{submissionId} {

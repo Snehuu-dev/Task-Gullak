@@ -758,7 +758,7 @@ fun HelpAndSupportBottomSheet(
     userEmail: String,
     walletIdCode: String,
     supportTickets: List<SupportTicket> = emptyList(),
-    onSubmitTicket: (String) -> Unit = {},
+    onSubmitTicket: (String, (Boolean) -> Unit) -> Unit = { _, cb -> cb(true) },
     onOpenSupportBot: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -766,6 +766,8 @@ fun HelpAndSupportBottomSheet(
 
     var inquiryText by remember { mutableStateOf("") }
     var inquirySent by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var submitError by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -915,17 +917,53 @@ fun HelpAndSupportBottomSheet(
                 }
             }
 
+            AnimatedVisibility(visible = submitError != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEE2E2))
+                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                        .padding(11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = submitError.orEmpty(),
+                        color = Color(0xFF991B1B),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.5.sp
+                    )
+                }
+            }
+
             ShinyGradientButton(
-                text = "Submit Support Ticket",
+                text = if (isSubmitting) "Submitting Ticket..." else "Submit Support Ticket",
                 onClick = {
                     val clean = inquiryText.trim()
-                    if (clean.isNotBlank()) {
-                        onSubmitTicket(clean)
-                        inquirySent = true
-                        inquiryText = ""
+                    if (clean.isNotBlank() && !isSubmitting) {
+                        isSubmitting = true
+                        submitError = null
+                        inquirySent = false
+                        onSubmitTicket(clean) { success ->
+                            isSubmitting = false
+                            if (success) {
+                                inquirySent = true
+                                inquiryText = ""
+                            } else {
+                                submitError = "Failed to log support ticket. Please try again."
+                            }
+                        }
                     }
                 },
-                gradientColors = listOf(Color(0xFF4F46E5), Color(0xFF7B3FE4)),
+                gradientColors = if (isSubmitting) listOf(Color(0xFF94A3B8), Color(0xFF64748B)) else listOf(Color(0xFF4F46E5), Color(0xFF7B3FE4)),
                 height = 44.dp,
                 cornerRadius = 13.dp,
                 fontSizeSp = 12f,

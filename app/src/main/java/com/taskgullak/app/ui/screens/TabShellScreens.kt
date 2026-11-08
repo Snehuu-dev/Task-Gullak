@@ -3118,7 +3118,8 @@ private fun CelebrationTrustItem(symbol: String, label: String, tint: Color, bg:
 @Composable
 internal fun ReferTabShellContent(
     walletIdCode: String,
-    referredUsers: List<UserProfile> = emptyList()
+    referredUsers: List<UserProfile> = emptyList(),
+    liveReferralSummary: com.taskgullak.app.data.remote.ReferralSummaryState? = null
 ) {
     Column(
         modifier = Modifier
@@ -3132,7 +3133,8 @@ internal fun ReferTabShellContent(
             title = "Refer & Earn"
         )
         ExactReferAndEarnScreen(
-            liveReferredUsers = referredUsers
+            liveReferredUsers = referredUsers,
+            liveReferralSummary = liveReferralSummary
         )
     }
 }
@@ -4038,7 +4040,7 @@ internal fun ProfileTabShellContent(
    bulkDeviceCount: Int = 0,
    supportTickets: List<SupportTicket> = emptyList(),
    supportBotMessages: List<SupportBotMessage> = emptyList(),
-   onSubmitSupportTicket: (String) -> Unit = {},
+   onSubmitSupportTicket: (String, (Boolean) -> Unit) -> Unit = { _, cb -> cb(true) },
    onSubmitBulkModRequest: (String, Int) -> Unit = { _, _ -> },
    onSendSupportBotMessage: (String) -> Unit = {},
    onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },

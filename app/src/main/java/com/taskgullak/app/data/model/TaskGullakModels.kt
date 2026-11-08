@@ -34,6 +34,8 @@ data class UserProfile(
     val referredByUserId: String = "",
     val referralCommissionRatePercent: Long = 5L,
     val referralCommissionEarned: Long = 0L,
+    val totalReferralBonusEarned: Long = 0L,
+    val totalLifetimeCommissionEarned: Long = 0L,
     val lastCreditedCompletedTasksCount: Long = 0L,
     val lastCompletedTaskReward: Long = 50L,
     val dailyStreakDays: Long = 1L,

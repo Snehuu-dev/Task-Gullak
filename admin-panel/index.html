@@ -465,6 +465,7 @@ body,#login-screen{background:var(--page)!important}
       </div>
       <button class="nav-i" data-act="go" data-v="users" data-nav="users"><i data-ic="users"></i><span>Users &amp; Wallet</span></button>
       <button class="nav-i" data-act="go" data-v="withdrawals" data-nav="withdrawals"><i data-ic="bank"></i><span>Withdrawal Management</span><span class="bdg" id="bdg-wd">0</span></button>
+      <button class="nav-i" data-act="go" data-v="referrals" data-nav="referrals"><i data-ic="gift"></i><span>Referral Management</span></button>
       <button class="nav-i" data-act="go" data-v="reports" data-nav="reports"><i data-ic="chart"></i><span>Monthly Records</span></button>
       <button class="nav-i" data-act="go" data-v="notifications" data-nav="notifications"><i data-ic="bell"></i><span>Push Notifications</span></button>
       <button class="nav-i" data-act="go" data-v="tickets" data-nav="tickets"><i data-ic="support"></i><span>Support Tickets</span><span class="cnt bad hidden" id="bdg-tickets">0</span></button>
@@ -690,6 +691,25 @@ body,#login-screen{background:var(--page)!important}
           <p class="muted fs13">Support messages and inquiry tickets submitted by users directly from the mobile app (/support_tickets).</p>
         </div>
         <div id="tickets-list" class="col mt12" style="gap:12px"></div>
+      </section>
+
+      <!-- ===== REFERRAL MANAGEMENT ===== -->
+      <section class="view" id="v-referrals">
+        <div class="card mb12">
+          <div class="card-h">
+            <h3 class="row"><i data-ic="gift" class="brand-t"></i>Referral & Lifetime Commission System</h3>
+            <span class="fs12 muted" id="ref-total-count">0 connected referrals</span>
+          </div>
+          <p class="muted fs13">Overview of user referral relationships, first withdrawal bonuses (₹5+₹5), and 1% lifetime commissions.</p>
+          <div class="grid3 mt12" style="display:flex;gap:12px">
+            <div class="stat-card" style="background:var(--field);padding:12px;border-radius:8px;flex:1"><div class="lbl fs12 muted">Total Bonuses Paid</div><div class="val ok-t b fs18" id="ref-total-bonus">₹0</div></div>
+            <div class="stat-card" style="background:var(--field);padding:12px;border-radius:8px;flex:1"><div class="lbl fs12 muted">Total 1% Lifetime Comm</div><div class="val purple-t b fs18" id="ref-total-comm">₹0</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Referral User Accounts</h3></div>
+          <div id="referrals-user-list"></div>
+        </div>
       </section>
 
       <!-- ===== NOTIFICATIONS ===== -->

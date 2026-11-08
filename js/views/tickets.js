@@ -43,7 +43,7 @@ RENDER.tickets = () => {
       </div>
       <div class="row wrap mt12 gap8">
         ${isBulk ? `<button class="btn ok sm" data-act="approveBulk" data-id="${esc(t.id)}" data-uid="${esc(t.userId)}" data-count="${deviceCnt}">${ic('check', 14)}Approve Bulk Mode (${deviceCnt} Devices)</button>` : ''}
-        <button class="btn soft sm" data-act="replyTicket" data-uid="${esc(t.userId)}" data-name="${esc(t.userName || '')}">${ic('send', 14)}Reply via Push</button>
+        <button class="btn soft sm" data-act="replyTicket" data-id="${esc(t.id)}" data-uid="${esc(t.userId)}" data-name="${esc(t.userName || '')}">${ic('send', 14)}Reply via Push</button>
         <button class="btn ok sm" data-act="resolveTicket" data-id="${esc(t.id)}" ${isResolved ? 'disabled' : ''}>${ic('check', 14)}${isResolved ? 'Resolved' : 'Mark Resolved'}</button>
         <button class="btn ghost sm" data-act="openUser" data-id="${esc(t.userId)}">View User Profile</button>
       </div>
