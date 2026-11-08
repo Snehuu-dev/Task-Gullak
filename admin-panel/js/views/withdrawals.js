@@ -66,10 +66,83 @@ ACT.wdPay = async el => {
   if (!v) return; busy = true;
   try {
     const ref = doc(db, 'withdrawals', w.id), note = v.note || `Paid manually by Admin (UTR: ${v.utr})`;
+    const uref = w.userId ? doc(db, 'users', w.userId) : null;
     await runTransaction(db, async tx => {
       const snap = await tx.get(ref); const cur = String(snap.data()?.status || 'pending').toLowerCase();
       if (!['pending', 'processing'].includes(cur)) throw new Error('This request is already ' + cur + '.');
       tx.update(ref, { status: 'approved', utrNumber: v.utr, paidAmount: num(v.paid), paidAt: serverTimestamp(), processedAt: serverTimestamp(), processedBy: S.admin, adminNote: note, updatedAt: serverTimestamp() });
+
+      if (uref) {
+        const us = await tx.get(uref);
+        if (us && us.exists()) {
+          const uData = us.data();
+          const referredByUid = uData.referredByUserId || '';
+          const referredByCode = uData.referredByCode || '';
+          const withdrawAmt = num(v.paid);
+
+          // 1. Check First Withdrawal Bonus Eligibility (₹5 for Referred User B, ₹5 for Referrer A)
+          const firstWdClaimed = uData.firstWithdrawalBonusClaimed === true;
+          const isEligibleFirstWd = (referredByUid || referredByCode) && !firstWdClaimed;
+
+          if (isEligibleFirstWd) {
+            tx.update(uref, {
+              firstWithdrawalBonusClaimed: true,
+              walletBalance: num(uData.walletBalance) + 5,
+              totalReferralBonusEarned: num(uData.totalReferralBonusEarned) + 5,
+              updatedAt: serverTimestamp()
+            });
+            tx.set(doc(collection(db, 'users', w.userId, 'transactions')), {
+              userId: w.userId,
+              amount: 5,
+              type: 'referral_bonus',
+              note: '1st Withdrawal Referral Bonus (+₹5)',
+              createdAt: serverTimestamp()
+            });
+          }
+
+          // 2. Credit 1% Lifetime Referral Commission to Referrer A
+          if (referredByUid) {
+            const referrerRef = doc(db, 'users', referredByUid);
+            const refSnap = await tx.get(referrerRef);
+            if (refSnap.exists()) {
+              const commAmount = Math.max(1, Math.round(withdrawAmt * 0.01));
+              const refBal = num(refSnap.data().walletBalance);
+              const refComm = num(refSnap.data().totalLifetimeCommissionEarned);
+              const refBonus = isEligibleFirstWd ? 5 : 0;
+
+              tx.update(referrerRef, {
+                walletBalance: refBal + commAmount + refBonus,
+                totalLifetimeCommissionEarned: refComm + commAmount,
+                totalReferralBonusEarned: num(refSnap.data().totalReferralBonusEarned) + refBonus,
+                updatedAt: serverTimestamp()
+              });
+
+              // Log 1% Lifetime Commission Transaction
+              const commEventId = `comm_wd_${referredByUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+              tx.set(doc(db, 'users', referredByUid, 'transactions', commEventId), {
+                userId: referredByUid,
+                amount: commAmount,
+                type: 'referral_commission',
+                note: `1% Lifetime Commission: ${w.userName || 'Friend'} withdrew ₹${withdrawAmt} (+₹${commAmount})`,
+                withdrawalId: w.id,
+                createdAt: serverTimestamp()
+              });
+
+              // Log ₹5 Bonus Transaction for Referrer
+              if (isEligibleFirstWd) {
+                const bonusEventId = `bonus_first_wd_${referredByUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+                tx.set(doc(db, 'users', referredByUid, 'transactions', bonusEventId), {
+                  userId: referredByUid,
+                  amount: 5,
+                  type: 'referral_bonus',
+                  note: `Referral Bonus (+₹5): ${w.userName || 'Friend'} completed 1st withdrawal`,
+                  createdAt: serverTimestamp()
+                });
+              }
+            }
+          }
+        }
+      }
     });
     if (w.userId) { try { await setDoc(doc(db, 'users', w.userId, 'withdrawals', w.id), { status: 'approved', utrNumber: v.utr, adminNote: note, updatedAt: serverTimestamp() }, { merge: true }); } catch (_) { } }
     logAction('payout_paid', w.id, { user: w.userId, amount: num(v.paid), utr: v.utr }); toast(`Marked ${inr(v.paid)} as paid`, 'ok');
