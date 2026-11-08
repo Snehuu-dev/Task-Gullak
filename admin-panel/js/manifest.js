@@ -23,6 +23,7 @@ window.APP_FILES = [
   'js/views/withdrawals.js',
   'js/views/reports.js',
   'js/views/notifications.js',
+  'js/views/tickets.js',
   'js/views/maintenance.js',
   'js/views/settings.js',
   'js/views/logs.js',

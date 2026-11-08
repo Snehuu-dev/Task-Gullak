@@ -467,6 +467,7 @@ body,#login-screen{background:var(--page)!important}
       <button class="nav-i" data-act="go" data-v="withdrawals" data-nav="withdrawals"><i data-ic="bank"></i><span>Withdrawal Management</span><span class="bdg" id="bdg-wd">0</span></button>
       <button class="nav-i" data-act="go" data-v="reports" data-nav="reports"><i data-ic="chart"></i><span>Monthly Records</span></button>
       <button class="nav-i" data-act="go" data-v="notifications" data-nav="notifications"><i data-ic="bell"></i><span>Push Notifications</span></button>
+      <button class="nav-i" data-act="go" data-v="tickets" data-nav="tickets"><i data-ic="support"></i><span>Support Tickets</span><span class="cnt bad hidden" id="bdg-tickets">0</span></button>
       <button class="nav-i" data-act="go" data-v="maintenance" data-nav="maintenance"><i data-ic="wrench"></i><span>Maintenance Mode</span></button>
       <button class="nav-i" data-act="go" data-v="settings" data-nav="settings"><i data-ic="settings"></i><span>Settings</span></button>
       <button class="nav-i" data-act="go" data-v="logs" data-nav="logs"><i data-ic="activity"></i><span>Activity Logs</span></button>
@@ -677,6 +678,18 @@ body,#login-screen{background:var(--page)!important}
           <div class="card"><div class="card-h"><h3>Month-wise summary</h3></div><div id="rp-months"></div></div>
         </div>
         <div class="card"><div class="card-h"><h3>Task-wise breakdown</h3></div><div id="rp-tasks"></div></div>
+      </section>
+
+            <!-- ===== SUPPORT TICKETS ===== -->
+      <section class="view" id="v-tickets">
+        <div class="card">
+          <div class="card-h">
+            <h3 class="row"><i data-ic="support" class="brand-t"></i>User Support Tickets & Inquiries</h3>
+            <span class="fs12 muted" id="ticket-count"></span>
+          </div>
+          <p class="muted fs13">Support messages and inquiry tickets submitted by users directly from the mobile app (/support_tickets).</p>
+        </div>
+        <div id="tickets-list" class="col mt12" style="gap:12px"></div>
       </section>
 
       <!-- ===== NOTIFICATIONS ===== -->
