@@ -4801,7 +4801,7 @@ private fun WithdrawalSubmittedSuccessModal(
         playSynthesizedSound("success")
     }
 
-    // Paper Airplane Flight Animation parameters during "processing" ("wooo" sound)
+    // Wide full-screen 3D Paper Airplane Flight Trajectory during "processing" ("wooo" sound)
     val planeTransition = rememberInfiniteTransition(label = "paper_plane_flight")
     val flightProgress by planeTransition.animateFloat(
         initialValue = 0f,
@@ -4813,15 +4813,15 @@ private fun WithdrawalSubmittedSuccessModal(
         label = "flight_progress"
     )
 
-    // Calculate arc trajectory across the popup & screen
+    // Wide flight arc that travels across the whole screen out of the popup modal and returns
     val angleRad = (flightProgress * 2 * Math.PI).toFloat()
-    val planeOffsetX = (kotlin.math.sin(angleRad) * 65f).dp
-    val planeOffsetY = (-kotlin.math.cos(angleRad) * 35f).dp
-    val planeRotation = (kotlin.math.cos(angleRad) * 35f)
+    val planeOffsetX = (kotlin.math.sin(angleRad) * 175f).dp
+    val planeOffsetY = (-kotlin.math.cos(angleRad) * 115f).dp
+    val planeRotation = (kotlin.math.cos(angleRad) * 40f)
 
     // Scale pop animation for success checkmark ("tidang" sound)
     val checkmarkScale by animateFloatAsState(
-        targetValue = if (paymentState == "success") 1f else 0.4f,
+        targetValue = if (paymentState == "success") 1f else 0.3f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -4829,133 +4829,146 @@ private fun WithdrawalSubmittedSuccessModal(
         label = "tick_pop"
     )
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .shadow(28.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFF10B981).copy(alpha = 0.3f))
-                .clip(RoundedCornerShape(28.dp)),
-            color = Color.White
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color(0xFFDCFCE7), Color(0xFFFFFFFF))
-                        )
-                    )
-                    .padding(horizontal = 20.dp, vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Central Animation Stage
+            // Full-screen unclipped flying paper airplane during processing
+            if (paymentState == "processing") {
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(150.dp)
+                    modifier = Modifier
+                        .offset(x = planeOffsetX, y = planeOffsetY)
+                        .rotate(planeRotation)
+                        .size(62.dp)
+                        .shadow(12.dp, CircleShape, spotColor = Color(0xFF059669))
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                            )
+                        )
                 ) {
-                    // Outer glowing emerald halo ring
-                    Box(
-                        modifier = Modifier
-                            .size(118.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
-                            .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Send,
+                        contentDescription = "Green Paper Airplane Flying Across Screen",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
                     )
+                }
+            }
 
-                    if (paymentState == "processing") {
-                        // PHASE 1: Flying Emerald Paper Aeroplane ("wooo" sound playing)
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .offset(x = planeOffsetX, y = planeOffsetY)
-                                .rotate(planeRotation)
-                                .size(58.dp)
-                                .shadow(10.dp, CircleShape, spotColor = Color(0xFF059669))
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(Color(0xFF34D399), Color(0xFF059669))
-                                    )
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.Send,
-                                contentDescription = "Green Paper Airplane Flying",
-                                tint = Color.White,
-                                modifier = Modifier.size(30.dp)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 420.dp)
+                    .shadow(28.dp, RoundedCornerShape(28.dp), spotColor = Color(0xFF10B981).copy(alpha = 0.3f))
+                    .clip(RoundedCornerShape(28.dp)),
+                color = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color(0xFFDCFCE7), Color(0xFFFFFFFF))
                             )
-                        }
-                    } else {
-                        // PHASE 2: Converted Green Checkmark Tick Success Badge ("tidang" chime sound playing)
+                        )
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Central Circle Container for Morphing Tick Checkmark
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(140.dp)
+                    ) {
+                        // Outer glowing emerald halo ring
                         Box(
-                            contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .scale(checkmarkScale)
-                                .size(88.dp)
-                                .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                .size(118.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
+                                .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                        )
+
+                        if (paymentState == "success") {
+                            // Converted Green Checkmark Tick Success Badge ("tidang" chime sound playing)
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .scale(checkmarkScale)
+                                    .size(88.dp)
+                                    .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                        )
                                     )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Success Checkmark Tick",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(52.dp)
                                 )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Success Checkmark Tick",
-                                tint = Color.White,
-                                modifier = Modifier.size(52.dp)
-                            )
+                            }
                         }
                     }
-                }
 
-                // Title & Subtitle
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = if (paymentState == "processing") "Processing..." else "Success!",
-                        color = Color(0xFF065F46),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 23.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = if (paymentState == "processing")
-                            "Your transfer of ₹$amount is processing..."
-                        else
-                            "Your transfer of ₹$amount via $payoutMethod was successful",
-                        color = Color(0xFF047857),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 17.sp
-                    )
-                }
-
-                if (paymentState == "success") {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .shadow(6.dp, RoundedCornerShape(14.dp))
+                    // Title & Subtitle
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Done • View History",
-                            color = Color.White,
+                            text = if (paymentState == "processing") "Processing..." else "Success!",
+                            color = Color(0xFF065F46),
                             fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 23.sp,
+                            textAlign = TextAlign.Center
                         )
+                        Text(
+                            text = if (paymentState == "processing")
+                                "Your transfer of ₹$amount is processing..."
+                            else
+                                "Your transfer of ₹$amount via $payoutMethod was successful",
+                            color = Color(0xFF047857),
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                    }
+
+                    if (paymentState == "success") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onDismiss,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .shadow(6.dp, RoundedCornerShape(14.dp))
+                        ) {
+                            Text(
+                                text = "Done • View History",
+                                color = Color.White,
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
