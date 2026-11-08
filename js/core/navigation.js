@@ -11,6 +11,7 @@ const VIEW_META = {
   withdrawals: ['Withdrawal Management', 'Process UPI and bank payouts with full records'],
   reports: ['Monthly Records', 'Month-wise tasks, payouts, revenue and profit'],
   notifications: ['Push Notifications', 'Templates, custom messages and delivery history'],
+  tickets: ['Support Tickets & Inquiries', 'User support messages and inquiry tickets'],
   maintenance: ['Maintenance Mode', 'Lock the user app with a live notice'],
   settings: ['Settings', 'Admin access, security and app info'],
   logs: ['Activity Logs', 'Audit trail of every important admin action'],
