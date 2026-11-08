@@ -22,6 +22,7 @@ import com.taskgullak.app.data.model.BroadcastNotification
 import com.taskgullak.app.data.model.TaskSubmission
 import com.taskgullak.app.data.model.UserProfile
 import com.taskgullak.app.data.model.WalletTransaction
+import com.taskgullak.app.data.remote.FirebaseEmailDispatchService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -173,6 +174,23 @@ object TaskGullakNotificationHelper {
         return saved
     }
 
+    private fun syncDismissedNotificationsToFirestore(context: Context, idsToDismiss: Set<String>) {
+        if (idsToDismiss.isEmpty()) return
+        runCatching {
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                ?: FirebaseEmailDispatchService.resolveActiveFirestoreUserId(context)
+            if (!uid.isNullOrBlank()) {
+                val userRef = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(uid)
+                userRef.update(
+                    "dismissedNotificationIds",
+                    com.google.firebase.firestore.FieldValue.arrayUnion(*idsToDismiss.toTypedArray()),
+                    "updatedAt",
+                    com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
+            }
+        }
+    }
+
     @Synchronized
     fun deleteNotificationById(context: Context, notificationId: String) {
         if (notificationId.isBlank()) return
@@ -198,6 +216,8 @@ object TaskGullakNotificationHelper {
             .putStringSet(KEY_DISMISSED_NOTIFICATION_IDS, dismissed)
             .apply()
         _dismissedIdsFlow.value = dismissed
+
+        syncDismissedNotificationsToFirestore(context, dismissed)
 
         markEventSeenSilently(context, notificationId)
         if (notificationId.startsWith("push_")) {
@@ -237,6 +257,8 @@ object TaskGullakNotificationHelper {
 
         _dismissedIdsFlow.value = dismissed
         _receivedPushFlow.value = emptyList()
+
+        syncDismissedNotificationsToFirestore(context, dismissed)
     }
 
     private fun savePushHistoryList(context: Context, list: List<ReceivedPushNotification>) {
@@ -569,6 +591,25 @@ object TaskGullakNotificationHelper {
         if (profile.userId.isBlank()) return
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
         val userKey = getActiveUserKey(context)
+
+        if (profile.dismissedNotificationIds.isNotEmpty()) {
+            val currentDismissed = HashSet(loadDismissedNotificationIds(context))
+            var changed = false
+            profile.dismissedNotificationIds.forEach { id ->
+                if (currentDismissed.add(id)) changed = true
+                if (id.startsWith("push_") && currentDismissed.add(id.removePrefix("push_"))) changed = true
+                if (id.startsWith("broadcast_") && currentDismissed.add(id.removePrefix("broadcast_"))) changed = true
+            }
+            if (changed) {
+                val userDismissedKey = "${KEY_DISMISSED_NOTIFICATION_IDS}_$userKey"
+                prefs.edit()
+                    .putStringSet(userDismissedKey, currentDismissed)
+                    .putStringSet(KEY_DISMISSED_NOTIFICATION_IDS, currentDismissed)
+                    .apply()
+                _dismissedIdsFlow.value = currentDismissed
+            }
+        }
+
         val hasBalKey = "${KEY_HAS_LAST_WALLET_BALANCE}_${profile.userId}_$userKey"
         val balKey = "${KEY_LAST_WALLET_BALANCE}_${profile.userId}_$userKey"
         val hasBanKey = "${KEY_HAS_LAST_BANNED_STATE}_${profile.userId}_$userKey"

@@ -41,6 +41,7 @@ data class UserProfile(
     val bulkStatus: String = "none", // none | pending | approved | rejected | banned
     val bulkDeviceCount: Int = 0,
     val bulkApprovedLimit: Int = 0,
+    val dismissedNotificationIds: List<String> = emptyList(),
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
