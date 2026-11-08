@@ -4810,49 +4810,40 @@ fun PaymentSuccessPopup(
 
     LaunchedEffect(Unit) {
         coroutineScope.launch { playSynthesizedSound("processing") }
-        delay(2200)
+        delay(2000)
         paymentState = "success"
         playSynthesizedSound("success")
     }
 
-    // 1. Parametric Vertical Figure-8 (Lemniscate) Flight Progress (0f -> 1f)
-    val planeTransition = rememberInfiniteTransition(label = "lemniscate_flight_img2")
-    val flightProgress by planeTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
+    // In-place flying paper plane motion during "processing"
+    val flightTransition = rememberInfiniteTransition(label = "paper_plane_in_place_flight")
+    val bobbingOffset by flightTransition.animateFloat(
+        initialValue = -6f,
+        targetValue = 6f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
         ),
-        label = "flight_p"
+        label = "plane_bobbing"
     )
-
-    // Calculate parametric vertical lemniscate coordinates for upper screen:
-    // x(p) = A * sin(2pi*p) / (1 + cos^2(2pi*p))
-    // y(p) = B * sin(2pi*p) * cos(2pi*p) / (1 + cos^2(2pi*p))
-    fun getLemniscatePoint(p: Float, widthAmp: Float = 110f, heightAmp: Float = 130f): Pair<Float, Float> {
-        val t = (p * 2 * Math.PI).toFloat()
-        val sinT = kotlin.math.sin(t)
-        val cosT = kotlin.math.cos(t)
-        val denom = 1f + (cosT * cosT)
-        val x = (widthAmp * sinT) / denom
-        val y = (heightAmp * sinT * cosT) / denom
-        return Pair(x, y)
-    }
-
-    val (currentPx, currentPy) = remember(flightProgress) {
-        getLemniscatePoint(flightProgress)
-    }
-
-    val (nextPx, nextPy) = remember(flightProgress) {
-        getLemniscatePoint(flightProgress + 0.005f)
-    }
-
-    val dx = nextPx - currentPx
-    val dy = nextPy - currentPy
-    val tangentDegrees = remember(dx, dy) {
-        (kotlin.math.atan2(dy.toDouble(), dx.toDouble()) * (180.0 / Math.PI)).toFloat()
-    }
+    val tiltAngle by flightTransition.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "plane_tilt"
+    )
+    val wingPulse by flightTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "plane_pulse"
+    )
 
     val checkmarkScale by animateFloatAsState(
         targetValue = if (paymentState == "success") 1f else 0.2f,
@@ -4870,113 +4861,15 @@ fun PaymentSuccessPopup(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xE60B1220)) // Dark navy backdrop
+                .background(Color(0xD90F172A)) // Dark slate translucent backdrop
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
         ) {
-            // Upper Half Screen: Glowing Dashed Vertical Figure-8 (∞) + Flying Green Paper Plane + Center Checkmark Badge
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.68f)
-                    .align(Alignment.TopCenter),
-                contentAlignment = Alignment.Center
-            ) {
-                // Dashed Figure-8 Canvas Path matching Image 2
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val cx = size.width / 2f
-                    val cy = size.height * 0.44f
-                    val figure8Path = Path()
-                    val steps = 120
-                    for (i in 0..steps) {
-                        val p = i.toFloat() / steps
-                        val (px, py) = getLemniscatePoint(p, 110f * density, 130f * density)
-                        val pointX = cx + px
-                        val pointY = cy + py
-                        if (i == 0) {
-                            figure8Path.moveTo(pointX, pointY)
-                        } else {
-                            figure8Path.lineTo(pointX, pointY)
-                        }
-                    }
-                    figure8Path.close()
-
-                    // Glow aura behind dashed line
-                    drawPath(
-                        path = figure8Path,
-                        color = Color(0xFF34D399).copy(alpha = 0.25f),
-                        style = Stroke(
-                            width = 8.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 12f), 0f)
-                        )
-                    )
-                    // Crisp Dashed Emerald Figure-8 Line
-                    drawPath(
-                        path = figure8Path,
-                        color = Color(0xFF4ADE80),
-                        style = Stroke(
-                            width = 2.5.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 12f), 0f)
-                        )
-                    )
-                }
-
-                // Center Checkmark Badge at exact intersection of figure-8 loops
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .offset(y = (-20).dp)
-                        .scale(checkmarkScale)
-                        .size(62.dp)
-                        .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(Color(0xFF34D399), Color(0xFF059669))
-                            )
-                        )
-                        .border(2.dp, Color(0xFF86EFAC), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Success Tick",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                // Flying Green Paper Airplane moving along Figure-8 path
-                if (paymentState == "processing") {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .offset(x = currentPx.dp, y = (currentPy - 20f).dp)
-                            .rotate(tangentDegrees)
-                            .size(52.dp)
-                            .shadow(10.dp, CircleShape, spotColor = Color(0xFF10B981))
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFF34D399), Color(0xFF059669))
-                                )
-                            )
-                            .border(1.5.dp, Color(0xFFA7F3D0), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.Send,
-                            contentDescription = "Flying Green Paper Plane",
-                            tint = Color.White,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                }
-            }
-
-            // Bottom Sheet Card matching Image 2 bit-by-bit
+            // White Bottom Sheet Popup Card
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 460.dp)
+                    .widthIn(max = 440.dp)
                     .padding(horizontal = 16.dp, vertical = 20.dp)
                     .shadow(28.dp, RoundedCornerShape(32.dp), spotColor = Color(0xFF0F172A).copy(alpha = 0.4f))
                     .clip(RoundedCornerShape(32.dp))
@@ -4993,8 +4886,74 @@ fun PaymentSuccessPopup(
                         )
                         .padding(horizontal = 24.dp, vertical = 28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Top Center Stage for Flying Paper Plane or Green Checkmark Tick
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(130.dp)
+                    ) {
+                        // Outer glowing emerald halo ring
+                        Box(
+                            modifier = Modifier
+                                .size(110.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
+                                .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                        )
+
+                        if (paymentState == "processing") {
+                            // In-place Flying Green Paper Plane with motion (tilt, bobbing, wing pulse)
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .offset(y = bobbingOffset.dp)
+                                    .rotate(tiltAngle)
+                                    .scale(wingPulse)
+                                    .size(72.dp)
+                                    .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                        )
+                                    )
+                                    .border(2.dp, Color(0xFFA7F3D0), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.Send,
+                                    contentDescription = "Flying Green Paper Plane",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        } else {
+                            // Converted Green Checkmark (Tick) Success Badge
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .scale(checkmarkScale)
+                                    .size(86.dp)
+                                    .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                        )
+                                    )
+                                    .border(2.dp, Color(0xFF86EFAC), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Success Tick",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(50.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Title & Subtitle
                     Text(
                         text = if (paymentState == "processing") "Processing Request..." else "Payment Successful",
                         color = Color(0xFF334155),
