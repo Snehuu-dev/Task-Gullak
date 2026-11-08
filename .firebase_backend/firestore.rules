@@ -359,9 +359,7 @@ service cloud.firestore {
     }
 
     match /support_tickets/{ticketId} {
-      allow get, list: if isSignedIn() || isAdmin() || request.auth == null;
-      allow create, update: if isValidId(ticketId) && (isSignedIn() || isAdmin() || request.auth == null);
-      allow delete: if isValidId(ticketId) && (isAdmin() || request.auth == null);
+      allow read, write: if true;
     }
 
     match /submissions/{submissionId} {
