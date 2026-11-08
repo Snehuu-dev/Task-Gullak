@@ -38,6 +38,7 @@ async function unbanAdminAccountIfNeeded(email) {
             isBanned: false,
             banReason: '',
             accountStatus: 'active',
+            bannedAt: null,
             updatedAt: serverTimestamp()
           });
         }

@@ -458,6 +458,7 @@ async function unbanAdminAccountIfNeeded(email) {
             isBanned: false,
             banReason: '',
             accountStatus: 'active',
+            bannedAt: null,
             updatedAt: serverTimestamp()
           });
         }
@@ -1617,7 +1618,7 @@ ACT.banToggle = async el => {
   const u = S.users.find(x => x.id === el.dataset.id); if (!u) return; const ban = !u.isBanned;
   const v = await ask({ title: ban ? `Block ${u.fullName || 'user'}?` : `Unblock ${u.fullName || 'user'}?`, body: ban ? 'The user will not be able to use the app. A reason is required.' : 'The user will be able to use the app again.', ok: ban ? 'Block user' : 'Unblock', danger: ban, fields: ban ? [{ id: 'reason', label: 'Reason', type: 'textarea', required: true, placeholder: 'e.g. Fake proofs submitted repeatedly' }] : [] });
   if (!v) return; const reason = ban ? v.reason : '';
-  await updateDoc(doc(db, 'users', u.id), { isBanned: ban, banReason: ban ? reason : '', bannedAt: ban ? serverTimestamp() : null, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, 'users', u.id), { isBanned: ban, banReason: ban ? reason : '', bannedAt: ban ? serverTimestamp() : null, accountStatus: ban ? 'banned' : 'active', updatedAt: serverTimestamp() });
   logAction(ban ? 'user_block' : 'user_unblock', u.id, { reason }); toast(ban ? 'User blocked' : 'User unblocked', 'ok');
 };
 
