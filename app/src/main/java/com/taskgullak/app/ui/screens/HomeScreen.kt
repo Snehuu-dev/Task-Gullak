@@ -354,9 +354,11 @@ fun HomeScreen(
         TaskGullakNotificationHelper.processUserProfileSnapshot(context, currentProfile)
     }
 
-    LaunchedEffect(profile?.isDeleted, profile?.accountStatus, profile?.isBanned) {
+    LaunchedEffect(profile?.userId, profile?.isDeleted, profile?.accountStatus, profile?.isBanned) {
         val currentProfile = profile ?: return@LaunchedEffect
-        if (currentProfile.isDeleted || (currentProfile.accountStatus.equals("deleted", ignoreCase = true) && currentProfile.isBanned)) {
+        if (currentProfile.userId.isBlank()) return@LaunchedEffect
+        if (!currentProfile.isBanned) return@LaunchedEffect
+        if (currentProfile.isDeleted || currentProfile.accountStatus.equals("deleted", ignoreCase = true)) {
             onSignOut()
         }
     }

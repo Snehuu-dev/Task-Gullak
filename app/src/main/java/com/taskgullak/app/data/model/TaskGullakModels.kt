@@ -16,7 +16,7 @@ data class UserProfile(
     val completedTasksCount: Long = 0L,
     val pendingRewards: Long = 0L,
     val emailVerified: Boolean = false,
-    @get:PropertyName("isBanned") @set:PropertyName("isBanned")
+    @get:PropertyName("isBanned") @set:PropertyName("isBanned") @field:PropertyName("isBanned")
     var isBanned: Boolean = false,
     val banReason: String = "",
     val avatarId: String = "",
@@ -24,7 +24,7 @@ data class UserProfile(
     val username: String = "",
     val bio: String = "",
     val upiId: String = "",
-    @get:PropertyName("isDeleted") @set:PropertyName("isDeleted")
+    @get:PropertyName("isDeleted") @set:PropertyName("isDeleted") @field:PropertyName("isDeleted")
     var isDeleted: Boolean = false,
     val accountStatus: String = "active",
     val firstWithdrawalBonusClaimed: Boolean = false,
