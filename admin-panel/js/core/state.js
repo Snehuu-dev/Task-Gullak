@@ -3,7 +3,7 @@
    STATE
    ============================================================ */
 const S = {
-  users: [], tasks: [], subs: [], wds: [], bcasts: [], logs: [], meta: {},
+  users: [], tickets: [], tasks: [], subs: [], wds: [], bcasts: [], logs: [], meta: {},
   live: {}, errs: {}, admin: '', view: 'overview',
   ov: { apprTab: '24h', wdTab: 'pending', chart: 'month', q: '' },
   appr: { range: '24h', status: 'pending', from: '', to: '', q: '', groups: 6, open: {}, items: {}, folder: null, fmeta: {}, fs: 'pending', fq: '', fitems: 24 },

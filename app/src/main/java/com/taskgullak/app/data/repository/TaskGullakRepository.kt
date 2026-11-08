@@ -1458,6 +1458,25 @@ class TaskGullakRepository(
                 )
             ).await()
 
+            // Also mirror to support_tickets so it appears in Admin Panel Support Tickets
+            runCatching {
+                val ticketRef = db.collection("support_tickets").document("bulk_$uid")
+                ticketRef.set(
+                    mapOf(
+                        "ticketId" to ticketRef.id,
+                        "userId" to uid,
+                        "userName" to userName,
+                        "userEmail" to userEmail,
+                        "walletIdCode" to "TG-${uid.take(8).uppercase()}",
+                        "message" to "🔥 [BULK MODE APPLICATION — $safeDeviceCount Devices]\nReason: $cleanReason",
+                        "status" to "open",
+                        "type" to "bulk_application",
+                        "deviceCount" to safeDeviceCount,
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+            }
             Result.success(reqRef.id)
         } catch (e: Exception) {
             Result.failure(e)

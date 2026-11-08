@@ -287,12 +287,19 @@ fun HomeScreen(
     val feedbackMsg = vmFeedbackMsg ?: localFeedbackMsg
     val withdrawFeedbackMsg = vmWithdrawFeedback ?: localWithdrawFeedback
 
-    val walletBalance = remember(profile?.walletBalance, submissions, localBalanceDeduction) {
-        (
-            profile?.walletBalance ?: submissions
-                .filter { it.status == "verified" || it.status == "approved" }
-                .sumOf { it.rewardAmount }
-        ).let { (it - localBalanceDeduction).coerceAtLeast(0L) }
+    val walletBalance = remember(profile?.walletBalance, transactions, submissions, localBalanceDeduction) {
+        val baseBalance = if (profile != null && profile.walletBalance > 0L) {
+            profile.walletBalance
+        } else {
+            val subRewards = submissions.filter { it.status == "verified" || it.status == "approved" }.sumOf { it.rewardAmount }
+            val txCredits = transactions.filter {
+                val t = it.type.lowercase()
+                t == "referral_bonus" || t == "referral_commission" || t == "admin_credit"
+            }.sumOf { it.amount }
+            val raw = subRewards + txCredits
+            if (raw > 0L) raw else (profile?.walletBalance ?: 0L)
+        }
+        (baseBalance - localBalanceDeduction).coerceAtLeast(0L)
     }
 
     val displayName = remember(localNameOverride, vmNameOverride, profile?.fullName, fallbackName) {
