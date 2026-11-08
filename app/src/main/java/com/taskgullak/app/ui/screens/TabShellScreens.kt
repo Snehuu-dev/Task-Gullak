@@ -3171,6 +3171,29 @@ private fun ReferStepItem(
     }
 }
 
+// Pre-compiled once at class load time, NOT inside composable rendering loops!
+private val REGEX_BONUS_CREDITED = Regex("bonus credited by admin", RegexOption.IGNORE_CASE)
+private val REGEX_CREDITED_BY_ADMIN = Regex("credited by admin", RegexOption.IGNORE_CASE)
+private val REGEX_ADJUSTED_BY_ADMIN = Regex("adjusted by admin", RegexOption.IGNORE_CASE)
+private val REGEX_DEDUCTED_BY_ADMIN = Regex("deducted by admin", RegexOption.IGNORE_CASE)
+private val REGEX_ADMIN_PANEL = Regex("admin panel", RegexOption.IGNORE_CASE)
+private val REGEX_ADMIN_WORD = Regex("\\badmin\\b", RegexOption.IGNORE_CASE)
+private val REGEX_FIREBASE_WORD = Regex("\\bfirebase\\b", RegexOption.IGNORE_CASE)
+private val REGEX_BACKEND_WORD = Regex("\\bbackend\\b", RegexOption.IGNORE_CASE)
+
+private fun sanitizeTransactionNote(rawNote: String, isDeduction: Boolean): String {
+    if (rawNote.isBlank()) return if (isDeduction) "Amount deducted" else "Amount received"
+    return rawNote
+        .replace(REGEX_BONUS_CREDITED, "Bonus received")
+        .replace(REGEX_CREDITED_BY_ADMIN, "Received")
+        .replace(REGEX_ADJUSTED_BY_ADMIN, "Adjustment deducted")
+        .replace(REGEX_DEDUCTED_BY_ADMIN, "Deducted")
+        .replace(REGEX_ADMIN_PANEL, "Support Desk")
+        .replace(REGEX_ADMIN_WORD, "Support")
+        .replace(REGEX_FIREBASE_WORD, "Cloud")
+        .replace(REGEX_BACKEND_WORD, "Server")
+}
+
 /**
  * 3. WALLET SCREEN SHELL (Clean, structured UI shell + real-time Admin credit/deduction ledger)
  */
@@ -3605,7 +3628,7 @@ internal fun WalletTabShellContent(
                             .height(7.dp)
                             .clip(RoundedCornerShape(99.dp))
                             .background(
-                                Brush.horizontalGradient(
+                               Brush.horizontalGradient(
                                     listOf(Color(0xFF4F46E5), Color(0xFF7B3FE4))
                                 )
                             )
@@ -3686,7 +3709,11 @@ internal fun WalletTabShellContent(
             if (selectedFilterIndex == 2) emptyList() else approvedSubmissions
         }
 
-        val hasActivity = filteredTransactions.isNotEmpty() || filteredSubmissions.isNotEmpty()
+        val displayedTransactions = remember(filteredTransactions) {
+            filteredTransactions.take(25)
+        }
+
+        val hasActivity = displayedTransactions.isNotEmpty() || filteredSubmissions.isNotEmpty()
         if (!hasActivity) {
             Column(
                 modifier = Modifier
@@ -3729,12 +3756,12 @@ internal fun WalletTabShellContent(
                 )
             }
         } else {
-            filteredTransactions.forEach { tx ->
-                val lowerType = tx.type.lowercase()
+            displayedTransactions.forEach { tx ->
+                val lowerType = remember(tx.type) { tx.type.lowercase() }
                 val isWithdrawal = lowerType == "withdrawal"
                 val isDeduction = lowerType == "admin_deduct" || isWithdrawal
                 val txColor = if (isDeduction) Color(0xFFF43F5E) else TgSuccessGreen
-                val txStatusLower = tx.status.lowercase()
+                val txStatusLower = remember(tx.status) { tx.status.lowercase() }
                 val statusLabel = when (txStatusLower) {
                     "paid", "completed", "success" -> "Paid"
                     "processing" -> "Processing"
@@ -3755,16 +3782,9 @@ internal fun WalletTabShellContent(
                     "admin_credit" -> "Received"
                     else -> if (isDeduction) "Deducted" else "Received"
                 }
-                val cleanNote = tx.note
-                    .replace(Regex("bonus credited by admin", RegexOption.IGNORE_CASE), "Bonus received")
-                    .replace(Regex("credited by admin", RegexOption.IGNORE_CASE), "Received")
-                    .replace(Regex("adjusted by admin", RegexOption.IGNORE_CASE), "Adjustment deducted")
-                    .replace(Regex("deducted by admin", RegexOption.IGNORE_CASE), "Deducted")
-                    .replace(Regex("admin panel", RegexOption.IGNORE_CASE), "Support Desk")
-                    .replace(Regex("\\badmin\\b", RegexOption.IGNORE_CASE), "Support")
-                    .replace(Regex("\\bfirebase\\b", RegexOption.IGNORE_CASE), "Cloud")
-                    .replace(Regex("\\bbackend\\b", RegexOption.IGNORE_CASE), "Server")
-                    .ifBlank { if (isDeduction) "Amount deducted" else "Amount received" }
+                val cleanNote = remember(tx.note, isDeduction) {
+                    sanitizeTransactionNote(tx.note, isDeduction)
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3840,7 +3860,7 @@ internal fun WalletTabShellContent(
                 }
             }
 
-            filteredSubmissions.forEach { sub ->
+            filteredSubmissions.take(15).forEach { sub ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3925,1483 +3945,1483 @@ private fun WalletBreakdownTile(
         )
         Text(
             text = amountText,
-            color = accentColor,
-            fontFamily = PoppinsFontFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 15.5.sp
-        )
-    }
+           color = accentColor,
+           fontFamily = PoppinsFontFamily,
+           fontWeight = FontWeight.ExtraBold,
+           fontSize = 15.5.sp
+       )
+   }
 }
 
 @Composable
 private fun PayoutMethodChip(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+   icon: ImageVector,
+   title: String,
+   subtitle: String,
+   isSelected: Boolean,
+   onClick: () -> Unit,
+   modifier: Modifier = Modifier
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFF7B3FE4) else Color(0xFFE2E8F0),
-        animationSpec = tween(220),
-        label = "payout_border"
-    )
-    val bgColor by animateColorAsState(
-        targetValue = if (isSelected) Color(0xFFF5F3FF) else Color(0xFFF8FAFC),
-        animationSpec = tween(220),
-        label = "payout_bg"
-    )
+   val borderColor by animateColorAsState(
+       targetValue = if (isSelected) Color(0xFF7B3FE4) else Color(0xFFE2E8F0),
+       animationSpec = tween(220),
+       label = "payout_border"
+   )
+   val bgColor by animateColorAsState(
+       targetValue = if (isSelected) Color(0xFFF5F3FF) else Color(0xFFF8FAFC),
+       animationSpec = tween(220),
+       label = "payout_bg"
+   )
 
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(bgColor)
-            .border(1.2.dp, borderColor, RoundedCornerShape(14.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 11.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isSelected) Color(0xFF7B3FE4) else Color(0xFF6F6E8A),
-            modifier = Modifier.size(18.dp)
-        )
-        Column {
-            Text(
-                text = title,
-                color = Color(0xFF17142E),
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.5.sp
-            )
-            Text(
-                text = subtitle,
-                color = Color(0xFF6F6E8A),
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 9.5.sp
-            )
-        }
-    }
+   Row(
+       modifier = modifier
+           .clip(RoundedCornerShape(14.dp))
+           .background(bgColor)
+           .border(1.2.dp, borderColor, RoundedCornerShape(14.dp))
+           .clickable(
+               interactionSource = remember { MutableInteractionSource() },
+               indication = null,
+               onClick = onClick
+           )
+           .padding(horizontal = 11.dp, vertical = 10.dp),
+       verticalAlignment = Alignment.CenterVertically,
+       horizontalArrangement = Arrangement.spacedBy(8.dp)
+   ) {
+       Icon(
+           imageVector = icon,
+           contentDescription = null,
+           tint = if (isSelected) Color(0xFF7B3FE4) else Color(0xFF6F6E8A),
+           modifier = Modifier.size(18.dp)
+       )
+       Column {
+           Text(
+               text = title,
+               color = Color(0xFF17142E),
+               fontFamily = PoppinsFontFamily,
+               fontWeight = FontWeight.Bold,
+               fontSize = 11.5.sp
+           )
+           Text(
+               text = subtitle,
+               color = Color(0xFF6F6E8A),
+               fontFamily = InterFontFamily,
+               fontWeight = FontWeight.Normal,
+               fontSize = 9.5.sp
+           )
+       }
+   }
 }
 
 /**
- * 4. PROFILE SCREEN SHELL & SETTINGS FLOW
- * - Contextual Header: "My Profile" (Zero "Task Gullak" brand references)
- * - Interactive 3D Avatar Picker (8–10 curated 3D presets synced to SharedPreferences, Firestore /users/{userId}.avatarId, and Home top bar)
- * - Profile Menu Items: Removed "Privacy" & "Tour Onboarding"; Added "Settings" (with Name Edit Flow) & "Help & Support"
- */
+* 4. PROFILE SCREEN SHELL & SETTINGS FLOW
+* - Contextual Header: "My Profile" (Zero "Task Gullak" brand references)
+* - Interactive 3D Avatar Picker (8–10 curated 3D presets synced to SharedPreferences, Firestore /users/{userId}.avatarId, and Home top bar)
+* - Profile Menu Items: Removed "Privacy" & "Tour Onboarding"; Added "Settings" (with Name Edit Flow) & "Help & Support"
+*/
 @Composable
 internal fun ProfileTabShellContent(
-    userInitial: String,
-    displayName: String,
-    displayEmail: String,
-    currentAvatarId: String,
-    walletIdCode: String,
-    totalTasks: Int,
-    approvedCount: Int,
-    walletBalance: Long,
-    isSavingName: Boolean = false,
-    remoteBio: String = "",
-    remoteUsername: String = "",
-    remoteBannerId: String = "",
-    referredByCode: String = "",
-    bulkStatus: String = "none",
-    bulkDeviceCount: Int = 0,
-    supportTickets: List<SupportTicket> = emptyList(),
-    supportBotMessages: List<SupportBotMessage> = emptyList(),
-    onSubmitSupportTicket: (String) -> Unit = {},
-    onSubmitBulkModRequest: (String, Int) -> Unit = { _, _ -> },
-    onSendSupportBotMessage: (String) -> Unit = {},
-    onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },
-    onSelectAvatar: (String) -> Unit = {},
-    onSaveBioAndCustomization: (bannerId: String, username: String, bio: String) -> Unit = { _, _, _ -> },
-    onSaveDisplayName: (String, (Boolean, String) -> Unit) -> Unit = { _, cb -> cb(true, "Saved") },
-    onNavigateToWallet: () -> Unit = {},
-    onNavigateToOffers: () -> Unit = {},
-    onNavigateToRefer: () -> Unit = {},
-    onNavigateToTerms: () -> Unit,
-    onSignOut: () -> Unit
+   userInitial: String,
+   displayName: String,
+   displayEmail: String,
+   currentAvatarId: String,
+   walletIdCode: String,
+   totalTasks: Int,
+   approvedCount: Int,
+   walletBalance: Long,
+   isSavingName: Boolean = false,
+   remoteBio: String = "",
+   remoteUsername: String = "",
+   remoteBannerId: String = "",
+   referredByCode: String = "",
+   bulkStatus: String = "none",
+   bulkDeviceCount: Int = 0,
+   supportTickets: List<SupportTicket> = emptyList(),
+   supportBotMessages: List<SupportBotMessage> = emptyList(),
+   onSubmitSupportTicket: (String) -> Unit = {},
+   onSubmitBulkModRequest: (String, Int) -> Unit = { _, _ -> },
+   onSendSupportBotMessage: (String) -> Unit = {},
+   onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },
+   onSelectAvatar: (String) -> Unit = {},
+   onSaveBioAndCustomization: (bannerId: String, username: String, bio: String) -> Unit = { _, _, _ -> },
+   onSaveDisplayName: (String, (Boolean, String) -> Unit) -> Unit = { _, cb -> cb(true, "Saved") },
+   onNavigateToWallet: () -> Unit = {},
+   onNavigateToOffers: () -> Unit = {},
+   onNavigateToRefer: () -> Unit = {},
+   onNavigateToTerms: () -> Unit,
+   onSignOut: () -> Unit
 ) {
-    val context = LocalContext.current
-    var notificationsEnabled by remember { mutableStateOf(true) }
-    var showAvatarPickerSheet by remember { mutableStateOf(false) }
-    var showHelpSupportSheet by remember { mutableStateOf(false) }
-    var showSupportBotSheet by remember { mutableStateOf(false) }
-    var showBulkModSheet by remember { mutableStateOf(false) }
-    var showBannerAndBioSheet by remember { mutableStateOf(false) }
-    var showAllBatchesSheet by remember { mutableStateOf(false) }
-    var flowerAnimationBatch by remember { mutableStateOf<AchievementBatchInfo?>(null) }
-    var isInSettingsSubScreen by remember { mutableStateOf(false) }
+   val context = LocalContext.current
+   var notificationsEnabled by remember { mutableStateOf(true) }
+   var showAvatarPickerSheet by remember { mutableStateOf(false) }
+   var showHelpSupportSheet by remember { mutableStateOf(false) }
+   var showSupportBotSheet by remember { mutableStateOf(false) }
+   var showBulkModSheet by remember { mutableStateOf(false) }
+   var showBannerAndBioSheet by remember { mutableStateOf(false) }
+   var showAllBatchesSheet by remember { mutableStateOf(false) }
+   var flowerAnimationBatch by remember { mutableStateOf<AchievementBatchInfo?>(null) }
+   var isInSettingsSubScreen by remember { mutableStateOf(false) }
 
-    var bannerId by remember {
-        mutableStateOf(
-            remoteBannerId.ifBlank { FirebaseEmailDispatchService.getSavedBannerId(context) }
-        )
-    }
-    var usernameHandle by remember {
-        mutableStateOf(
-            remoteUsername.ifBlank { FirebaseEmailDispatchService.getSavedUsername(context) }
-        )
-    }
-    var userBio by remember {
-        mutableStateOf(
-            remoteBio.ifBlank { FirebaseEmailDispatchService.getSavedBio(context) }
-        )
-    }
+   var bannerId by remember {
+       mutableStateOf(
+           remoteBannerId.ifBlank { FirebaseEmailDispatchService.getSavedBannerId(context) }
+       )
+   }
+   var usernameHandle by remember {
+       mutableStateOf(
+           remoteUsername.ifBlank { FirebaseEmailDispatchService.getSavedUsername(context) }
+       )
+   }
+   var userBio by remember {
+       mutableStateOf(
+           remoteBio.ifBlank { FirebaseEmailDispatchService.getSavedBio(context) }
+       )
+   }
 
-    LaunchedEffect(remoteBio, remoteUsername, remoteBannerId) {
-        if (remoteBio.isNotBlank()) {
-            userBio = remoteBio
-            FirebaseEmailDispatchService.saveProfileBio(context, remoteBio)
-        }
-        if (remoteUsername.isNotBlank()) {
-            usernameHandle = remoteUsername
-            FirebaseEmailDispatchService.saveProfileUsername(context, remoteUsername)
-        }
-        if (remoteBannerId.isNotBlank()) {
-            bannerId = remoteBannerId
-            FirebaseEmailDispatchService.saveProfileBannerId(context, remoteBannerId)
-        }
-    }
+   LaunchedEffect(remoteBio, remoteUsername, remoteBannerId) {
+       if (remoteBio.isNotBlank()) {
+           userBio = remoteBio
+           FirebaseEmailDispatchService.saveProfileBio(context, remoteBio)
+       }
+       if (remoteUsername.isNotBlank()) {
+           usernameHandle = remoteUsername
+           FirebaseEmailDispatchService.saveProfileUsername(context, remoteUsername)
+       }
+       if (remoteBannerId.isNotBlank()) {
+           bannerId = remoteBannerId
+           FirebaseEmailDispatchService.saveProfileBannerId(context, remoteBannerId)
+       }
+   }
 
-    val effectiveCompletedCount = remember(approvedCount) {
-        approvedCount.coerceAtLeast(0)
-    }
-    val allBatches = remember(effectiveCompletedCount) {
-        FirebaseEmailDispatchService.getAchievementBatches(effectiveCompletedCount)
-    }
-    val unlockedBatchesCount = remember(allBatches) {
-        allBatches.count { it.isUnlocked }
-    }
-    val currentBatch = remember(effectiveCompletedCount) {
-        FirebaseEmailDispatchService.getCurrentUnlockedOrNextBatch(effectiveCompletedCount)
-    }
-    if (showAvatarPickerSheet) {
-        AvatarPickerModalBottomSheet(
-            currentAvatarId = currentAvatarId,
-            userInitial = userInitial,
-            onSelectAvatar = { chosenId ->
-                onSelectAvatar(chosenId)
-            },
-            onDismiss = { showAvatarPickerSheet = false }
-        )
-    }
+   val effectiveCompletedCount = remember(approvedCount) {
+       approvedCount.coerceAtLeast(0)
+   }
+   val allBatches = remember(effectiveCompletedCount) {
+       FirebaseEmailDispatchService.getAchievementBatches(effectiveCompletedCount)
+   }
+   val unlockedBatchesCount = remember(allBatches) {
+       allBatches.count { it.isUnlocked }
+   }
+   val currentBatch = remember(effectiveCompletedCount) {
+       FirebaseEmailDispatchService.getCurrentUnlockedOrNextBatch(effectiveCompletedCount)
+   }
+   if (showAvatarPickerSheet) {
+       AvatarPickerModalBottomSheet(
+           currentAvatarId = currentAvatarId,
+           userInitial = userInitial,
+           onSelectAvatar = { chosenId ->
+               onSelectAvatar(chosenId)
+           },
+           onDismiss = { showAvatarPickerSheet = false }
+       )
+   }
 
-    if (showHelpSupportSheet) {
-        HelpAndSupportBottomSheet(
-            userName = displayName,
-            userEmail = displayEmail,
-            walletIdCode = walletIdCode,
-            supportTickets = supportTickets,
-            onSubmitTicket = onSubmitSupportTicket,
-            onOpenSupportBot = { },
-            onDismiss = { showHelpSupportSheet = false }
-        )
-    }
+   if (showHelpSupportSheet) {
+       HelpAndSupportBottomSheet(
+           userName = displayName,
+           userEmail = displayEmail,
+           walletIdCode = walletIdCode,
+           supportTickets = supportTickets,
+           onSubmitTicket = onSubmitSupportTicket,
+           onOpenSupportBot = { },
+           onDismiss = { showHelpSupportSheet = false }
+       )
+   }
 
-    if (showBulkModSheet) {
-        BulkModApplyModalBottomSheet(
-            currentBulkStatus = bulkStatus,
-            currentDeviceCount = bulkDeviceCount,
-            onSubmitRequest = onSubmitBulkModRequest,
-            onDismiss = { showBulkModSheet = false }
-        )
-    }
+   if (showBulkModSheet) {
+       BulkModApplyModalBottomSheet(
+           currentBulkStatus = bulkStatus,
+           currentDeviceCount = bulkDeviceCount,
+           onSubmitRequest = onSubmitBulkModRequest,
+           onDismiss = { showBulkModSheet = false }
+       )
+   }
 
-    if (showBannerAndBioSheet) {
-        ProfileBannerAndBioSheet(
-            currentBannerId = bannerId,
-            currentUsername = usernameHandle,
-            currentBio = userBio,
-            onSaveBannerAndBio = { newBanner, newUsername, newBio ->
-                FirebaseEmailDispatchService.saveProfileBannerId(context, newBanner)
-                FirebaseEmailDispatchService.saveProfileUsername(context, newUsername)
-                FirebaseEmailDispatchService.saveProfileBio(context, newBio)
-                bannerId = FirebaseEmailDispatchService.getSavedBannerId(context)
-                usernameHandle = FirebaseEmailDispatchService.getSavedUsername(context)
-                userBio = FirebaseEmailDispatchService.getSavedBio(context)
-                onSaveBioAndCustomization(bannerId, usernameHandle, userBio)
-                showBannerAndBioSheet = false
-            },
-            onDismiss = { showBannerAndBioSheet = false }
-        )
-    }
+   if (showBannerAndBioSheet) {
+       ProfileBannerAndBioSheet(
+           currentBannerId = bannerId,
+           currentUsername = usernameHandle,
+           currentBio = userBio,
+           onSaveBannerAndBio = { newBanner, newUsername, newBio ->
+               FirebaseEmailDispatchService.saveProfileBannerId(context, newBanner)
+               FirebaseEmailDispatchService.saveProfileUsername(context, newUsername)
+               FirebaseEmailDispatchService.saveProfileBio(context, newBio)
+               bannerId = FirebaseEmailDispatchService.getSavedBannerId(context)
+               usernameHandle = FirebaseEmailDispatchService.getSavedUsername(context)
+               userBio = FirebaseEmailDispatchService.getSavedBio(context)
+               onSaveBioAndCustomization(bannerId, usernameHandle, userBio)
+               showBannerAndBioSheet = false
+           },
+           onDismiss = { showBannerAndBioSheet = false }
+       )
+   }
 
-    if (showAllBatchesSheet) {
-        AchievementsBatchesModalSheet(
-            batches = allBatches,
-            completedTasksCount = effectiveCompletedCount,
-            onSelectBatchForFlowerAnimation = { chosenBatch ->
-                if (chosenBatch.isUnlocked) {
-                    showAllBatchesSheet = false
-                    flowerAnimationBatch = chosenBatch
-                }
-            },
-            onDismiss = { showAllBatchesSheet = false }
-        )
-    }
+   if (showAllBatchesSheet) {
+       AchievementsBatchesModalSheet(
+           batches = allBatches,
+           completedTasksCount = effectiveCompletedCount,
+           onSelectBatchForFlowerAnimation = { chosenBatch ->
+               if (chosenBatch.isUnlocked) {
+                   showAllBatchesSheet = false
+                   flowerAnimationBatch = chosenBatch
+               }
+           },
+           onDismiss = { showAllBatchesSheet = false }
+       )
+   }
 
-    val activeFlowerBatch = flowerAnimationBatch
-    if (activeFlowerBatch != null) {
-        FlowerUnlockAnimationDialog(
-            batch = activeFlowerBatch,
-            onDismiss = { flowerAnimationBatch = null }
-        )
-    }
+   val activeFlowerBatch = flowerAnimationBatch
+   if (activeFlowerBatch != null) {
+       FlowerUnlockAnimationDialog(
+           batch = activeFlowerBatch,
+           onDismiss = { flowerAnimationBatch = null }
+       )
+   }
 
-    if (isInSettingsSubScreen) {
-        ProfileSettingsScreenContent(
-            currentDisplayName = displayName,
-            currentEmail = displayEmail,
-            currentAvatarId = currentAvatarId,
-            userInitial = userInitial,
-            notificationsEnabled = notificationsEnabled,
-            isSavingName = isSavingName,
-            onToggleNotifications = { notificationsEnabled = !notificationsEnabled },
-            onOpenAvatarPicker = { showAvatarPickerSheet = true },
-            onSaveDisplayName = onSaveDisplayName,
-            onBackToProfile = { isInSettingsSubScreen = false },
-            onSignOut = onSignOut
-        )
-        return
-    }
+   if (isInSettingsSubScreen) {
+       ProfileSettingsScreenContent(
+           currentDisplayName = displayName,
+           currentEmail = displayEmail,
+           currentAvatarId = currentAvatarId,
+           userInitial = userInitial,
+           notificationsEnabled = notificationsEnabled,
+           isSavingName = isSavingName,
+           onToggleNotifications = { notificationsEnabled = !notificationsEnabled },
+           onOpenAvatarPicker = { showAvatarPickerSheet = true },
+           onSaveDisplayName = onSaveDisplayName,
+           onBackToProfile = { isInSettingsSubScreen = false },
+           onSignOut = onSignOut
+       )
+       return
+   }
 
-    val activePreset = remember(currentAvatarId) { findAvatarPresetById(currentAvatarId) }
+   val activePreset = remember(currentAvatarId) { findAvatarPresetById(currentAvatarId) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 520.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        ContextualTabHeader(
-            eyebrowIcon = Icons.Outlined.PersonOutline,
-            eyebrowText = "ACCOUNT",
-            title = "My Profile"
-        )
+   Column(
+       modifier = Modifier
+           .fillMaxWidth()
+           .widthIn(max = 520.dp),
+       verticalArrangement = Arrangement.spacedBy(14.dp)
+   ) {
+       ContextualTabHeader(
+           eyebrowIcon = Icons.Outlined.PersonOutline,
+           eyebrowText = "ACCOUNT",
+           title = "My Profile"
+       )
 
-        // 1. TOP PROFILE HERO CARD (Editable Pastel Banner + Overlapping 3D Avatar + Name + @username + Bio + Batch Pill)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    ambientColor = Color(0xFF32238C).copy(alpha = 0.08f),
-                    spotColor = Color(0xFF32238C).copy(alpha = 0.16f)
-                )
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color.White.copy(alpha = 0.98f))
-                .border(1.dp, Color.White, RoundedCornerShape(24.dp))
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                EditableProfilePastelBanner(
-                    bannerId = bannerId,
-                    onEditBannerClick = { showBannerAndBioSheet = true },
-                    modifier = Modifier.padding(bottom = 36.dp)
-                )
+       // 1. TOP PROFILE HERO CARD (Editable Pastel Banner + Overlapping 3D Avatar + Name + @username + Bio + Batch Pill)
+       Column(
+           modifier = Modifier
+               .fillMaxWidth()
+               .shadow(
+                   elevation = 12.dp,
+                   shape = RoundedCornerShape(24.dp),
+                   ambientColor = Color(0xFF32238C).copy(alpha = 0.08f),
+                   spotColor = Color(0xFF32238C).copy(alpha = 0.16f)
+               )
+               .clip(RoundedCornerShape(24.dp))
+               .background(Color.White.copy(alpha = 0.98f))
+               .border(1.dp, Color.White, RoundedCornerShape(24.dp))
+       ) {
+           Box(
+               modifier = Modifier.fillMaxWidth(),
+               contentAlignment = Alignment.BottomCenter
+           ) {
+               EditableProfilePastelBanner(
+                   bannerId = bannerId,
+                   onEditBannerClick = { showBannerAndBioSheet = true },
+                   modifier = Modifier.padding(bottom = 36.dp)
+               )
 
-                // Overlapping Centered 3D Avatar (NO .clip(CircleShape) on outer Box so bottom-right Edit Badge is never clipped)
-                Box(
-                    modifier = Modifier
-                        .size(84.dp)
-                        .background(Color.White, CircleShape)
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    UserAvatar3DBadge(
-                        avatarId = currentAvatarId,
-                        userInitial = userInitial,
-                        size = 76.dp,
-                        showEditBadge = true,
-                        onClick = { showAvatarPickerSheet = true },
-                        testTag = "profile_avatar_picker_button"
-                    )
-                }
-            }
+               // Overlapping Centered 3D Avatar (NO .clip(CircleShape) on outer Box so bottom-right Edit Badge is never clipped)
+               Box(
+                   modifier = Modifier
+                       .size(84.dp)
+                       .background(Color.White, CircleShape)
+                       .padding(4.dp),
+                   contentAlignment = Alignment.Center
+               ) {
+                   UserAvatar3DBadge(
+                       avatarId = currentAvatarId,
+                       userInitial = userInitial,
+                       size = 76.dp,
+                       showEditBadge = true,
+                       onClick = { showAvatarPickerSheet = true },
+                       testTag = "profile_avatar_picker_button"
+                   )
+               }
+           }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Row 1: Display Name + Rounded-Corner Verified Shield Badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = displayName,
-                        color = Color(0xFF0F172A),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.testTag("profile_display_name_text")
-                    )
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFECFDF5))
-                            .border(1.dp, Color(0xFF6EE7B7), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.VerifiedUser,
-                            contentDescription = "Verified",
-                            tint = Color(0xFF059669),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "Verified",
-                            color = Color(0xFF047857),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 9.5.sp
-                        )
-                    }
-                }
+           Column(
+               modifier = Modifier
+                   .fillMaxWidth()
+                   .padding(horizontal = 18.dp, vertical = 12.dp),
+               horizontalAlignment = Alignment.CenterHorizontally,
+               verticalArrangement = Arrangement.spacedBy(8.dp)
+           ) {
+               // Row 1: Display Name + Rounded-Corner Verified Shield Badge
+               Row(
+                   verticalAlignment = Alignment.CenterVertically,
+                   horizontalArrangement = Arrangement.spacedBy(8.dp)
+               ) {
+                   Text(
+                       text = displayName,
+                       color = Color(0xFF0F172A),
+                       fontFamily = PoppinsFontFamily,
+                       fontWeight = FontWeight.ExtraBold,
+                       fontSize = 20.sp,
+                       maxLines = 1,
+                       overflow = TextOverflow.Ellipsis,
+                       modifier = Modifier.testTag("profile_display_name_text")
+                   )
+                   Row(
+                       modifier = Modifier
+                           .clip(RoundedCornerShape(8.dp))
+                           .background(Color(0xFFECFDF5))
+                           .border(1.dp, Color(0xFF6EE7B7), RoundedCornerShape(8.dp))
+                           .padding(horizontal = 8.dp, vertical = 3.dp),
+                       verticalAlignment = Alignment.CenterVertically,
+                       horizontalArrangement = Arrangement.spacedBy(4.dp)
+                   ) {
+                       Icon(
+                           imageVector = Icons.Outlined.VerifiedUser,
+                           contentDescription = "Verified",
+                           tint = Color(0xFF059669),
+                           modifier = Modifier.size(12.dp)
+                       )
+                       Text(
+                           text = "Verified",
+                           color = Color(0xFF047857),
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 9.5.sp
+                       )
+                   }
+               }
 
-                // Row 2: Organized @Username Pill + Email Pill
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFEEF2FF))
-                            .border(1.dp, Color(0xFFC7D2FE), RoundedCornerShape(8.dp))
-                            .clickable { showBannerAndBioSheet = true }
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = usernameHandle,
-                            color = Color(0xFF4338CA),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp,
-                            maxLines = 1
-                        )
-                    }
+               // Row 2: Organized @Username Pill + Email Pill
+               Row(
+                   verticalAlignment = Alignment.CenterVertically,
+                   horizontalArrangement = Arrangement.spacedBy(6.dp)
+               ) {
+                   Box(
+                       modifier = Modifier
+                           .clip(RoundedCornerShape(8.dp))
+                           .background(Color(0xFFEEF2FF))
+                           .border(1.dp, Color(0xFFC7D2FE), RoundedCornerShape(8.dp))
+                           .clickable { showBannerAndBioSheet = true }
+                           .padding(horizontal = 8.dp, vertical = 3.dp)
+                   ) {
+                       Text(
+                           text = usernameHandle,
+                           color = Color(0xFF4338CA),
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 10.5.sp,
+                           maxLines = 1
+                       )
+                   }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 9.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = displayEmail,
-                            color = Color(0xFF334155),
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 10.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                   Box(
+                       modifier = Modifier
+                           .clip(RoundedCornerShape(8.dp))
+                           .background(Color(0xFFF1F5F9))
+                           .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                           .padding(horizontal = 9.dp, vertical = 3.dp)
+                   ) {
+                       Text(
+                           text = displayEmail,
+                           color = Color(0xFF334155),
+                           fontFamily = InterFontFamily,
+                           fontWeight = FontWeight.SemiBold,
+                           fontSize = 10.5.sp,
+                           maxLines = 1,
+                           overflow = TextOverflow.Ellipsis
+                       )
+                   }
+               }
 
-                // Row 3: Organized Editable Bio Box (Tap directly to edit bio!)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
-                        .clickable { showBannerAndBioSheet = true }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .testTag("profile_bio_edit_box"),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = userBio,
-                        color = Color(0xFF1E293B),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Edit Bio",
-                        tint = Color(0xFF6366F1),
-                        modifier = Modifier.size(13.dp)
-                    )
-                }
+               // Row 3: Organized Editable Bio Box (Tap directly to edit bio!)
+               Row(
+                   modifier = Modifier
+                       .fillMaxWidth(0.92f)
+                       .clip(RoundedCornerShape(10.dp))
+                       .background(Color(0xFFF8FAFC))
+                       .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                       .clickable { showBannerAndBioSheet = true }
+                       .padding(horizontal = 12.dp, vertical = 6.dp)
+                       .testTag("profile_bio_edit_box"),
+                   verticalAlignment = Alignment.CenterVertically,
+                   horizontalArrangement = Arrangement.Center
+               ) {
+                   Text(
+                       text = userBio,
+                       color = Color(0xFF1E293B),
+                       fontFamily = InterFontFamily,
+                       fontWeight = FontWeight.SemiBold,
+                       fontSize = 12.sp,
+                       textAlign = TextAlign.Center,
+                       modifier = Modifier.weight(1f, fill = false)
+                   )
+                   Spacer(modifier = Modifier.width(6.dp))
+                   Icon(
+                       imageVector = Icons.Outlined.Edit,
+                       contentDescription = "Edit Bio",
+                       tint = Color(0xFF6366F1),
+                       modifier = Modifier.size(13.dp)
+                   )
+               }
 
-                // Row 4: Rounded-Corner Batch Box & Curated 3D Avatar Box
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color(0xFFFEF3C7), Color(0xFFFDE68A))
-                                )
-                            )
-                            .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.55f), RoundedCornerShape(10.dp))
-                            .clickable {
-                                if (currentBatch.isUnlocked) {
-                                    flowerAnimationBatch = currentBatch
-                                } else {
-                                    showAllBatchesSheet = true
-                                }
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                            .testTag("profile_creator_batch_pill"),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Text(
-                            text = if (currentBatch.isUnlocked) {
-                                "👑 Batch ${currentBatch.batchNumber}: ${currentBatch.title} >"
-                            } else {
-                                "🔒 Batch ${currentBatch.batchNumber}: ${currentBatch.title} ($effectiveCompletedCount/${currentBatch.requiredTasks}) >"
-                            },
-                            color = Color(0xFF92400E),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp
-                        )
-                    }
+               // Row 4: Rounded-Corner Batch Box & Curated 3D Avatar Box
+               Row(
+                   horizontalArrangement = Arrangement.spacedBy(8.dp),
+                   verticalAlignment = Alignment.CenterVertically
+               ) {
+                   Row(
+                       modifier = Modifier
+                           .clip(RoundedCornerShape(10.dp))
+                           .background(
+                               Brush.horizontalGradient(
+                                   colors = listOf(Color(0xFFFEF3C7), Color(0xFFFDE68A))
+                               )
+                           )
+                           .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+                           .clickable {
+                               if (currentBatch.isUnlocked) {
+                                   flowerAnimationBatch = currentBatch
+                               } else {
+                                   showAllBatchesSheet = true
+                               }
+                           }
+                           .padding(horizontal = 12.dp, vertical = 6.dp)
+                           .testTag("profile_creator_batch_pill"),
+                       verticalAlignment = Alignment.CenterVertically,
+                       horizontalArrangement = Arrangement.spacedBy(5.dp)
+                   ) {
+                       Text(
+                           text = if (currentBatch.isUnlocked) {
+                               "👑 Batch ${currentBatch.batchNumber}: ${currentBatch.title} >"
+                           } else {
+                               "🔒 Batch ${currentBatch.batchNumber}: ${currentBatch.title} ($effectiveCompletedCount/${currentBatch.requiredTasks}) >"
+                           },
+                           color = Color(0xFF92400E),
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 10.5.sp
+                       )
+                   }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFEDE9FE))
-                            .border(1.dp, Color(0xFFC4B5FD), RoundedCornerShape(10.dp))
-                            .clickable { showAvatarPickerSheet = true }
-                            .padding(horizontal = 11.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = activePreset?.title ?: "Pick 3D Avatar",
-                            color = Color(0xFF5B21B6),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp
-                        )
-                    }
-                }
+                   Box(
+                       modifier = Modifier
+                           .clip(RoundedCornerShape(10.dp))
+                           .background(Color(0xFFEDE9FE))
+                           .border(1.dp, Color(0xFFC4B5FD), RoundedCornerShape(10.dp))
+                           .clickable { showAvatarPickerSheet = true }
+                           .padding(horizontal = 11.dp, vertical = 6.dp)
+                   ) {
+                       Text(
+                           text = activePreset?.title ?: "Pick 3D Avatar",
+                           color = Color(0xFF5B21B6),
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 10.5.sp
+                       )
+                   }
+               }
 
-                Spacer(modifier = Modifier.height(2.dp))
-            }
-        }
+               Spacer(modifier = Modifier.height(2.dp))
+           }
+       }
 
-        // FEATURED TASK STAR / MILESTONE ACHIEVEMENT CARD WITH FLOWER UNLOCK ANIMATION
-        FeaturedAchievementBatchCard(
-            currentBatch = currentBatch,
-            completedTasksCount = effectiveCompletedCount,
-            unlockedBatchesCount = unlockedBatchesCount,
-            onTriggerFlowerUnlock = { batch -> flowerAnimationBatch = batch },
-            onOpenAllBatches = { showAllBatchesSheet = true }
-        )
+       // FEATURED TASK STAR / MILESTONE ACHIEVEMENT CARD WITH FLOWER UNLOCK ANIMATION
+       FeaturedAchievementBatchCard(
+           currentBatch = currentBatch,
+           completedTasksCount = effectiveCompletedCount,
+           unlockedBatchesCount = unlockedBatchesCount,
+           onTriggerFlowerUnlock = { batch -> flowerAnimationBatch = batch },
+           onOpenAllBatches = { showAllBatchesSheet = true }
+       )
 
-        // 5. PROFILE OPTIONS LIST (Edit Profile, Achievements, My Tasks, Rewards & Offers, Notification Switch, Help & Support, Settings, Terms)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(22.dp),
-                    ambientColor = Color(0xFF32238C).copy(alpha = 0.07f),
-                    spotColor = Color(0xFF32238C).copy(alpha = 0.13f)
-                )
-                .clip(RoundedCornerShape(22.dp))
-                .background(Color.White.copy(alpha = 0.96f))
-                .border(1.dp, Color.White, RoundedCornerShape(22.dp))
-                .padding(vertical = 8.dp)
-        ) {
-            ProfileSettingRow(
-                icon = Icons.Outlined.Edit,
-                iconTint = Color(0xFF2563EB),
-                iconBg = Color(0xFFDBEAFE),
-                title = "Edit Profile",
-                subtitle = "Change name, @username, bio, avatar & banner",
-                onClick = { showBannerAndBioSheet = true },
-                testTag = "profile_edit_profile_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.EmojiEvents,
-                iconTint = Color(0xFFD97706),
-                iconBg = Color(0xFFFEF3C7),
-                title = "Achievements",
-                subtitle = "50 Milestone Batches (10 to 500 Tasks) & Flower Unlock",
-                trailingText = "$unlockedBatchesCount/50 >",
-                onClick = { showAllBatchesSheet = true },
-                testTag = "profile_achievements_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.CheckCircle,
-                iconTint = Color(0xFF7C3AED),
-                iconBg = Color(0xFFEDE9FE),
-                title = "My Tasks",
-                subtitle = "View active tasks, submissions & approval status",
-                onClick = onNavigateToOffers,
-                testTag = "profile_my_tasks_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.CardGiftcard,
-                iconTint = Color(0xFFEA580C),
-                iconBg = Color(0xFFFFEDD5),
-                title = "Rewards & Offers",
-                subtitle = "Refer friends on taskgullak.space & earn 5% lifetime",
-                onClick = onNavigateToRefer,
-                testTag = "profile_rewards_offers_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            // Notification Row with ON/OFF Toggle Switch
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { notificationsEnabled = !notificationsEnabled }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                    .testTag("profile_notification_toggle_row"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFDCFCE7)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.NotificationsActive,
-                        contentDescription = null,
-                        tint = Color(0xFF16A34A),
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Notification",
-                        color = Color(0xFF17142E),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                    Text(
-                        text = if (notificationsEnabled) "ON • Task approvals & announcements" else "OFF • Muted",
-                        color = Color(0xFF6F6E8A),
-                        fontFamily = InterFontFamily,
-                        fontSize = 11.sp
-                    )
-                }
-                Switch(
-                    checked = notificationsEnabled,
-                    onCheckedChange = { notificationsEnabled = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF16A34A)
-                    )
-                )
-            }
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.SupportAgent,
-                iconTint = Color(0xFF0284C7),
-                iconBg = Color(0xFFE0F2FE),
-                title = "Help & Support",
-                subtitle = "Contact support or send an account inquiry",
-                onClick = { showHelpSupportSheet = true },
-                testTag = "profile_help_support_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            val bulkSubtitle = when (bulkStatus) {
-                "pending" -> "Request Pending Admin Review"
-                "approved" -> "Bulk Mod Active (Device Limit: $bulkDeviceCount)"
-                "banned" -> "Bulk Mod Banned"
-                else -> "Apply to handle comments in bulk across multiple devices"
-            }
-            ProfileSettingRow(
-                icon = Icons.Outlined.GroupWork,
-                iconTint = Color(0xFF7B3FE4),
-                iconBg = Color(0xFFF3E8FF),
-                title = if (bulkStatus == "approved") "Bulk Mod Active" else "Apply for Bulk Mod",
-                subtitle = bulkSubtitle,
-                onClick = {
-                    if (bulkStatus == "none" || bulkStatus == "rejected" || bulkStatus == "pending") {
-                        showBulkModSheet = true
-                    }
-                },
-                testTag = "profile_apply_bulk_mod_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.Settings,
-                iconTint = Color(0xFF4F46E5),
-                iconBg = Color(0xFFE0E7FF),
-                title = "Settings",
-                subtitle = "Edit profile name, avatar & account preferences",
-                onClick = { isInSettingsSubScreen = true },
-                testTag = "profile_settings_row"
-            )
-            HorizontalDivider(
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            ProfileSettingRow(
-                icon = Icons.Outlined.Gavel,
-                iconTint = Color(0xFF0EA5E9),
-                iconBg = Color(0xFFE0F2FE),
-                title = "Terms & Conditions",
-                subtitle = "Platform usage and task verification rules",
-                onClick = onNavigateToTerms,
-                testTag = "home_terms_link"
-            )
-        }
+       // 5. PROFILE OPTIONS LIST (Edit Profile, Achievements, My Tasks, Rewards & Offers, Notification Switch, Help & Support, Settings, Terms)
+       Column(
+           modifier = Modifier
+               .fillMaxWidth()
+               .shadow(
+                   elevation = 10.dp,
+                   shape = RoundedCornerShape(22.dp),
+                   ambientColor = Color(0xFF32238C).copy(alpha = 0.07f),
+                   spotColor = Color(0xFF32238C).copy(alpha = 0.13f)
+               )
+               .clip(RoundedCornerShape(22.dp))
+               .background(Color.White.copy(alpha = 0.96f))
+               .border(1.dp, Color.White, RoundedCornerShape(22.dp))
+               .padding(vertical = 8.dp)
+       ) {
+           ProfileSettingRow(
+               icon = Icons.Outlined.Edit,
+               iconTint = Color(0xFF2563EB),
+               iconBg = Color(0xFFDBEAFE),
+               title = "Edit Profile",
+               subtitle = "Change name, @username, bio, avatar & banner",
+               onClick = { showBannerAndBioSheet = true },
+               testTag = "profile_edit_profile_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.EmojiEvents,
+               iconTint = Color(0xFFD97706),
+               iconBg = Color(0xFFFEF3C7),
+               title = "Achievements",
+               subtitle = "50 Milestone Batches (10 to 500 Tasks) & Flower Unlock",
+               trailingText = "$unlockedBatchesCount/50 >",
+               onClick = { showAllBatchesSheet = true },
+               testTag = "profile_achievements_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.CheckCircle,
+               iconTint = Color(0xFF7C3AED),
+               iconBg = Color(0xFFEDE9FE),
+               title = "My Tasks",
+               subtitle = "View active tasks, submissions & approval status",
+               onClick = onNavigateToOffers,
+               testTag = "profile_my_tasks_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.CardGiftcard,
+               iconTint = Color(0xFFEA580C),
+               iconBg = Color(0xFFFFEDD5),
+               title = "Rewards & Offers",
+               subtitle = "Refer friends on taskgullak.space & earn 5% lifetime",
+               onClick = onNavigateToRefer,
+               testTag = "profile_rewards_offers_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           // Notification Row with ON/OFF Toggle Switch
+           Row(
+               modifier = Modifier
+                   .fillMaxWidth()
+                   .clickable { notificationsEnabled = !notificationsEnabled }
+                   .padding(horizontal = 16.dp, vertical = 10.dp)
+                   .testTag("profile_notification_toggle_row"),
+               verticalAlignment = Alignment.CenterVertically,
+               horizontalArrangement = Arrangement.spacedBy(12.dp)
+           ) {
+               Box(
+                   modifier = Modifier
+                       .size(38.dp)
+                       .clip(RoundedCornerShape(12.dp))
+                       .background(Color(0xFFDCFCE7)),
+                   contentAlignment = Alignment.Center
+               ) {
+                   Icon(
+                       imageVector = Icons.Outlined.NotificationsActive,
+                       contentDescription = null,
+                       tint = Color(0xFF16A34A),
+                       modifier = Modifier.size(19.dp)
+                   )
+               }
+               Column(modifier = Modifier.weight(1f)) {
+                   Text(
+                       text = "Notification",
+                       color = Color(0xFF17142E),
+                       fontFamily = PoppinsFontFamily,
+                       fontWeight = FontWeight.Bold,
+                       fontSize = 13.sp
+                   )
+                   Text(
+                       text = if (notificationsEnabled) "ON • Task approvals & announcements" else "OFF • Muted",
+                       color = Color(0xFF6F6E8A),
+                       fontFamily = InterFontFamily,
+                       fontSize = 11.sp
+                   )
+               }
+               Switch(
+                   checked = notificationsEnabled,
+                   onCheckedChange = { notificationsEnabled = it },
+                   colors = SwitchDefaults.colors(
+                       checkedThumbColor = Color.White,
+                       checkedTrackColor = Color(0xFF16A34A)
+                   )
+               )
+           }
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.SupportAgent,
+               iconTint = Color(0xFF0284C7),
+               iconBg = Color(0xFFE0F2FE),
+               title = "Help & Support",
+               subtitle = "Contact support or send an account inquiry",
+               onClick = { showHelpSupportSheet = true },
+               testTag = "profile_help_support_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           val bulkSubtitle = when (bulkStatus) {
+               "pending" -> "Request Pending Admin Review"
+               "approved" -> "Bulk Mod Active (Device Limit: $bulkDeviceCount)"
+               "banned" -> "Bulk Mod Banned"
+               else -> "Apply to handle comments in bulk across multiple devices"
+           }
+           ProfileSettingRow(
+               icon = Icons.Outlined.GroupWork,
+               iconTint = Color(0xFF7B3FE4),
+               iconBg = Color(0xFFF3E8FF),
+               title = if (bulkStatus == "approved") "Bulk Mod Active" else "Apply for Bulk Mod",
+               subtitle = bulkSubtitle,
+               onClick = {
+                   if (bulkStatus == "none" || bulkStatus == "rejected" || bulkStatus == "pending") {
+                       showBulkModSheet = true
+                   }
+               },
+               testTag = "profile_apply_bulk_mod_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.Settings,
+               iconTint = Color(0xFF4F46E5),
+               iconBg = Color(0xFFE0E7FF),
+               title = "Settings",
+               subtitle = "Edit profile name, avatar & account preferences",
+               onClick = { isInSettingsSubScreen = true },
+               testTag = "profile_settings_row"
+           )
+           HorizontalDivider(
+               color = Color(0xFFF1F5F9),
+               modifier = Modifier.padding(horizontal = 16.dp)
+           )
+           ProfileSettingRow(
+               icon = Icons.Outlined.Gavel,
+               iconTint = Color(0xFF0EA5E9),
+               iconBg = Color(0xFFE0F2FE),
+               title = "Terms & Conditions",
+               subtitle = "Platform usage and task verification rules",
+               onClick = onNavigateToTerms,
+               testTag = "home_terms_link"
+           )
+       }
 
-        ShinyGradientButton(
-            text = "Logout",
-            onClick = onSignOut,
-            gradientColors = listOf(Color(0xFFEF4444), Color(0xFFDC2626)),
-            height = 46.dp,
-            cornerRadius = 14.dp,
-            fontSizeSp = 12.5f,
-            testTag = "profile_sign_out_button"
-        )
-    }
+       ShinyGradientButton(
+           text = "Logout",
+           onClick = onSignOut,
+           gradientColors = listOf(Color(0xFFEF4444), Color(0xFFDC2626)),
+           height = 46.dp,
+           cornerRadius = 14.dp,
+           fontSizeSp = 12.5f,
+           testTag = "profile_sign_out_button"
+       )
+   }
 }
 
 @Composable
 private fun ProfileBlueCardStatItem(
-    label: String,
-    value: String
+   label: String,
+   value: String
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.78f),
-            fontFamily = InterFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.5.sp
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            color = Color.White,
-            fontFamily = PoppinsFontFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 16.sp
-        )
-    }
+   Column(horizontalAlignment = Alignment.CenterHorizontally) {
+       Text(
+           text = label,
+           color = Color.White.copy(alpha = 0.78f),
+           fontFamily = InterFontFamily,
+           fontWeight = FontWeight.Medium,
+           fontSize = 10.5.sp
+       )
+       Spacer(modifier = Modifier.height(2.dp))
+       Text(
+           text = value,
+           color = Color.White,
+           fontFamily = PoppinsFontFamily,
+           fontWeight = FontWeight.ExtraBold,
+           fontSize = 16.sp
+       )
+   }
 }
 
 @Composable
 private fun ProfileStatColumn(
-    value: String,
-    label: String
+   value: String,
+   label: String
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            color = Color(0xFF17142E),
-            fontFamily = PoppinsFontFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 16.sp
-        )
-        Text(
-            text = label,
-            color = Color(0xFF6F6E8A),
-            fontFamily = InterFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.5.sp
-        )
-    }
+   Column(horizontalAlignment = Alignment.CenterHorizontally) {
+       Text(
+           text = value,
+           color = Color(0xFF17142E),
+           fontFamily = PoppinsFontFamily,
+           fontWeight = FontWeight.ExtraBold,
+           fontSize = 16.sp
+       )
+       Text(
+           text = label,
+           color = Color(0xFF6F6E8A),
+           fontFamily = InterFontFamily,
+           fontWeight = FontWeight.Medium,
+           fontSize = 10.5.sp
+       )
+   }
 }
 
 @Composable
 private fun ProfileSettingRow(
-    icon: ImageVector,
-    iconTint: Color,
-    iconBg: Color,
-    title: String,
-    subtitle: String,
-    trailingText: String? = null,
-    testTag: String? = null,
-    onClick: () -> Unit
+   icon: ImageVector,
+   iconTint: Color,
+   iconBg: Color,
+   title: String,
+   subtitle: String,
+   trailingText: String? = null,
+   testTag: String? = null,
+   onClick: () -> Unit
 ) {
-    val baseModifier = Modifier
-        .fillMaxWidth()
-        .clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        )
-        .padding(horizontal = 16.dp, vertical = 12.dp)
+   val baseModifier = Modifier
+       .fillMaxWidth()
+       .clickable(
+           interactionSource = remember { MutableInteractionSource() },
+           indication = null,
+           onClick = onClick
+       )
+       .padding(horizontal = 16.dp, vertical = 12.dp)
 
-    Row(
-        modifier = if (testTag != null) baseModifier.testTag(testTag) else baseModifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(19.dp)
-            )
-        }
+   Row(
+       modifier = if (testTag != null) baseModifier.testTag(testTag) else baseModifier,
+       verticalAlignment = Alignment.CenterVertically,
+       horizontalArrangement = Arrangement.spacedBy(12.dp)
+   ) {
+       Box(
+           modifier = Modifier
+               .size(38.dp)
+               .clip(RoundedCornerShape(12.dp))
+               .background(iconBg),
+           contentAlignment = Alignment.Center
+       ) {
+           Icon(
+               imageVector = icon,
+               contentDescription = null,
+               tint = iconTint,
+               modifier = Modifier.size(19.dp)
+           )
+       }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = Color(0xFF17142E),
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
-            Text(
-                text = subtitle,
-                color = Color(0xFF6F6E8A),
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 11.sp
-            )
-        }
+       Column(modifier = Modifier.weight(1f)) {
+           Text(
+               text = title,
+               color = Color(0xFF17142E),
+               fontFamily = PoppinsFontFamily,
+               fontWeight = FontWeight.Bold,
+               fontSize = 13.sp
+           )
+           Text(
+               text = subtitle,
+               color = Color(0xFF6F6E8A),
+               fontFamily = InterFontFamily,
+               fontWeight = FontWeight.Normal,
+               fontSize = 11.sp
+           )
+       }
 
-        if (trailingText != null) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFF3E8FF))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = trailingText,
-                    color = Color(0xFF7B3FE4),
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp
-                )
-            }
-        } else {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = Color(0xFF94A3B8),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    }
+       if (trailingText != null) {
+           Box(
+               modifier = Modifier
+                   .clip(RoundedCornerShape(999.dp))
+                   .background(Color(0xFFF3E8FF))
+                   .padding(horizontal = 10.dp, vertical = 4.dp)
+           ) {
+               Text(
+                   text = trailingText,
+                   color = Color(0xFF7B3FE4),
+                   fontFamily = PoppinsFontFamily,
+                   fontWeight = FontWeight.Bold,
+                   fontSize = 10.sp
+               )
+           }
+       } else {
+           Icon(
+               imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+               contentDescription = null,
+               tint = Color(0xFF94A3B8),
+               modifier = Modifier.size(16.dp)
+           )
+       }
+   }
 }
 
 // Low-Level Audio Synthesis via AudioTrack to render clean sound waves natively
 private fun playSynthesizedSound(type: String) {
-    runCatching {
-        val sampleRate = 44100
-        val numSamples: Int
-        val generatedSnd: ShortArray
+   runCatching {
+       val sampleRate = 44100
+       val numSamples: Int
+       val generatedSnd: ShortArray
 
-        if (type == "processing") {
-            numSamples = (sampleRate * 2.0).toInt() // 2 Seconds swoosh
-            generatedSnd = ShortArray(numSamples)
-            for (i in 0 until numSamples) {
-                val t = i.toDouble() / sampleRate
-                val freq = 150.0 + (150.0 * (i.toDouble() / numSamples))
-                val envelope = 1.0 - (i.toDouble() / numSamples)
-                generatedSnd[i] = (kotlin.math.sin(2.0 * Math.PI * freq * t) * 32767.0 * 0.15 * envelope).toInt().toShort()
-            }
-        } else {
-            numSamples = (sampleRate * 0.8).toInt()
-            generatedSnd = ShortArray(numSamples)
-            val note1Freq = 523.25 // C5
-            val note2Freq = 783.99 // G5
-            val note2Delay = (sampleRate * 0.12).toInt()
+       if (type == "processing") {
+           numSamples = (sampleRate * 2.0).toInt() // 2 Seconds swoosh
+           generatedSnd = ShortArray(numSamples)
+           for (i in 0 until numSamples) {
+               val t = i.toDouble() / sampleRate
+               val freq = 150.0 + (150.0 * (i.toDouble() / numSamples))
+               val envelope = 1.0 - (i.toDouble() / numSamples)
+               generatedSnd[i] = (kotlin.math.sin(2.0 * Math.PI * freq * t) * 32767.0 * 0.15 * envelope).toInt().toShort()
+           }
+       } else {
+           numSamples = (sampleRate * 0.8).toInt()
+           generatedSnd = ShortArray(numSamples)
+           val note1Freq = 523.25 // C5
+           val note2Freq = 783.99 // G5
+           val note2Delay = (sampleRate * 0.12).toInt()
 
-            for (i in 0 until numSamples) {
-                val t = i.toDouble() / sampleRate
-                var sample = 0.0
+           for (i in 0 until numSamples) {
+               val t = i.toDouble() / sampleRate
+               var sample = 0.0
 
-                val env1 = kotlin.math.max(0.0, 1.0 - (i.toDouble() / (sampleRate * 0.4)))
-                sample += kotlin.math.sin(2.0 * Math.PI * note1Freq * t) * env1
+               val env1 = kotlin.math.max(0.0, 1.0 - (i.toDouble() / (sampleRate * 0.4)))
+               sample += kotlin.math.sin(2.0 * Math.PI * note1Freq * t) * env1
 
-                if (i >= note2Delay) {
-                    val t2 = (i - note2Delay).toDouble() / sampleRate
-                    val env2 = kotlin.math.max(0.0, 1.0 - ((i - note2Delay).toDouble() / (sampleRate * 0.6)))
-                    sample += kotlin.math.sin(2.0 * Math.PI * note2Freq * t2) * env2
-                }
-                generatedSnd[i] = (sample * 32767.0 * 0.25).toInt().toShort()
-            }
-        }
+               if (i >= note2Delay) {
+                   val t2 = (i - note2Delay).toDouble() / sampleRate
+                   val env2 = kotlin.math.max(0.0, 1.0 - ((i - note2Delay).toDouble() / (sampleRate * 0.6)))
+                   sample += kotlin.math.sin(2.0 * Math.PI * note2Freq * t2) * env2
+               }
+               generatedSnd[i] = (sample * 32767.0 * 0.25).toInt().toShort()
+           }
+       }
 
-        val audioTrack = android.media.AudioTrack(
-            android.media.AudioManager.STREAM_MUSIC,
-            sampleRate,
-            android.media.AudioFormat.CHANNEL_OUT_MONO,
-            android.media.AudioFormat.ENCODING_PCM_16BIT,
-            generatedSnd.size * 2,
-            android.media.AudioTrack.MODE_STATIC
-        )
-        audioTrack.write(generatedSnd, 0, generatedSnd.size)
-        audioTrack.play()
-    }
+       val audioTrack = android.media.AudioTrack(
+           android.media.AudioManager.STREAM_MUSIC,
+           sampleRate,
+           android.media.AudioFormat.CHANNEL_OUT_MONO,
+           android.media.AudioFormat.ENCODING_PCM_16BIT,
+           generatedSnd.size * 2,
+           android.media.AudioTrack.MODE_STATIC
+       )
+       audioTrack.write(generatedSnd, 0, generatedSnd.size)
+       audioTrack.play()
+   }
 }
 
 /**
- * Exact 100% replica of Payment Success Popup matching Image 2:
- * - Upper half screen: Glowing dashed neon-emerald vertical figure-8 (lemniscate) path + green paper plane flying + center checkmark badge
- * - Bottom half screen: White rounded bottom card with "Payment Successful", "₹amount" (38.sp bold), "UPI ID: upiId", "Today, time"
- */
+* Exact 100% replica of Payment Success Popup matching Image 2:
+* - Upper half screen: Glowing dashed neon-emerald vertical figure-8 (lemniscate) path + green paper plane flying + center checkmark badge
+* - Bottom half screen: White rounded bottom card with "Payment Successful", "₹amount" (38.sp bold), "UPI ID: upiId", "Today, time"
+*/
 @Composable
 fun PaymentSuccessPopup(
-    visible: Boolean,
-    amount: Long,
-    upiId: String,
-    onDismiss: () -> Unit
+   visible: Boolean,
+   amount: Long,
+   upiId: String,
+   onDismiss: () -> Unit
 ) {
-    if (!visible) return
+   if (!visible) return
 
-    val coroutineScope = rememberCoroutineScope()
-    var paymentState by remember { mutableStateOf("processing") } // "processing" | "success"
-    val formattedTime = remember {
-        val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.US)
-        "Today, " + sdf.format(java.util.Date())
-    }
+   val coroutineScope = rememberCoroutineScope()
+   var paymentState by remember { mutableStateOf("processing") } // "processing" | "success"
+   val formattedTime = remember {
+       val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.US)
+       "Today, " + sdf.format(java.util.Date())
+   }
 
-    LaunchedEffect(Unit) {
-        coroutineScope.launch { playSynthesizedSound("processing") }
-        delay(2000)
-        paymentState = "success"
-        playSynthesizedSound("success")
-    }
+   LaunchedEffect(Unit) {
+       coroutineScope.launch { playSynthesizedSound("processing") }
+       delay(2000)
+       paymentState = "success"
+       playSynthesizedSound("success")
+   }
 
-    // In-place flying paper plane motion during "processing"
-    val flightTransition = rememberInfiniteTransition(label = "paper_plane_in_place_flight")
-    val bobbingOffset by flightTransition.animateFloat(
-        initialValue = -6f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "plane_bobbing"
-    )
-    val tiltAngle by flightTransition.animateFloat(
-        initialValue = -8f,
-        targetValue = 8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "plane_tilt"
-    )
-    val wingPulse by flightTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "plane_pulse"
-    )
+   // In-place flying paper plane motion during "processing"
+   val flightTransition = rememberInfiniteTransition(label = "paper_plane_in_place_flight")
+   val bobbingOffset by flightTransition.animateFloat(
+       initialValue = -6f,
+       targetValue = 6f,
+       animationSpec = infiniteRepeatable(
+           animation = tween(1200, easing = FastOutSlowInEasing),
+           repeatMode = RepeatMode.Reverse
+       ),
+       label = "plane_bobbing"
+   )
+   val tiltAngle by flightTransition.animateFloat(
+       initialValue = -8f,
+       targetValue = 8f,
+       animationSpec = infiniteRepeatable(
+           animation = tween(1400, easing = FastOutSlowInEasing),
+           repeatMode = RepeatMode.Reverse
+       ),
+       label = "plane_tilt"
+   )
+   val wingPulse by flightTransition.animateFloat(
+       initialValue = 0.95f,
+       targetValue = 1.05f,
+       animationSpec = infiniteRepeatable(
+           animation = tween(1000, easing = FastOutSlowInEasing),
+           repeatMode = RepeatMode.Reverse
+       ),
+       label = "plane_pulse"
+   )
 
-    val checkmarkScale by animateFloatAsState(
-        targetValue = if (paymentState == "success") 1f else 0.2f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "checkmark_scale"
-    )
+   val checkmarkScale by animateFloatAsState(
+       targetValue = if (paymentState == "success") 1f else 0.2f,
+       animationSpec = spring(
+           dampingRatio = Spring.DampingRatioMediumBouncy,
+           stiffness = Spring.StiffnessLow
+       ),
+       label = "checkmark_scale"
+   )
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xD90F172A)) // Dark slate translucent backdrop
-                .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            // White Bottom Sheet Popup Card
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 440.dp)
-                    .padding(horizontal = 16.dp, vertical = 20.dp)
-                    .shadow(28.dp, RoundedCornerShape(32.dp), spotColor = Color(0xFF0F172A).copy(alpha = 0.4f))
-                    .clip(RoundedCornerShape(32.dp))
-                    .clickable(enabled = false, onClick = {}),
-                color = Color.White
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color(0xFFFAFCFF), Color(0xFFF1F5F9))
-                            )
-                        )
-                        .padding(horizontal = 24.dp, vertical = 28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Top Center Stage for Flying Paper Plane or Green Checkmark Tick
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(130.dp)
-                    ) {
-                        // Outer glowing emerald halo ring
-                        Box(
-                            modifier = Modifier
-                                .size(110.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
-                                .border(3.dp, Color(0xFF4ADE80), CircleShape)
-                        )
+   Dialog(
+       onDismissRequest = onDismiss,
+       properties = DialogProperties(usePlatformDefaultWidth = false)
+   ) {
+       Box(
+           modifier = Modifier
+               .fillMaxSize()
+               .background(Color(0xD90F172A)) // Dark slate translucent backdrop
+               .clickable(onClick = onDismiss),
+           contentAlignment = Alignment.BottomCenter
+       ) {
+           // White Bottom Sheet Popup Card
+           Surface(
+               modifier = Modifier
+                   .fillMaxWidth()
+                   .widthIn(max = 440.dp)
+                   .padding(horizontal = 16.dp, vertical = 20.dp)
+                   .shadow(28.dp, RoundedCornerShape(32.dp), spotColor = Color(0xFF0F172A).copy(alpha = 0.4f))
+                   .clip(RoundedCornerShape(32.dp))
+                   .clickable(enabled = false, onClick = {}),
+               color = Color.White
+           ) {
+               Column(
+                   modifier = Modifier
+                       .fillMaxWidth()
+                       .background(
+                           Brush.verticalGradient(
+                               colors = listOf(Color(0xFFFAFCFF), Color(0xFFF1F5F9))
+                           )
+                       )
+                       .padding(horizontal = 24.dp, vertical = 28.dp),
+                   horizontalAlignment = Alignment.CenterHorizontally,
+                   verticalArrangement = Arrangement.spacedBy(12.dp)
+               ) {
+                   // Top Center Stage for Flying Paper Plane or Green Checkmark Tick
+                   Box(
+                       contentAlignment = Alignment.Center,
+                       modifier = Modifier.size(130.dp)
+                   ) {
+                       // Outer glowing emerald halo ring
+                       Box(
+                           modifier = Modifier
+                               .size(110.dp)
+                               .clip(CircleShape)
+                               .background(Color(0xFFBBF7D0).copy(alpha = 0.65f))
+                               .border(3.dp, Color(0xFF4ADE80), CircleShape)
+                       )
 
-                        if (paymentState == "processing") {
-                            // In-place Flying Green Paper Plane with motion (tilt, bobbing, wing pulse) — No green background circle!
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .offset(y = bobbingOffset.dp)
-                                    .rotate(tiltAngle)
-                                    .scale(wingPulse)
-                                    .size(72.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.Send,
-                                    contentDescription = "Flying Green Paper Plane",
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier
-                                        .size(52.dp)
-                                        .shadow(8.dp, CircleShape, spotColor = Color(0xFF10B981))
-                                )
-                            }
-                        } else {
-                            // Converted Green Checkmark (Tick) Success Badge
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .scale(checkmarkScale)
-                                    .size(86.dp)
-                                    .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(Color(0xFF34D399), Color(0xFF059669))
-                                        )
-                                    )
-                                    .border(2.dp, Color(0xFF86EFAC), CircleShape)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Success Tick",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(50.dp)
-                                )
-                            }
-                        }
-                    }
+                       if (paymentState == "processing") {
+                           // In-place Flying Green Paper Plane with motion (tilt, bobbing, wing pulse) — No green background circle!
+                           Box(
+                               contentAlignment = Alignment.Center,
+                               modifier = Modifier
+                                   .offset(y = bobbingOffset.dp)
+                                   .rotate(tiltAngle)
+                                   .scale(wingPulse)
+                                   .size(72.dp)
+                           ) {
+                               Icon(
+                                   imageVector = Icons.AutoMirrored.Outlined.Send,
+                                   contentDescription = "Flying Green Paper Plane",
+                                   tint = Color(0xFF10B981),
+                                   modifier = Modifier
+                                       .size(52.dp)
+                                       .shadow(8.dp, CircleShape, spotColor = Color(0xFF10B981))
+                               )
+                           }
+                       } else {
+                           // Converted Green Checkmark (Tick) Success Badge
+                           Box(
+                               contentAlignment = Alignment.Center,
+                               modifier = Modifier
+                                   .scale(checkmarkScale)
+                                   .size(86.dp)
+                                   .shadow(12.dp, CircleShape, spotColor = Color(0xFF10B981))
+                                   .clip(CircleShape)
+                                   .background(
+                                       Brush.radialGradient(
+                                           colors = listOf(Color(0xFF34D399), Color(0xFF059669))
+                                       )
+                                   )
+                                   .border(2.dp, Color(0xFF86EFAC), CircleShape)
+                           ) {
+                               Icon(
+                                   imageVector = Icons.Default.Check,
+                                   contentDescription = "Success Tick",
+                                   tint = Color.White,
+                                   modifier = Modifier.size(50.dp)
+                               )
+                           }
+                       }
+                   }
 
-                    // Title & Subtitle
-                    Text(
-                        text = if (paymentState == "processing") "Processing Request..." else "Payment Successful",
-                        color = Color(0xFF334155),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center
-                    )
+                   // Title & Subtitle
+                   Text(
+                       text = if (paymentState == "processing") "Processing Request..." else "Payment Successful",
+                       color = Color(0xFF334155),
+                       fontFamily = PoppinsFontFamily,
+                       fontWeight = FontWeight.SemiBold,
+                       fontSize = 16.sp,
+                       textAlign = TextAlign.Center
+                   )
 
-                    Text(
-                        text = "₹${String.format(java.util.Locale.US, "%,d", amount)}",
-                        color = Color(0xFF0F172A),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 38.sp,
-                        letterSpacing = (-1).sp,
-                        textAlign = TextAlign.Center
-                    )
+                   Text(
+                       text = "₹${String.format(java.util.Locale.US, "%,d", amount)}",
+                       color = Color(0xFF0F172A),
+                       fontFamily = PoppinsFontFamily,
+                       fontWeight = FontWeight.ExtraBold,
+                       fontSize = 38.sp,
+                       letterSpacing = (-1).sp,
+                       textAlign = TextAlign.Center
+                   )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                   Spacer(modifier = Modifier.height(2.dp))
 
-                    Text(
-                        text = "UPI ID: ${upiId.ifBlank { "taskgullak@upi" }}",
-                        color = Color(0xFF334155),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.5.sp,
-                        textAlign = TextAlign.Center
-                    )
+                   Text(
+                       text = "UPI ID: ${upiId.ifBlank { "taskgullak@upi" }}",
+                       color = Color(0xFF334155),
+                       fontFamily = InterFontFamily,
+                       fontWeight = FontWeight.Bold,
+                       fontSize = 13.5.sp,
+                       textAlign = TextAlign.Center
+                   )
 
-                    Text(
-                        text = formattedTime,
-                        color = Color(0xFF64748B),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center
-                    )
+                   Text(
+                       text = formattedTime,
+                       color = Color(0xFF64748B),
+                       fontFamily = InterFontFamily,
+                       fontWeight = FontWeight.Medium,
+                       fontSize = 12.sp,
+                       textAlign = TextAlign.Center
+                   )
 
-                    if (paymentState == "success") {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Button(
-                            onClick = onDismiss,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                                .shadow(6.dp, RoundedCornerShape(14.dp))
-                        ) {
-                            Text(
-                                text = "Done • View History",
-                                color = Color.White,
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
+                   if (paymentState == "success") {
+                       Spacer(modifier = Modifier.height(10.dp))
+                       Button(
+                           onClick = onDismiss,
+                           colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                           shape = RoundedCornerShape(14.dp),
+                           modifier = Modifier
+                               .fillMaxWidth()
+                               .height(50.dp)
+                               .shadow(6.dp, RoundedCornerShape(14.dp))
+                       ) {
+                           Text(
+                               text = "Done • View History",
+                               color = Color.White,
+                               fontFamily = PoppinsFontFamily,
+                               fontWeight = FontWeight.Bold,
+                               fontSize = 14.sp
+                           )
+                       }
+                   }
+               }
+           }
+       }
+   }
 }
 
 /**
- * Animated Flying Paper-Plane & Morphing Success Checkmark Modal
- */
+* Animated Flying Paper-Plane & Morphing Success Checkmark Modal
+*/
 @Composable
 private fun WithdrawalSubmittedSuccessModal(
-    amount: Long,
-    payoutMethod: String,
-    payoutDetails: String,
-    onDismiss: () -> Unit
+   amount: Long,
+   payoutMethod: String,
+   payoutDetails: String,
+   onDismiss: () -> Unit
 ) {
-    PaymentSuccessPopup(
-        visible = true,
-        amount = amount,
-        upiId = payoutDetails,
-        onDismiss = onDismiss
-    )
+   PaymentSuccessPopup(
+       visible = true,
+       amount = amount,
+       upiId = payoutDetails,
+       onDismiss = onDismiss
+   )
 }
 
 /**
- * Payment Status / Withdrawal Invoice Receipt Modal matching WhatsApp_Image_2026-10-25_at_9.23.49_AM_64d9fcf4.jpeg
- */
+* Payment Status / Withdrawal Invoice Receipt Modal matching WhatsApp_Image_2026-10-25_at_9.23.49_AM_64d9fcf4.jpeg
+*/
 @Composable
 private fun WithdrawalPaymentStatusModal(
-    transaction: WalletTransaction,
-    fallbackUpiId: String,
-    onDismiss: () -> Unit
+   transaction: WalletTransaction,
+   fallbackUpiId: String,
+   onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val statusLower = transaction.status.lowercase()
-    val currentStepIndex = when (statusLower) {
-        "paid", "completed", "success" -> 3
-        "processing" -> 2
-        "approved" -> 1
-        else -> 0
-    }
-    val statusTitle = when (statusLower) {
-        "paid", "completed", "success" -> "Payment Successful"
-        "processing" -> "Payment Processing"
-        "approved" -> "Withdrawal Approved"
-        "rejected", "failed" -> "Withdrawal Rejected"
-        else -> "Pending Verification Review"
-    }
-    val txDisplayId = transaction.withdrawalId.ifBlank { transaction.id }.uppercase().takeLast(12)
-    val methodText = transaction.payoutMethod.ifBlank { "UPI Transfer" }
-    val upiDisplay = transaction.upiId.ifBlank { fallbackUpiId.ifBlank { "Verified Account" } }
-    val formattedDate = remember(transaction.createdAt) {
-        val millis = transaction.createdAt?.toDate()?.time ?: System.currentTimeMillis()
-        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US).format(Date(millis))
-    }
+   val context = LocalContext.current
+   val statusLower = transaction.status.lowercase()
+   val currentStepIndex = when (statusLower) {
+       "paid", "completed", "success" -> 3
+       "processing" -> 2
+       "approved" -> 1
+       else -> 0
+   }
+   val statusTitle = when (statusLower) {
+       "paid", "completed", "success" -> "Payment Successful"
+       "processing" -> "Payment Processing"
+       "approved" -> "Withdrawal Approved"
+       "rejected", "failed" -> "Withdrawal Rejected"
+       else -> "Pending Verification Review"
+   }
+   val txDisplayId = transaction.withdrawalId.ifBlank { transaction.id }.uppercase().takeLast(12)
+   val methodText = transaction.payoutMethod.ifBlank { "UPI Transfer" }
+   val upiDisplay = transaction.upiId.ifBlank { fallbackUpiId.ifBlank { "Verified Account" } }
+   val formattedDate = remember(transaction.createdAt) {
+       val millis = transaction.createdAt?.toDate()?.time ?: System.currentTimeMillis()
+       SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US).format(Date(millis))
+   }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(26.dp))
-                .background(Color(0xFF1F2430))
-                .padding(top = 18.dp, start = 14.dp, end = 14.dp, bottom = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top Receipt Printer Slot Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.68f)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFF0F131A))
-            )
+   Dialog(onDismissRequest = onDismiss) {
+       Column(
+           modifier = Modifier
+               .fillMaxWidth()
+               .clip(RoundedCornerShape(26.dp))
+               .background(Color(0xFF1F2430))
+               .padding(top = 18.dp, start = 14.dp, end = 14.dp, bottom = 14.dp),
+           horizontalAlignment = Alignment.CenterHorizontally
+       ) {
+           // Top Receipt Printer Slot Bar
+           Box(
+               modifier = Modifier
+                   .fillMaxWidth(0.68f)
+                   .height(8.dp)
+                   .clip(RoundedCornerShape(999.dp))
+                   .background(Color(0xFF0F131A))
+           )
 
-            Spacer(modifier = Modifier.height(10.dp))
+           Spacer(modifier = Modifier.height(10.dp))
 
-            // White Paper Receipt Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 18.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (statusLower == "rejected") Color(0xFFFFE4E6) else Color(0xFFDCFCE7)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (statusLower == "rejected") Color(0xFFE11D48) else Color(0xFF10B981)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (statusLower == "rejected") Icons.Outlined.Close else Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
+           // White Paper Receipt Card
+           Column(
+               modifier = Modifier
+                   .fillMaxWidth()
+                   .clip(RoundedCornerShape(20.dp))
+                   .background(Color.White)
+                   .padding(horizontal = 18.dp, vertical = 20.dp),
+               horizontalAlignment = Alignment.CenterHorizontally,
+               verticalArrangement = Arrangement.spacedBy(12.dp)
+           ) {
+               Box(
+                   modifier = Modifier
+                       .size(54.dp)
+                       .clip(CircleShape)
+                       .background(
+                           if (statusLower == "rejected") Color(0xFFFFE4E6) else Color(0xFFDCFCE7)
+                       ),
+                   contentAlignment = Alignment.Center
+               ) {
+                   Box(
+                       modifier = Modifier
+                           .size(38.dp)
+                           .clip(CircleShape)
+                           .background(
+                               if (statusLower == "rejected") Color(0xFFE11D48) else Color(0xFF10B981)
+                           ),
+                       contentAlignment = Alignment.Center
+                   ) {
+                       Icon(
+                           imageVector = if (statusLower == "rejected") Icons.Outlined.Close else Icons.Filled.Check,
+                           contentDescription = null,
+                           tint = Color.White,
+                           modifier = Modifier.size(22.dp)
+                       )
+                   }
+               }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "Payment Status",
-                        color = Color(0xFF17142E),
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = statusTitle,
-                        color = if (statusLower == "rejected") Color(0xFFE11D48) else Color(0xFF10B981),
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp
-                    )
-                }
+               Column(
+                   horizontalAlignment = Alignment.CenterHorizontally,
+                   verticalArrangement = Arrangement.spacedBy(2.dp)
+               ) {
+                   Text(
+                       text = "Payment Status",
+                       color = Color(0xFF17142E),
+                       fontFamily = PoppinsFontFamily,
+                       fontWeight = FontWeight.ExtraBold,
+                       fontSize = 16.sp
+                   )
+                   Text(
+                       text = statusTitle,
+                       color = if (statusLower == "rejected") Color(0xFFE11D48) else Color(0xFF10B981),
+                       fontFamily = InterFontFamily,
+                       fontWeight = FontWeight.SemiBold,
+                       fontSize = 11.5.sp
+                   )
+               }
 
-                Text(
-                    text = "₹${transaction.amount}.00",
-                    color = Color(0xFF17142E),
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 26.sp
-                )
+               Text(
+                   text = "₹${transaction.amount}.00",
+                   color = Color(0xFF17142E),
+                   fontFamily = PoppinsFontFamily,
+                   fontWeight = FontWeight.ExtraBold,
+                   fontSize = 26.sp
+               )
 
-                // 4-Step Status Progress Bar (Pending -> Approved -> Processing -> Paid)
-                val steps = listOf("Pending", "Approved", "Processing", "Paid")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    steps.forEachIndexed { idx, stepLabel ->
-                        val reached = idx <= currentStepIndex && statusLower != "rejected"
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (reached) Color(0xFF10B981) else Color(0xFFE2E8F0)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = if (reached) Color.White else Color(0xFF94A3B8),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                            Text(
-                                text = stepLabel,
-                                color = if (reached) Color(0xFF065F46) else Color(0xFF94A3B8),
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = if (reached) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 9.sp
-                            )
-                        }
-                    }
-                }
+               // 4-Step Status Progress Bar (Pending -> Approved -> Processing -> Paid)
+               val steps = listOf("Pending", "Approved", "Processing", "Paid")
+               Row(
+                   modifier = Modifier
+                       .fillMaxWidth()
+                       .padding(vertical = 4.dp),
+                   horizontalArrangement = Arrangement.SpaceBetween,
+                   verticalAlignment = Alignment.CenterVertically
+               ) {
+                   steps.forEachIndexed { idx, stepLabel ->
+                       val reached = idx <= currentStepIndex && statusLower != "rejected"
+                       Column(
+                           horizontalAlignment = Alignment.CenterHorizontally,
+                           verticalArrangement = Arrangement.spacedBy(4.dp)
+                       ) {
+                           Box(
+                               modifier = Modifier
+                                   .size(22.dp)
+                                   .clip(CircleShape)
+                                   .background(
+                                       if (reached) Color(0xFF10B981) else Color(0xFFE2E8F0)
+                                   ),
+                               contentAlignment = Alignment.Center
+                           ) {
+                               Icon(
+                                   imageVector = Icons.Filled.Check,
+                                   contentDescription = null,
+                                   tint = if (reached) Color.White else Color(0xFF94A3B8),
+                                   modifier = Modifier.size(12.dp)
+                               )
+                           }
+                           Text(
+                               text = stepLabel,
+                               color = if (reached) Color(0xFF065F46) else Color(0xFF94A3B8),
+                               fontFamily = PoppinsFontFamily,
+                               fontWeight = if (reached) FontWeight.Bold else FontWeight.Medium,
+                               fontSize = 9.sp
+                           )
+                       }
+                   }
+               }
 
-                HorizontalDivider(color = Color(0xFFE2E8F0))
+               HorizontalDivider(color = Color(0xFFE2E8F0))
 
-                // Receipt Breakdown Rows
-                ReceiptDetailRow(label = "Transaction ID", value = "#$txDisplayId")
-                ReceiptDetailRow(label = "Payment Method", value = methodText)
-                ReceiptDetailRow(label = "Payout To", value = upiDisplay)
-                ReceiptDetailRow(label = "Date & Time", value = formattedDate)
+               // Receipt Breakdown Rows
+               ReceiptDetailRow(label = "Transaction ID", value = "#$txDisplayId")
+               ReceiptDetailRow(label = "Payment Method", value = methodText)
+               ReceiptDetailRow(label = "Payout To", value = upiDisplay)
+               ReceiptDetailRow(label = "Date & Time", value = formattedDate)
 
-                Spacer(modifier = Modifier.height(4.dp))
+               Spacer(modifier = Modifier.height(4.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(0.38f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .clickable { onDismiss() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Close",
-                            color = Color(0xFF475569),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                    }
+               Row(
+                   modifier = Modifier.fillMaxWidth(),
+                   horizontalArrangement = Arrangement.spacedBy(10.dp)
+               ) {
+                   Box(
+                       modifier = Modifier
+                           .weight(0.38f)
+                           .height(42.dp)
+                           .clip(RoundedCornerShape(999.dp))
+                           .background(Color(0xFFF1F5F9))
+                           .clickable { onDismiss() },
+                       contentAlignment = Alignment.Center
+                   ) {
+                       Text(
+                           text = "Close",
+                           color = Color(0xFF475569),
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 12.sp
+                       )
+                   }
 
-                    Row(
-                        modifier = Modifier
-                            .weight(0.62f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFF10B981))
-                            .clickable {
-                                val shareText =
-                                    "Task Gullak Withdrawal Receipt\nAmount: ₹${transaction.amount}.00\nStatus: $statusTitle\nTransaction ID: #$txDisplayId\nMethod: $methodText ($upiDisplay)\nDate: $formattedDate"
-                                runCatching {
-                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareText)
-                                    }
-                                    context.startActivity(
-                                        Intent.createChooser(sendIntent, "Share Payment Receipt")
-                                    )
-                                }
-                            },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Share,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Download Invoice",
-                            color = Color.White,
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
+                   Row(
+                       modifier = Modifier
+                           .weight(0.62f)
+                           .height(42.dp)
+                           .clip(RoundedCornerShape(999.dp))
+                           .background(Color(0xFF10B981))
+                           .clickable {
+                               val shareText =
+                                   "Task Gullak Withdrawal Receipt\nAmount: ₹${transaction.amount}.00\nStatus: $statusTitle\nTransaction ID: #$txDisplayId\nMethod: $methodText ($upiDisplay)\nDate: $formattedDate"
+                               runCatching {
+                                   val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                       type = "text/plain"
+                                       putExtra(Intent.EXTRA_TEXT, shareText)
+                                   }
+                                   context.startActivity(
+                                       Intent.createChooser(sendIntent, "Share Payment Receipt")
+                                   )
+                               }
+                           },
+                       verticalAlignment = Alignment.CenterVertically,
+                       horizontalArrangement = Arrangement.Center
+                   ) {
+                       Icon(
+                           imageVector = Icons.Outlined.Share,
+                           contentDescription = null,
+                           tint = Color.White,
+                           modifier = Modifier.size(15.dp)
+                       )
+                       Spacer(modifier = Modifier.width(6.dp))
+                       Text(
+                           text = "Download Invoice",
+                           color = Color.White,
+                           fontFamily = PoppinsFontFamily,
+                           fontWeight = FontWeight.Bold,
+                           fontSize = 11.5.sp
+                       )
+                   }
+               }
+           }
+       }
+   }
 }
 
 @Composable
 private fun ReceiptDetailRow(
-    label: String,
-    value: String
+   label: String,
+   value: String
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            color = Color(0xFF64748B),
-            fontFamily = InterFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 11.5.sp
-        )
-        Text(
-            text = value,
-            color = Color(0xFF1E293B),
-            fontFamily = PoppinsFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.5.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+   Row(
+       modifier = Modifier.fillMaxWidth(),
+       horizontalArrangement = Arrangement.SpaceBetween,
+       verticalAlignment = Alignment.CenterVertically
+   ) {
+       Text(
+           text = label,
+           color = Color(0xFF64748B),
+           fontFamily = InterFontFamily,
+           fontWeight = FontWeight.Medium,
+           fontSize = 11.5.sp
+       )
+       Text(
+           text = value,
+           color = Color(0xFF1E293B),
+           fontFamily = PoppinsFontFamily,
+           fontWeight = FontWeight.Bold,
+           fontSize = 11.5.sp,
+           maxLines = 1,
+           overflow = TextOverflow.Ellipsis
+       )
+   }
 }
 
 /**
- * Live Countdown Timer & Deterministic Comment Selection per User:
- * - Selects comment deterministically using user's UID seed % comments.size
- * - Starts countdown timer live in reverse (15:00 -> 14:59) when user copies the comment
- * - If timer reaches 00:00 before proof submission: rotates to the next comment & resets timer!
- */
+* Live Countdown Timer & Deterministic Comment Selection per User:
+* - Selects comment deterministically using user's UID seed % comments.size
+* - Starts countdown timer live in reverse (15:00 -> 14:59) when user copies the comment
+* - If timer reaches 00:00 before proof submission: rotates to the next comment & resets timer!
+*/
 @Composable
 private fun rememberTaskTimerAndComment(
-    context: Context,
-    task: AvailableTask
+   context: Context,
+   task: AvailableTask
 ): Triple<String, Long, () -> Unit> {
-    val prefs = remember(context) {
-        context.getSharedPreferences("task_timer_prefs", Context.MODE_PRIVATE)
-    }
+   val prefs = remember(context) {
+       context.getSharedPreferences("task_timer_prefs", Context.MODE_PRIVATE)
+   }
 
-    val userId = remember {
-        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
-    }
-    val userSeed = remember(userId) { kotlin.math.abs(userId.hashCode()) }
+   val userId = remember {
+       com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+   }
+   val userSeed = remember(userId) { kotlin.math.abs(userId.hashCode()) }
 
-    var rotationOffset by remember(task.id) {
-        mutableIntStateOf(prefs.getInt("offset_${task.id}", 0))
-    }
-    var timerStartedAtMs by remember(task.id) {
-        mutableLongStateOf(prefs.getLong("start_ms_${task.id}", 0L))
-    }
+   var rotationOffset by remember(task.id) {
+       mutableIntStateOf(prefs.getInt("offset_${task.id}", 0))
+   }
+   var timerStartedAtMs by remember(task.id) {
+       mutableLongStateOf(prefs.getLong("start_ms_${task.id}", 0L))
+   }
 
-    val allComments = remember(task.commentsList, task.assignedComment) {
-        val list = task.commentsList.filter { it.isNotBlank() }
-        if (list.isNotEmpty()) {
-            list
-        } else if (task.assignedComment.isNotBlank()) {
-            listOf(task.assignedComment)
-        } else {
-            listOf(
-                "Great app! Very easy to use and helpful features. Highly recommended! 👍",
-                "Awesome user experience! Works smoothly without any lag. 5 stars!",
-                "Super useful app with clean design and fast performance. Loved it!",
-                "Exceeded my expectations. Very reliable and user friendly!"
-            )
-        }
-    }
+   val allComments = remember(task.commentsList, task.assignedComment) {
+       val list = task.commentsList.filter { it.isNotBlank() }
+       if (list.isNotEmpty()) {
+           list
+       } else if (task.assignedComment.isNotBlank()) {
+           listOf(task.assignedComment)
+       } else {
+           listOf(
+               "Great app! Very easy to use and helpful features. Highly recommended! 👍",
+               "Awesome user experience! Works smoothly without any lag. 5 stars!",
+               "Super useful app with clean design and fast performance. Loved it!",
+               "Exceeded my expectations. Very reliable and user friendly!"
+           )
+       }
+   }
 
-    val currentCommentIndex = remember(allComments, userSeed, rotationOffset) {
-        if (allComments.isNotEmpty()) (userSeed + rotationOffset) % allComments.size else 0
-    }
-    val activeComment = remember(allComments, currentCommentIndex) {
-        allComments.getOrNull(currentCommentIndex) ?: "Great app! Very easy to use."
-    }
+   val currentCommentIndex = remember(allComments, userSeed, rotationOffset) {
+       if (allComments.isNotEmpty()) (userSeed + rotationOffset) % allComments.size else 0
+   }
+   val activeComment = remember(allComments, currentCommentIndex) {
+       allComments.getOrNull(currentCommentIndex) ?: "Great app! Very easy to use."
+   }
 
-    val durationTotalSeconds = remember(task.durationMinutes) {
-        task.durationMinutes.coerceAtLeast(1) * 60L
-    }
+   val durationTotalSeconds = remember(task.durationMinutes) {
+       task.durationMinutes.coerceAtLeast(1) * 60L
+   }
 
-    var remainingSeconds by remember(task.id, timerStartedAtMs, durationTotalSeconds) {
-        mutableLongStateOf(
-            if (timerStartedAtMs > 0L) {
-                val elapsed = (System.currentTimeMillis() - timerStartedAtMs) / 1000L
-                (durationTotalSeconds - elapsed).coerceAtLeast(0L)
-            } else {
-                durationTotalSeconds
-            }
-        )
-    }
+   var remainingSeconds by remember(task.id, timerStartedAtMs, durationTotalSeconds) {
+       mutableLongStateOf(
+           if (timerStartedAtMs > 0L) {
+               val elapsed = (System.currentTimeMillis() - timerStartedAtMs) / 1000L
+               (durationTotalSeconds - elapsed).coerceAtLeast(0L)
+           } else {
+               durationTotalSeconds
+           }
+       )
+   }
 
-    LaunchedEffect(timerStartedAtMs, durationTotalSeconds, task.id) {
-        if (timerStartedAtMs > 0L) {
-            while (true) {
-                val elapsed = (System.currentTimeMillis() - timerStartedAtMs) / 1000L
-                val rem = (durationTotalSeconds - elapsed).coerceAtLeast(0L)
-                remainingSeconds = rem
+   LaunchedEffect(timerStartedAtMs, durationTotalSeconds, task.id) {
+       if (timerStartedAtMs > 0L) {
+           while (true) {
+               val elapsed = (System.currentTimeMillis() - timerStartedAtMs) / 1000L
+               val rem = (durationTotalSeconds - elapsed).coerceAtLeast(0L)
+               remainingSeconds = rem
 
-                if (rem <= 0L) {
-                    val nextOffset = rotationOffset + 1
-                    rotationOffset = nextOffset
-                    timerStartedAtMs = 0L
-                    prefs.edit()
-                        .putInt("offset_${task.id}", nextOffset)
-                        .putLong("start_ms_${task.id}", 0L)
-                        .apply()
-                    Toast.makeText(context, "Timer expired! Assigned review comment updated.", Toast.LENGTH_LONG).show()
-                    break
-                }
-                kotlinx.coroutines.delay(1000L)
-            }
-        } else {
-            remainingSeconds = durationTotalSeconds
-        }
-    }
+               if (rem <= 0L) {
+                   val nextOffset = rotationOffset + 1
+                   rotationOffset = nextOffset
+                   timerStartedAtMs = 0L
+                   prefs.edit()
+                       .putInt("offset_${task.id}", nextOffset)
+                       .putLong("start_ms_${task.id}", 0L)
+                       .apply()
+                   Toast.makeText(context, "Timer expired! Assigned review comment updated.", Toast.LENGTH_LONG).show()
+                   break
+               }
+               kotlinx.coroutines.delay(1000L)
+           }
+       } else {
+           remainingSeconds = durationTotalSeconds
+       }
+   }
 
-    val startTimerOnCopy = remember(task.id, context, prefs) {
-        {
-            if (timerStartedAtMs == 0L) {
-                val now = System.currentTimeMillis()
-                timerStartedAtMs = now
-                prefs.edit().putLong("start_ms_${task.id}", now).apply()
-            }
-        }
-    }
+   val startTimerOnCopy = remember(task.id, context, prefs) {
+       {
+           if (timerStartedAtMs == 0L) {
+               val now = System.currentTimeMillis()
+               timerStartedAtMs = now
+               prefs.edit().putLong("start_ms_${task.id}", now).apply()
+           }
+       }
+   }
 
-    return Triple(activeComment, remainingSeconds, startTimerOnCopy)
+   return Triple(activeComment, remainingSeconds, startTimerOnCopy)
 }
 
