@@ -3231,35 +3231,42 @@ internal fun WalletTabShellContent(
             .sumOf { it.amount }
     }
 
-    val triggerWithdrawalAction: () -> Unit = {
-        onClearWithdrawFeedback()
-        localWithdrawError = null
-        val parsedAmount = withdrawAmountInput.trim().toLongOrNull()
-            ?: walletBalance.takeIf { it >= 100L }
-            ?: 0L
-        val methodLabel = if (selectedPayoutMethod == 0) "UPI Transfer" else "Bank (IMPS)"
-        val cleanDetails = payoutDetailsInput.trim()
-        when {
-            walletBalance < 100L -> {
-                localWithdrawError = "Minimum withdrawal amount is ₹100 (Available balance: ₹$walletBalance)."
-            }
-            parsedAmount < 100L -> {
-                localWithdrawError = "Minimum withdrawal amount is ₹100."
-            }
-            parsedAmount > walletBalance -> {
-                localWithdrawError = "Maximum withdrawal amount is ₹$walletBalance (Your available earned balance)."
-            }
-            cleanDetails.length < 3 -> {
-                localWithdrawError = if (selectedPayoutMethod == 0) {
-                    "Please enter your UPI ID (e.g. yourname@upi)."
-                } else {
-                    "Please enter your Bank Account & IFSC details."
+    val triggerWithdrawalAction = remember(
+        withdrawAmountInput,
+        selectedPayoutMethod,
+        payoutDetailsInput,
+        walletBalance
+    ) {
+        {
+            onClearWithdrawFeedback()
+            localWithdrawError = null
+            val parsedAmount = withdrawAmountInput.trim().toLongOrNull()
+                ?: walletBalance.takeIf { it >= 100L }
+                ?: 0L
+            val methodLabel = if (selectedPayoutMethod == 0) "UPI Transfer" else "Bank (IMPS)"
+            val cleanDetails = payoutDetailsInput.trim()
+            when {
+                walletBalance < 100L -> {
+                    localWithdrawError = "Minimum withdrawal amount is ₹100 (Available balance: ₹$walletBalance)."
                 }
-            }
-            else -> {
-                onRequestWithdrawal(parsedAmount, methodLabel, cleanDetails)
-                submittedWithdrawalSuccess = Triple(parsedAmount, methodLabel, cleanDetails)
-                withdrawAmountInput = ""
+                parsedAmount < 100L -> {
+                    localWithdrawError = "Minimum withdrawal amount is ₹100."
+                }
+                parsedAmount > walletBalance -> {
+                    localWithdrawError = "Maximum withdrawal amount is ₹$walletBalance (Your available earned balance)."
+                }
+                cleanDetails.length < 3 -> {
+                    localWithdrawError = if (selectedPayoutMethod == 0) {
+                        "Please enter your UPI ID (e.g. yourname@upi)."
+                    } else {
+                        "Please enter your Bank Account & IFSC details."
+                    }
+                }
+                else -> {
+                    onRequestWithdrawal(parsedAmount, methodLabel, cleanDetails)
+                    submittedWithdrawalSuccess = Triple(parsedAmount, methodLabel, cleanDetails)
+                    withdrawAmountInput = ""
+                }
             }
         }
     }
