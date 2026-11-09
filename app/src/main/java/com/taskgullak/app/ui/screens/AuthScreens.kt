@@ -893,6 +893,15 @@ fun SignupScreen(
         isSignupLoading = true
         coroutineScope.launch {
             // 2b. Single Account Per Phone Check (1 device = 1 account)
+            val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
+                context = context,
+                candidateEmail = cleanEmail
+            )
+            if (singleDeviceErr != null) {
+                isSignupLoading = false
+                emailError = singleDeviceErr
+                return@launch
+            }
 
             try {
                 val result = FirebaseEmailDispatchService.registerEmailAccountAndSendVerification(
