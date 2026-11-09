@@ -41,8 +41,7 @@ service cloud.firestore {
     }
 
     function isAdminPanel() {
-      return request.auth == null ||
-             isAdminEmail() ||
+      return isAdminEmail() ||
              (request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
 
@@ -286,14 +285,6 @@ service cloud.firestore {
     // Unrestricted so users can write and admins can reply without being blocked by complex auth rules
     match /support_tickets/{ticketId} {
       allow read, write: if true;
-    }
-  }
-}ow create, update, delete: if isValidId(withdrawalId);
-    }
-
-    match /device_accounts/{deviceId} {
-      allow get, list: if true;
-      allow create, update, delete: if isValidId(deviceId);
     }
   }
 }
