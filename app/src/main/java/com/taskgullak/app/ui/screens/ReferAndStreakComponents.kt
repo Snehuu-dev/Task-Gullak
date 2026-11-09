@@ -146,7 +146,7 @@ fun ExactReferAndEarnScreen(
             }
             val key = userEmailClean.ifBlank { user.userId.lowercase() }
             val completed = user.completedTasksCount.toInt()
-            val estCommission = (completed * 2.5)
+            val estCommission = (completed * 0.5) // Approximate 1% (assumes average 50 reward per task)
             byEmail[key] = ReferralFriendRecord(
                 name = user.fullName.ifBlank { "Referred Friend" },
                 email = user.email,
@@ -807,7 +807,7 @@ fun ExactReferAndEarnScreen(
                                     fontSize = 13.5.sp
                                 )
                                 Text(
-                                    text = "Lifetime 5%",
+                                    text = "Lifetime 1%",
                                     color = Color(0xFF16A34A),
                                     fontFamily = PoppinsFontFamily,
                                     fontWeight = FontWeight.SemiBold,
