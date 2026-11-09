@@ -437,12 +437,12 @@ class TaskGullakRepository(
             ).await()
 
             val txRef = referrerDocRef.collection("transactions").document()
-            val noteText = "Referral Login Bonus: $displayFriend logged in (+₹$loginBonusInr)"
+            val noteText = "Referral Bonus (+₹$loginBonusInr): $displayFriend joined"
             txRef.set(
                 mapOf(
                     "userId" to resolvedReferrerUid,
                     "amount" to loginBonusInr,
-                    "type" to "referral_commission",
+                    "type" to "referral_bonus",
                     "note" to noteText.take(280),
                     "createdAt" to FieldValue.serverTimestamp()
                 )

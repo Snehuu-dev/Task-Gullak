@@ -2053,7 +2053,7 @@ object FirebaseEmailDispatchService {
 
     /**
      * Lifetime Referral Commission System:
-     * Whenever a user completes/gets a task approved, the referrer receives a 5% lifetime
+     * Whenever a user completes/gets a task approved, the referrer receives a 1% lifetime
      * commission bonus automatically WITHOUT deducting anything from the referred person's
      * wallet or task real reward amount.
      */
@@ -2064,7 +2064,7 @@ object FirebaseEmailDispatchService {
     ): Double {
         if (taskRewardCoins <= 0) return 0.0
         val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
-        val commissionRupees = ((taskRewardCoins / 100.0) * 0.05).coerceAtLeast(0.50)
+        val commissionRupees = ((taskRewardCoins / 100.0) * 0.01).coerceAtLeast(0.50)
         val currentLifetime = prefs.getFloat(KEY_REFERRAL_LIFETIME_EARNED, 0.0f)
         val updatedLifetime = currentLifetime + commissionRupees.toFloat()
         prefs.edit().putFloat(KEY_REFERRAL_LIFETIME_EARNED, updatedLifetime).apply()
