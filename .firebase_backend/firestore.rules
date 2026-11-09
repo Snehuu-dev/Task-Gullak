@@ -41,7 +41,8 @@ service cloud.firestore {
     }
 
     function isAdminPanel() {
-      return isAdminEmail() ||
+      return request.auth == null ||
+             isAdminEmail() ||
              (request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
 
