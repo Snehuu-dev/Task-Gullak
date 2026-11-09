@@ -15,9 +15,13 @@ ACT.fixReferralBalances = async () => {
         });
       });
 
-      let expectedBonus = num(u.totalReferralBonusEarned) || 0;
-      if (expectedBonus === 0 && friends.length > 0) expectedBonus = friends.length * 5;
-      else expectedBonus = Math.max(expectedBonus, friends.length * 5);
+      let expectedBonus = 0;
+      // 1. You get 5 for every friend you referred
+      expectedBonus += (friends.length * 5);
+      // 2. You get 5 for being referred by someone (if you were referred)
+      if (u.referredByUserId || u.referredByCode) {
+        expectedBonus += 5;
+      }
 
       if (expectedComm === 0 && expectedBonus === 0) continue;
 
