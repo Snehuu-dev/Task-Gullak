@@ -272,6 +272,20 @@ fun onGoogleSignInClicked(
                     Log.w("Auth", "Firebase credential link note (continuing with Google profile): ${err.message}")
                 }
 
+                val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
+                    context = context,
+                    candidateEmail = extractedEmail
+                )
+                if (singleDeviceErr != null) {
+                    onAuthError(singleDeviceErr)
+                    return@launch
+                }
+                FirebaseEmailDispatchService.bindDeviceToAccount(
+                    context = context,
+                    email = extractedEmail,
+                    phoneE164 = ""
+                )
+
                 FirebaseEmailDispatchService.setUserLoggedIn(context, true)
                 onAuthSuccess()
             } else {
@@ -441,6 +455,22 @@ fun LoginScreen(
                 onNavigateToVerifyEmail(cleanEmail)
                 return@launch
             }
+
+            val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
+                context = context,
+                candidateEmail = cleanEmail
+            )
+            if (singleDeviceErr != null) {
+                isLoginLoading = false
+                statusBannerTitle = "Device Bound"
+                statusBannerMessage = singleDeviceErr
+                return@launch
+            }
+            FirebaseEmailDispatchService.bindDeviceToAccount(
+                context = context,
+                email = cleanEmail,
+                phoneE164 = ""
+            )
 
             FirebaseEmailDispatchService.setUserLoggedIn(context, true)
             isLoginLoading = false
