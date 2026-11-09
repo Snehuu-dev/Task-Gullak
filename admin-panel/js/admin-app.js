@@ -971,7 +971,34 @@ async function approveCore(sub) {
     const uSnap = userRef ? await tx.get(userRef) : null;
     tx.update(subRef, { status: 'approved', adminNote: 'Approved & credited by Admin', reviewedBy: S.admin, updatedAt: serverTimestamp() });
     if (uSnap && uSnap.exists()) {
-      tx.update(userRef, { walletBalance: num(uSnap.data().walletBalance) + reward, completedTasksCount: num(uSnap.data().completedTasksCount) + 1, updatedAt: serverTimestamp() });
+      const uData = uSnap.data();
+      tx.update(userRef, { walletBalance: num(uData.walletBalance) + reward, completedTasksCount: num(uData.completedTasksCount) + 1, updatedAt: serverTimestamp() });
+
+      // Also credit 1% to referrer directly upon task approval
+      const refUid = uData.referredByUserId || '';
+      const refCode = uData.referredByCode || '';
+
+      if (refUid || refCode) {
+        const commAmt = Math.max(1, Math.round(reward * 0.01));
+        const referrerRef = refUid ? doc(db, 'users', refUid) : null;
+        if (referrerRef) {
+          const rSnap = await tx.get(referrerRef);
+          if (rSnap.exists()) {
+             tx.update(referrerRef, {
+                walletBalance: num(rSnap.data().walletBalance) + commAmt,
+                referralCommissionEarned: num(rSnap.data().referralCommissionEarned) + commAmt,
+                totalLifetimeCommissionEarned: num(rSnap.data().totalLifetimeCommissionEarned) + commAmt,
+                updatedAt: serverTimestamp()
+             });
+             const evId = `comm_${refUid}_${sub.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+             tx.set(doc(db, 'users', refUid, 'transactions', evId), {
+                userId: refUid, amount: commAmt, type: 'referral_commission',
+                note: `1% Task Comm: ${(uData.fullName || 'Friend')} completed task (+₹${commAmt})`,
+                createdAt: serverTimestamp()
+             });
+          }
+        }
+      }
     }
     if (userRef) tx.set(doc(collection(db, 'users', sub.userId, 'transactions')), { userId: sub.userId, amount: reward, type: 'task_reward', note: `Approved: ${sub.taskTitle || 'Task'}`, linkedSubmission: sub.id, createdAt: serverTimestamp() });
   });

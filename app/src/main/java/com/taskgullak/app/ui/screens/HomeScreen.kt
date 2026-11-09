@@ -288,18 +288,8 @@ fun HomeScreen(
     val feedbackMsg = vmFeedbackMsg ?: localFeedbackMsg
     val withdrawFeedbackMsg = vmWithdrawFeedback ?: localWithdrawFeedback
 
-    val walletBalance = remember(profile?.walletBalance, transactions, submissions, localBalanceDeduction) {
-        val baseBalance = if (profile != null && profile.walletBalance > 0L) {
-            profile.walletBalance
-        } else {
-            val subRewards = submissions.filter { it.status == "verified" || it.status == "approved" }.sumOf { it.rewardAmount }
-            val txCredits = transactions.filter {
-                val t = it.type.lowercase()
-                t == "referral_bonus" || t == "referral_commission" || t == "admin_credit"
-            }.sumOf { it.amount }
-            val raw = subRewards + txCredits
-            if (raw > 0L) raw else (profile?.walletBalance ?: 0L)
-        }
+    val walletBalance = remember(profile?.walletBalance, localBalanceDeduction) {
+        val baseBalance = profile?.walletBalance ?: 0L
         (baseBalance - localBalanceDeduction).coerceAtLeast(0L)
     }
 
@@ -1269,7 +1259,26 @@ fun HomeScreen(
                                 if (viewModel != null) {
                                     viewModel.submitSupportTicket(msg, onComplete)
                                 } else {
-                                    onComplete(false)
+                                    coroutineScope.launch {
+                                        try {
+                                            val databaseId = runCatching {
+                                                val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
+                                                if (resId != 0) context.getString(resId) else "(default)"
+                                            }.getOrDefault("(default)").ifBlank { "(default)" }
+                                            
+                                            val db = if (databaseId == "(default)") {
+                                                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                            } else {
+                                                com.google.firebase.firestore.FirebaseFirestore.getInstance(databaseId)
+                                            }
+                                            
+                                            val repo = com.taskgullak.app.data.repository.TaskGullakRepository(db, context)
+                                            val res = repo.submitSupportTicket(msg)
+                                            onComplete(res.isSuccess)
+                                        } catch (e: Exception) {
+                                            onComplete(false)
+                                        }
+                                    }
                                 }
                             },
                             onNavigateToWallet = { activeTab = HomeBottomTab.Wallet },
