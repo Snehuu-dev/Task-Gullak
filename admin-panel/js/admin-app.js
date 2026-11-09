@@ -2140,6 +2140,71 @@ ACT.replyTicket = async el => {
 };
 
 /* === REFERRAL MANAGEMENT VIEW === */
+ACT.fixReferralBalances = async () => {
+  if (!await confirmBox('Sync All Missing Referral Earnings?', 'This will scan ALL users, calculate missing 1% commissions and ₹5 bonuses based on their friends\' approved tasks, and credit the missing amounts to their wallets. It checks transaction history to prevent double-crediting.')) return;
+  busy = true; renderAll();
+  try {
+    let totalFixed = 0, totalMoney = 0;
+    for (const u of S.users) {
+      const friends = S.users.filter(x => x.referredByUserId === u.id || (u.referralCode && x.referredByCode && x.referredByCode.toUpperCase() === u.referralCode.toUpperCase()));
+
+      let expectedComm = 0;
+      friends.forEach(f => {
+        S.subs.filter(s => s.userId === f.id && subSt(s) === 'approved').forEach(s => {
+          expectedComm += Math.max(1, Math.round(num(s.rewardAmount) * 0.01));
+        });
+      });
+
+      let expectedBonus = num(u.totalReferralBonusEarned) || 0;
+      if (expectedBonus === 0 && friends.length > 0) expectedBonus = friends.length * 5;
+      else expectedBonus = Math.max(expectedBonus, friends.length * 5);
+
+      if (expectedComm === 0 && expectedBonus === 0) continue;
+
+      const txs = await getDocs(collection(db, 'users', u.id, 'transactions'));
+      let creditedComm = 0, creditedBonus = 0;
+      txs.forEach(d => {
+        const t = d.data();
+        if (t.type === 'referral_commission') creditedComm += num(t.amount);
+        if (t.type === 'referral_bonus' || t.type === 'referral_login_bonus') creditedBonus += num(t.amount);
+      });
+
+      const missingComm = Math.max(0, expectedComm - creditedComm);
+      const missingBonus = Math.max(0, expectedBonus - creditedBonus);
+
+      if (missingComm > 0 || missingBonus > 0) {
+        await runTransaction(db, async tx => {
+          const uRef = doc(db, 'users', u.id);
+          const uSnap = await tx.get(uRef);
+          if (!uSnap.exists()) return;
+          tx.update(uRef, {
+            walletBalance: num(uSnap.data().walletBalance) + missingComm + missingBonus,
+            totalLifetimeCommissionEarned: expectedComm,
+            referralCommissionEarned: expectedComm,
+            totalReferralBonusEarned: expectedBonus,
+            updatedAt: serverTimestamp()
+          });
+          if (missingComm > 0) {
+            tx.set(doc(collection(db, 'users', u.id, 'transactions')), {
+              userId: u.id, amount: missingComm, type: 'referral_commission',
+              note: `Retroactive 1% Lifetime Comm Sync (+₹${missingComm})`, createdAt: serverTimestamp()
+            });
+          }
+          if (missingBonus > 0) {
+            tx.set(doc(collection(db, 'users', u.id, 'transactions')), {
+              userId: u.id, amount: missingBonus, type: 'referral_bonus',
+              note: `Retroactive Referral Bonus Sync (+₹${missingBonus})`, createdAt: serverTimestamp()
+            });
+          }
+        });
+        totalFixed++; totalMoney += (missingComm + missingBonus);
+      }
+    }
+    toast(`Success! Credited ₹${totalMoney} to ${totalFixed} users.`, 'ok');
+  } catch (e) { console.error(e); toast(e.message, 'bad'); }
+  busy = false; renderAll();
+};
+
 RENDER.referrals = () => {
   const users = S.users || [];
   let totalReferrals = 0, totalBonus = 0, totalComm = 0;

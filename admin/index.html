@@ -705,6 +705,10 @@ body,#login-screen{background:var(--page)!important}
             <div class="stat-card" style="background:var(--field);padding:12px;border-radius:8px;flex:1"><div class="lbl fs12 muted">Total Bonuses Paid</div><div class="val ok-t b fs18" id="ref-total-bonus">₹0</div></div>
             <div class="stat-card" style="background:var(--field);padding:12px;border-radius:8px;flex:1"><div class="lbl fs12 muted">Total 1% Lifetime Comm</div><div class="val purple-t b fs18" id="ref-total-comm">₹0</div></div>
           </div>
+          <div class="mt12 pt12" style="border-top:1px solid var(--border)">
+            <button class="btn ok" data-act="fixReferralBalances"><i data-ic="refresh"></i> Run 1-Time Missing Balance Sync</button>
+            <p class="fs11 muted mt6">Calculates missing 1% lifetime commissions and ₹5 bonuses from all past activity and credits them to user wallets.</p>
+          </div>
         </div>
         <div class="card">
           <div class="card-h"><h3>Referral User Accounts</h3></div>
