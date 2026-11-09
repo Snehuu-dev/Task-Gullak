@@ -166,6 +166,8 @@ service cloud.firestore {
                'userEmail',
                'screenshotBase64',
                'adminNote',
+               'rejectionReason',
+               'reviewedBy',
                'aiVerified',
                'aiCompletionPercent',
                'aiVerdict',
@@ -198,6 +200,8 @@ service cloud.firestore {
              (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 150)) &&
              (!('screenshotBase64' in data) || (data.screenshotBase64 is string && data.screenshotBase64.size() <= 750000)) &&
              (!('adminNote' in data) || (data.adminNote is string && data.adminNote.size() <= 1000)) &&
+             (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 1000)) &&
+             (!('reviewedBy' in data) || (data.reviewedBy is string && data.reviewedBy.size() <= 1000)) &&
              (!('aiVerified' in data) || data.aiVerified is bool) &&
              (!('aiCompletionPercent' in data) || (data.aiCompletionPercent is int && data.aiCompletionPercent >= 0 && data.aiCompletionPercent <= 100)) &&
              (!('aiVerdict' in data) || (data.aiVerdict is string && data.aiVerdict.size() <= 100)) &&
