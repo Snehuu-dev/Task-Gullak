@@ -9,6 +9,7 @@ const VIEW_META = {
   approvals: ['Approval Management', 'Review proofs task-wise and approve or reject in bulk'],
   users: ['Users & Wallet', 'Profiles, wallet balance, history and account actions'],
   withdrawals: ['Withdrawal Management', 'Process UPI and bank payouts with full records'],
+  referrals: ['Referral Management', 'Track user referral links, bonuses, and 1% lifetime commissions'],
   reports: ['Monthly Records', 'Month-wise tasks, payouts, revenue and profit'],
   notifications: ['Push Notifications', 'Templates, custom messages and delivery history'],
   tickets: ['Support Tickets & Inquiries', 'User support messages and inquiry tickets'],
