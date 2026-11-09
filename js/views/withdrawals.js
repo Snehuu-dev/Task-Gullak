@@ -101,8 +101,9 @@ ACT.wdPay = async el => {
           }
 
           // 2. Credit 1% Lifetime Referral Commission to Referrer A
-          if (referredByUid) {
-            const referrerRef = doc(db, 'users', referredByUid);
+          const targetRefUid = referredByUid || (S.users.find(u => u.referralCode && u.referralCode.toUpperCase() === referredByCode.toUpperCase()) || {}).id || '';
+          if (targetRefUid) {
+            const referrerRef = doc(db, 'users', targetRefUid);
             const refSnap = await tx.get(referrerRef);
             if (refSnap.exists()) {
               const commAmount = Math.max(1, Math.round(withdrawAmt * 0.01));
@@ -118,9 +119,9 @@ ACT.wdPay = async el => {
               });
 
               // Log 1% Lifetime Commission Transaction
-              const commEventId = `comm_wd_${referredByUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-              tx.set(doc(db, 'users', referredByUid, 'transactions', commEventId), {
-                userId: referredByUid,
+              const commEventId = `comm_wd_${targetRefUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+              tx.set(doc(db, 'users', targetRefUid, 'transactions', commEventId), {
+                userId: targetRefUid,
                 amount: commAmount,
                 type: 'referral_commission',
                 note: `1% Lifetime Commission: ${w.userName || 'Friend'} withdrew ₹${withdrawAmt} (+₹${commAmount})`,
@@ -130,9 +131,9 @@ ACT.wdPay = async el => {
 
               // Log ₹5 Bonus Transaction for Referrer
               if (isEligibleFirstWd) {
-                const bonusEventId = `bonus_first_wd_${referredByUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-                tx.set(doc(db, 'users', referredByUid, 'transactions', bonusEventId), {
-                  userId: referredByUid,
+                const bonusEventId = `bonus_first_wd_${targetRefUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+                tx.set(doc(db, 'users', targetRefUid, 'transactions', bonusEventId), {
+                  userId: targetRefUid,
                   amount: 5,
                   type: 'referral_bonus',
                   note: `Referral Bonus (+₹5): ${w.userName || 'Friend'} completed 1st withdrawal`,
