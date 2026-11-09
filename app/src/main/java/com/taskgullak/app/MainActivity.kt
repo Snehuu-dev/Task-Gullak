@@ -502,12 +502,14 @@ fun TaskGullakApp(initialOpenNotifications: Boolean = false) {
                                     .ifBlank { authenticatedUser?.displayName ?: "Savvy" }
                                 val resolvedEmail = FirebaseEmailDispatchService.getSavedUserEmail(context)
                                     .ifBlank { authenticatedUser?.email ?: "member@taskgullak.app" }
+                                val resolvedReferredByCode = FirebaseEmailDispatchService.getReferredByCode(context, resolvedEmail)
                                 HomeViewModel(
                                     repository = TaskGullakRepository(db, app),
                                     currentUserId = activeUserId,
                                     initialDisplayName = resolvedName,
                                     initialEmail = resolvedEmail,
-                                    initialEmailVerified = true
+                                    initialEmailVerified = true,
+                                    initialReferredByCode = resolvedReferredByCode
                                 )
                             }
                         }

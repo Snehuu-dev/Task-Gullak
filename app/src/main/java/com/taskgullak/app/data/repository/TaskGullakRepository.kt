@@ -448,16 +448,30 @@ class TaskGullakRepository(
                 )
             ).await()
 
-            // Ensure referred user's document also links referredByUserId if missing
+            // Ensure referred user's document also links referredByUserId if missing and credits joining bonus
             if (cleanReferredId.isNotBlank()) {
                 runCatching {
                     val referredRef = db.collection("users").document(cleanReferredId)
                     val referredSnap = referredRef.get().await()
-                    if (referredSnap.exists() && referredSnap.getString("referredByUserId").isNullOrBlank()) {
-                        referredRef.update(
+                    if (referredSnap.exists()) {
+                        val refBal = referredSnap.getLong("walletBalance") ?: 0L
+                        val updates = mutableMapOf<String, Any>(
+                            "walletBalance" to (refBal + loginBonusInr),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                        if (referredSnap.getString("referredByUserId").isNullOrBlank()) {
+                            updates["referredByUserId"] = resolvedReferrerUid
+                        }
+                        referredRef.update(updates).await()
+
+                        val bTxRef = referredRef.collection("transactions").document()
+                        bTxRef.set(
                             mapOf(
-                                "referredByUserId" to resolvedReferrerUid,
-                                "updatedAt" to FieldValue.serverTimestamp()
+                                "userId" to cleanReferredId,
+                                "amount" to loginBonusInr,
+                                "type" to "referral_bonus",
+                                "note" to "Joining Bonus (+₹$loginBonusInr): You joined via referral",
+                                "createdAt" to FieldValue.serverTimestamp()
                             )
                         ).await()
                     }

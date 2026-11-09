@@ -52,7 +52,8 @@ class HomeViewModel(
     private val currentUserId: String,
     private val initialDisplayName: String,
     private val initialEmail: String,
-    initialEmailVerified: Boolean
+    initialEmailVerified: Boolean,
+    private val initialReferredByCode: String = ""
 ) : ViewModel() {
 
     private val taskVerificationSchema = Schema.obj(
@@ -344,6 +345,7 @@ class HomeViewModel(
                 emailVerified = initialEmailVerified,
                 explicitUserId = currentUserId,
                 referralCode = derivedReferralCode,
+                referredByCode = initialReferredByCode,
                 creditReferrerOnLogin = true
             )
         }
