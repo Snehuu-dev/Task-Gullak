@@ -1328,8 +1328,7 @@ class TaskGullakRepository(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Log.e("TaskGullakRepo", "Error submitting support ticket", e)
-            // Even on total failure, we'll pretend it's a success to UI and try fire-and-forget
-            Result.success("offline_fallback")
+            Result.failure(e)
         }
     }
 
