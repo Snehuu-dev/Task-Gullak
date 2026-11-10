@@ -597,13 +597,14 @@ function listen(key, ref, apply) {
 }
 function startListeners() {
   if (started) return; started = true;
-  listen('users', collection(db, 'users'), snap => { S.users = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
-  listen('tasks', collection(db, 'tasks'), snap => { S.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); setTimeout(sweepExpired, 800); });
-  listen('submissions', collection(db, 'submissions'), snap => { S.subs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => subMs(b) - subMs(a)); });
-  listen('withdrawals', collection(db, 'withdrawals'), snap => { S.wds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => wdMs(b) - wdMs(a)); });
-  listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
-  listen('bulkRequests', collection(db, 'bulkRequests'), snap => { S.bulkReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); });
-  listen('supportTickets', collection(db, 'support_tickets'), snap => { S.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
+  listen('users', collection(db, 'users'), snap => { S.users = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderAll(); });
+  listen('tasks', collection(db, 'tasks'), snap => { S.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); setTimeout(sweepExpired, 800); renderAll(); });
+  listen('submissions', collection(db, 'submissions'), snap => { S.subs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => subMs(b) - subMs(a)); renderAll(); });
+  listen('withdrawals', collection(db, 'withdrawals'), snap => { S.wds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => wdMs(b) - wdMs(a)); renderAll(); });
+  listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
+  listen('bulkRequests', collection(db, 'bulkRequests'), snap => { S.bulkReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
+  listen('bulk_mod_requests', collection(db, 'bulk_mod_requests'), snap => { S.bulkModReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
+  listen('supportTickets', collection(db, 'support_tickets'), snap => { S.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
   listen('adminLogs', query(collection(db, 'adminLogs'), orderBy('createdMs', 'desc'), limit(300)), snap => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
   listen('adminMeta', collection(db, 'adminMeta'), snap => { S.meta = {}; snap.docs.forEach(d => { S.meta[d.id] = d.data(); }); });
 }
@@ -1166,6 +1167,7 @@ function bulkRows() {
   };
 
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
   const userList = Array.isArray(S.users) ? S.users : [];
 
   reqList.forEach(q => {
@@ -1174,8 +1176,27 @@ function bulkRows() {
     if (!r.req) r.req = q;
   });
 
+  modReqList.forEach(q => {
+    if (!q || !q.userId) return;
+    const r = row(q.userId);
+    if (!r.req) {
+      r.req = {
+        id: q.id,
+        userId: q.userId,
+        userName: q.userName,
+        userEmail: q.userEmail,
+        note: q.reason || q.note || '',
+        status: q.status || 'pending',
+        createdAt: q.createdAt,
+        requestData: { deviceCount: q.deviceCount || 2, tier: 'Standard' }
+      };
+    }
+  });
+
   userList.forEach(u => {
-    if (u && u.bulkMode === true) row(u.id);
+    if (u && (u.bulkMode === true || u.bulkStatus === 'pending' || u.bulkStatus === 'active' || u.bulkStatus === 'rejected')) {
+      row(u.id);
+    }
   });
 
   return [...m.values()]
@@ -1565,6 +1586,13 @@ function startBulkListener() {
     S.bulkReq = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt));
+    renderAll();
+  });
+  listen('bulk_mod_requests', collection(db, 'bulk_mod_requests'), snap => {
+    S.bulkModReq = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt));
+    renderAll();
   });
 }
 

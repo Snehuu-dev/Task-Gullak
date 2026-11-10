@@ -34,12 +34,14 @@ function listen(key, ref, apply) {
 }
 function startListeners() {
   if (started) return; started = true;
-  listen('users', collection(db, 'users'), snap => { S.users = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
-  listen('tasks', collection(db, 'tasks'), snap => { S.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); setTimeout(sweepExpired, 800); });
-  listen('submissions', collection(db, 'submissions'), snap => { S.subs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => subMs(b) - subMs(a)); });
-  listen('withdrawals', collection(db, 'withdrawals'), snap => { S.wds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => wdMs(b) - wdMs(a)); });
-  listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
-  listen('supportTickets', collection(db, 'support_tickets'), snap => { S.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
+  listen('users', collection(db, 'users'), snap => { S.users = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderAll(); });
+  listen('tasks', collection(db, 'tasks'), snap => { S.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); setTimeout(sweepExpired, 800); renderAll(); });
+  listen('submissions', collection(db, 'submissions'), snap => { S.subs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => subMs(b) - subMs(a)); renderAll(); });
+  listen('withdrawals', collection(db, 'withdrawals'), snap => { S.wds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => wdMs(b) - wdMs(a)); renderAll(); });
+  listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
+  listen('bulkRequests', collection(db, 'bulkRequests'), snap => { S.bulkReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
+  listen('bulk_mod_requests', collection(db, 'bulk_mod_requests'), snap => { S.bulkModReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
+  listen('supportTickets', collection(db, 'support_tickets'), snap => { S.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
   listen('adminLogs', query(collection(db, 'adminLogs'), orderBy('createdMs', 'desc'), limit(300)), snap => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
   listen('adminMeta', collection(db, 'adminMeta'), snap => { S.meta = {}; snap.docs.forEach(d => { S.meta[d.id] = d.data(); }); });
 }

@@ -26,6 +26,7 @@ function bulkRows() {
   };
 
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
   const userList = Array.isArray(S.users) ? S.users : [];
 
   reqList.forEach(q => {
@@ -34,8 +35,27 @@ function bulkRows() {
     if (!r.req) r.req = q;
   });
 
+  modReqList.forEach(q => {
+    if (!q || !q.userId) return;
+    const r = row(q.userId);
+    if (!r.req) {
+      r.req = {
+        id: q.id,
+        userId: q.userId,
+        userName: q.userName,
+        userEmail: q.userEmail,
+        note: q.reason || q.note || '',
+        status: q.status || 'pending',
+        createdAt: q.createdAt,
+        requestData: { deviceCount: q.deviceCount || 2, tier: 'Standard' }
+      };
+    }
+  });
+
   userList.forEach(u => {
-    if (u && u.bulkMode === true) row(u.id);
+    if (u && (u.bulkMode === true || u.bulkStatus === 'pending' || u.bulkStatus === 'active' || u.bulkStatus === 'rejected')) {
+      row(u.id);
+    }
   });
 
   return [...m.values()]
@@ -48,6 +68,8 @@ function bulkRows() {
         u && u.bulkMode === true
           ? 'active'
           : q && q.status === 'pending'
+          ? 'pending'
+          : (u && u.bulkStatus === 'pending')
           ? 'pending'
           : (q && ['rejected', 'revoked'].includes(q.status)) || (u && ['rejected', 'revoked'].includes(u.bulkStatus))
           ? 'rejected'
@@ -65,9 +87,20 @@ const bkIds = uid => {
 /** Single-Item Updates */
 async function bkSet(uid, userPatch, reqPatch, statuses) {
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
+
   const reqs = reqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
+
+  const modReqs = modReqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  await Promise.all(modReqs.map(q => updateDoc(doc(db, 'bulk_mod_requests', q.id), reqPatch)));
+
+  runCatching(() => {
+    const tRef = doc(db, 'support_tickets', `bulk_${uid}`);
+    updateDoc(tRef, { status: userPatch.bulkMode ? 'closed' : 'rejected', updatedAt: serverTimestamp() });
+  });
 }
 
 ACT.bkTab = el => {
@@ -192,6 +225,7 @@ ACT.bkBulkApprove = async () => {
     const chunkSize = 200;
     let approvedCount = 0;
     const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+    const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
 
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
@@ -218,6 +252,18 @@ ACT.bkBulkApprove = async () => {
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
+            status: 'approved',
+            approvedAt: serverTimestamp(),
+            reviewedBy: S.admin,
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        const modReqs = modReqList.filter(
+          q => q && canon(q.userId) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+        );
+        modReqs.forEach(q => {
+          batch.update(doc(db, 'bulk_mod_requests', q.id), {
             status: 'approved',
             approvedAt: serverTimestamp(),
             reviewedBy: S.admin,
@@ -264,6 +310,7 @@ ACT.bkBulkReject = async () => {
     const chunkSize = 200;
     let rejectedCount = 0;
     const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+    const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
 
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
@@ -295,6 +342,18 @@ ACT.bkBulkReject = async () => {
           });
         });
 
+        const modReqs = modReqList.filter(
+          q => q && canon(q.userId) === canon(r.uid) && q.status === 'pending'
+        );
+        modReqs.forEach(q => {
+          batch.update(doc(db, 'bulk_mod_requests', q.id), {
+            status: 'rejected',
+            adminNote: reason,
+            reviewedBy: S.admin,
+            updatedAt: serverTimestamp()
+          });
+        });
+
         rejectedCount++;
       });
 
@@ -316,6 +375,7 @@ ACT.bkBulkReject = async () => {
 /** Task 2: Render Dashboard & Multi-Select Action Bar */
 RENDER.bulk = () => {
   S.bulkReq = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  S.bulkModReq = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
   S.bkSel = S.bkSel || new Set();
 
   const rows = bulkRows(),
@@ -339,8 +399,6 @@ RENDER.bulk = () => {
       )
       .join('')
   );
-
-  if (loadGate('bulkRequests', rows.length, LOADER(), $('#bk-list'))) return;
 
   const list = by(f);
   const pill = {
@@ -410,7 +468,7 @@ RENDER.bulk = () => {
             </div>
             <div class="fs12 muted trunc">${esc(r.email)}</div>
             ${q ? `<div class="fs12 muted" style="margin-top:2px">Requested ${fmtDT(tsMs(q.createdAt || q.requestedAt))} • Tier: <b>${esc(reqData.tier || 'Standard')} (${reqCount} devices)</b></div>` : ''}
-            ${q && q.note ? `<div class="fs12" style="margin-top:6px;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px">Note: ${esc(q.note)}</div>` : ''}
+            ${q && (q.note || q.reason) ? `<div class="fs12" style="margin-top:6px;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px">Note: ${esc(q.note || q.reason)}</div>` : ''}
             ${f === 'rejected' && q && q.adminNote ? `<div class="fs12 bad-t" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}
           </div>
         </div>
@@ -431,5 +489,12 @@ function startBulkListener() {
     S.bulkReq = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt));
+    renderAll();
+  });
+  listen('bulk_mod_requests', collection(db, 'bulk_mod_requests'), snap => {
+    S.bulkModReq = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt));
+    renderAll();
   });
 }

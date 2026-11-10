@@ -1489,6 +1489,29 @@ class TaskGullakRepository(
             )
             reqRef.set(payload).await()
 
+            // Also mirror to bulkRequests collection for Web Admin Panel
+            runCatching {
+                val bulkReqRef = db.collection("bulkRequests").document()
+                val bulkPayload = mapOf(
+                    "id" to bulkReqRef.id,
+                    "userId" to uid,
+                    "userName" to userName,
+                    "userEmail" to userEmail,
+                    "note" to cleanReason,
+                    "reason" to cleanReason,
+                    "status" to "pending",
+                    "requestData" to mapOf(
+                        "requestedCount" to safeDeviceCount,
+                        "deviceCount" to safeDeviceCount,
+                        "tier" to "Standard"
+                    ),
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "requestedAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                bulkReqRef.set(bulkPayload).await()
+            }
+
             userRef.update(
                 mapOf(
                     "bulkStatus" to "pending",
@@ -1525,13 +1548,24 @@ class TaskGullakRepository(
     fun observeUserBulkModRequest(explicitUserId: String? = null): Flow<BulkModRequest?> {
         val uid = auth.currentUser?.uid ?: explicitUserId.orEmpty()
         if (uid.isBlank()) return kotlinx.coroutines.flow.flowOf(null)
-        return db.collection("bulk_mod_requests")
-            .whereEqualTo("userId", uid)
+        return db.collection("users").document(uid)
             .snapshots()
-            .map { snap ->
-                snap.documents.mapNotNull { doc ->
-                    doc.toObject(BulkModRequest::class.java)?.copy(id = doc.id)
-                }.maxByOrNull { it.createdAt?.toDate()?.time ?: 0L }
+            .map { doc ->
+                if (!doc.exists()) return@map null
+                val isBulkMode = doc.getBoolean("bulkMode") == true
+                val bulkStatus = doc.getString("bulkStatus") ?: if (isBulkMode) "active" else "none"
+                val deviceCount = doc.getLong("bulkDeviceCount")?.toInt() ?: 2
+                if (bulkStatus == "none" && !isBulkMode) null
+                else BulkModRequest(
+                    id = doc.id,
+                    userId = doc.id,
+                    userName = doc.getString("fullName") ?: "",
+                    userEmail = doc.getString("email") ?: "",
+                    deviceCount = deviceCount,
+                    approvedLimit = deviceCount,
+                    status = if (bulkStatus == "active" || isBulkMode) "approved" else bulkStatus,
+                    createdAt = doc.getTimestamp("createdAt")
+                )
             }
             .catch { emit(null) }
     }
