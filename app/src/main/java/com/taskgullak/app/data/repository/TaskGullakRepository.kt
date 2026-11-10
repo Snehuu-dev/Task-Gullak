@@ -1460,58 +1460,68 @@ class TaskGullakRepository(
         deviceCount: Int,
         explicitUserId: String? = null
     ): Result<String> {
-        val uid = requireUserId(explicitUserId)
+        val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
+        if (uid.isBlank()) {
+            return Result.failure(IllegalStateException("User not logged in"))
+        }
+
         val cleanReason = reason.trim().take(1000)
         val safeDeviceCount = deviceCount.coerceIn(1, 100)
         if (cleanReason.isBlank()) {
             return Result.failure(IllegalArgumentException("Please specify why you need Bulk Mod status."))
         }
 
-        return try {
-            val userRef = db.collection("users").document(uid)
-            val userSnap = userRef.get().await()
-            val userName = userSnap.getString("fullName")?.takeIf { it.isNotBlank() } ?: "Task Gullak Member"
-            val userEmail = userSnap.getString("email")?.takeIf { it.isNotBlank() } ?: "member@taskgullak.app"
+        val currentUser = auth.currentUser
+        val userRef = db.collection("users").document(uid)
 
-            val reqRef = db.collection("bulk_mod_requests").document()
-            val payload = mapOf(
-                "id" to reqRef.id,
+        val userName = currentUser?.displayName?.takeIf { it.isNotBlank() }
+            ?: runCatching { userRef.get().await().getString("fullName") }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: "Task Gullak Member"
+
+        val userEmail = currentUser?.email?.takeIf { it.isNotBlank() }
+            ?: runCatching { userRef.get().await().getString("email") }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: "member@taskgullak.app"
+
+        val reqRef = db.collection("bulk_mod_requests").document()
+        val payload = mapOf(
+            "id" to reqRef.id,
+            "userId" to uid,
+            "userName" to userName,
+            "userEmail" to userEmail,
+            "reason" to cleanReason,
+            "deviceCount" to safeDeviceCount,
+            "approvedLimit" to safeDeviceCount,
+            "status" to "pending",
+            "adminNote" to "",
+            "createdAt" to FieldValue.serverTimestamp(),
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+
+        val modResult = runCatching { reqRef.set(payload).await() }
+
+        runCatching {
+            val bulkReqRef = db.collection("bulkRequests").document()
+            val bulkPayload = mapOf(
+                "id" to bulkReqRef.id,
                 "userId" to uid,
                 "userName" to userName,
                 "userEmail" to userEmail,
+                "note" to cleanReason,
                 "reason" to cleanReason,
-                "deviceCount" to safeDeviceCount,
-                "approvedLimit" to safeDeviceCount,
                 "status" to "pending",
-                "adminNote" to "",
+                "requestData" to mapOf(
+                    "requestedCount" to safeDeviceCount,
+                    "deviceCount" to safeDeviceCount,
+                    "tier" to "Standard"
+                ),
                 "createdAt" to FieldValue.serverTimestamp(),
+                "requestedAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
-            reqRef.set(payload).await()
+            bulkReqRef.set(bulkPayload).await()
+        }
 
-            // Also mirror to bulkRequests collection for Web Admin Panel
-            runCatching {
-                val bulkReqRef = db.collection("bulkRequests").document()
-                val bulkPayload = mapOf(
-                    "id" to bulkReqRef.id,
-                    "userId" to uid,
-                    "userName" to userName,
-                    "userEmail" to userEmail,
-                    "note" to cleanReason,
-                    "reason" to cleanReason,
-                    "status" to "pending",
-                    "requestData" to mapOf(
-                        "requestedCount" to safeDeviceCount,
-                        "deviceCount" to safeDeviceCount,
-                        "tier" to "Standard"
-                    ),
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "requestedAt" to FieldValue.serverTimestamp(),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-                bulkReqRef.set(bulkPayload).await()
-            }
-
+        runCatching {
             userRef.set(
                 mapOf(
                     "bulkStatus" to "pending",
@@ -1520,30 +1530,28 @@ class TaskGullakRepository(
                 ),
                 com.google.firebase.firestore.SetOptions.merge()
             ).await()
-
-            // Also mirror to support_tickets so it appears in Admin Panel Support Tickets
-            runCatching {
-                val ticketRef = db.collection("support_tickets").document("bulk_$uid")
-                ticketRef.set(
-                    mapOf(
-                        "ticketId" to ticketRef.id,
-                        "userId" to uid,
-                        "userName" to userName,
-                        "userEmail" to userEmail,
-                        "walletIdCode" to "TG-${uid.take(8).uppercase()}",
-                        "message" to "🔥 [BULK MODE APPLICATION — $safeDeviceCount Devices]\nReason: $cleanReason",
-                        "status" to "open",
-                        "type" to "bulk_application",
-                        "deviceCount" to safeDeviceCount,
-                        "createdAt" to FieldValue.serverTimestamp(),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
-            }
-            Result.success(reqRef.id)
-        } catch (e: Exception) {
-            Result.failure(e)
         }
+
+        runCatching {
+            val ticketRef = db.collection("support_tickets").document("bulk_$uid")
+            ticketRef.set(
+                mapOf(
+                    "ticketId" to ticketRef.id,
+                    "userId" to uid,
+                    "userName" to userName,
+                    "userEmail" to userEmail,
+                    "walletIdCode" to "TG-${uid.take(8).uppercase()}",
+                    "message" to "🔥 [BULK MODE APPLICATION — $safeDeviceCount Devices]\nReason: $cleanReason",
+                    "status" to "open",
+                    "type" to "bulk_application",
+                    "deviceCount" to safeDeviceCount,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+        }
+
+        return Result.success(reqRef.id)
     }
 
     fun observeUserBulkModRequest(explicitUserId: String? = null): Flow<BulkModRequest?> {
