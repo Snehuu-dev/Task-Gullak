@@ -42,3 +42,4 @@ function go(view, opts = {}) {
   renderAll(true);
   window.scrollTo({ top: 0 });
 }
+
