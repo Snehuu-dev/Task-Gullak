@@ -406,11 +406,11 @@ RENDER.bulk = () => {
 
     const rows = bulkRows(),
       f = S.bkTab || 'pending',
-      by = k => rows.filter(r => r.status === k);
+      by = k => rows.filter(r => r && r.status === k);
 
     if (S.bkSel && S.bkSel.forEach) {
       S.bkSel.forEach(uid => {
-        if (!rows.some(r => r.uid === uid && r.status === f)) {
+        if (!rows.some(r => r && r.uid === uid && r.status === f)) {
           S.bkSel.delete(uid);
         }
       });
@@ -514,7 +514,7 @@ RENDER.bulk = () => {
         .join('') ||
       `<div class="card">${emptyHTML(
         'bulk',
-        f === 'pending' ? 'No requests waiting.' : f === 'active' ? 'No user has Bulk mode yet.' : 'Nobody here.'
+        f === 'pending' ? 'No pending requests waiting.' : f === 'active' ? 'No user has Bulk mode active yet.' : 'No rejected requests.'
       )}</div>`;
 
     setHTML(listBox, headerHTML + bulkActionBarHTML + listHTML);
