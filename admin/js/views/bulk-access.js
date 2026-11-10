@@ -83,8 +83,9 @@ function bulkRows() {
     .map(r => {
       const u = findUser(r.uid), q = r.req;
       r.user = u;
-      r.name = (u && (u.fullName || u.email || u.username)) || (q && (q.userName || q.userEmail)) || r.uid;
-      r.email = (u && u.email) || (q && q.userEmail) || '';
+      const rawName = (u && (u.fullName || u.username || u.name)) || (q && (q.userName || q.name)) || (u && u.email) || (q && q.userEmail) || r.uid || 'User';
+      r.name = String(rawName).trim() || 'User';
+      r.email = String((u && u.email) || (q && q.userEmail) || '').trim();
 
       const uStatus = String((u && u.bulkStatus) || '').toLowerCase();
       const qStatus = String((q && q.status) || '').toLowerCase();
@@ -490,10 +491,12 @@ RENDER.bulk = () => {
               ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
               : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
 
+          const safeInitial = esc(String((r.name || r.email || r.uid || 'U').trim())[0].toUpperCase());
+
           return `<div class="card ${isSel ? 'sel' : ''}">
           <div class="row" style="gap:12px;align-items:flex-start">
             <input type="checkbox" class="chk" style="margin-top:4px" data-act="bkSelOne" data-uid="${uid}" ${isSel ? 'checked' : ''} aria-label="Select request">
-            <span class="avatar" style="background:${safeAvc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span>
+            <span class="avatar" style="background:${safeAvc(r.name)}">${safeInitial}</span>
             <div class="grow" style="min-width:0">
               <div class="row between wrap" style="gap:6px">
                 <div class="b fs14 trunc">${esc(r.name)}</div>
