@@ -463,6 +463,7 @@ body,#login-screen{background:var(--page)!important}
           <button data-act="go" data-v="approvals" data-range="custom"><i data-ic="calendar" data-s="15"></i>Date Wise</button>
         </div>
       </div>
+      <button class="nav-i" data-act="go" data-v="bulk" data-nav="bulk"><i data-ic="users"></i><span>Bulk Access</span><span class="bdg hide-bdg hidden" id="bdg-bulk">0</span></button>
       <button class="nav-i" data-act="go" data-v="users" data-nav="users"><i data-ic="users"></i><span>Users &amp; Wallet</span></button>
       <button class="nav-i" data-act="go" data-v="withdrawals" data-nav="withdrawals"><i data-ic="bank"></i><span>Withdrawal Management</span><span class="bdg" id="bdg-wd">0</span></button>
       <button class="nav-i" data-act="go" data-v="referrals" data-nav="referrals"><i data-ic="gift"></i><span>Referral Management</span></button>
@@ -625,6 +626,12 @@ body,#login-screen{background:var(--page)!important}
           <div id="ap-fmore" class="row" style="justify-content:center"></div>
         </div>
         <div id="ap-more" class="row" style="justify-content:center"></div>
+      </section>
+
+      <!-- ===== BULK ACCESS ===== -->
+      <section class="view" id="v-bulk">
+        <div class="card"><div class="tabs" id="bk-tabs"></div></div>
+        <div id="bk-list" class="col" style="gap:10px"></div>
       </section>
 
       <!-- ===== USERS ===== -->
