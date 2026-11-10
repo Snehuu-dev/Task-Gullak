@@ -649,6 +649,12 @@ function renderAll(force) {
 function renderChrome() {
   const ps = pendingSubs().length, pw = pendingWds().length;
   $('#bdg-appr').textContent = ps; $('#bdg-appr').classList.toggle('hidden', !ps);
+  const bb = $('#bdg-bulk');
+  if (bb) {
+    const bp = (typeof bulkRows === 'function' ? (bulkRows() || []) : []).filter(r => r && r.status === 'pending').length;
+    bb.textContent = bp;
+    bb.classList.toggle('hidden', !bp);
+  }
   $('#bdg-wd').textContent = pw; $('#bdg-wd').classList.toggle('hidden', !pw);
   const pt = (S.tickets || []).filter(t => (t.status || 'open').toLowerCase() === 'open').length;
   const bt = $('#bdg-tickets'); if (bt) { bt.textContent = pt; bt.classList.toggle('hidden', !pt); }
