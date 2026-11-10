@@ -7,6 +7,7 @@ const VIEW_META = {
   tasks: ['Task Management', 'Create, edit, pause and archive app tasks'],
   comments: ['Comment Management', 'Internal feedback prompts and user restrictions'],
   approvals: ['Approval Management', 'Review proofs task-wise and approve or reject in bulk'],
+  bulk: ['Bulk Access Management', 'Approve or reject bulk mode access requests from users'],
   users: ['Users & Wallet', 'Profiles, wallet balance, history and account actions'],
   withdrawals: ['Withdrawal Management', 'Process UPI and bank payouts with full records'],
   referrals: ['Referral Management', 'Track user referral links, bonuses, and 1% lifetime commissions'],

@@ -16,6 +16,7 @@ window.APP_FILES = [
   'js/core/render.js',
   'js/views/overview.js',
   'js/views/approvals.js',
+  'js/views/bulk-access.js',
   'js/views/tasks.js',
   'js/services/play-store.js',
   'js/views/comments.js',
