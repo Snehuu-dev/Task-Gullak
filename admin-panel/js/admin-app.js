@@ -1132,14 +1132,17 @@ function bulkRows() {
     return r;
   };
 
-  S.bulkReq.forEach(q => {
-    if (!q.userId) return;
+  const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  const userList = Array.isArray(S.users) ? S.users : [];
+
+  reqList.forEach(q => {
+    if (!q || !q.userId) return;
     const r = row(q.userId);
     if (!r.req) r.req = q;
   });
 
-  S.users.forEach(u => {
-    if (u.bulkMode === true) row(u.id);
+  userList.forEach(u => {
+    if (u && u.bulkMode === true) row(u.id);
   });
 
   return [...m.values()]
@@ -1163,14 +1166,16 @@ function bulkRows() {
 }
 
 const bkIds = uid => {
-  const ids = idsOfUser(uid).filter(id => S.usersRaw.some(u => u.id === id));
+  const rawUsers = Array.isArray(S.usersRaw) ? S.usersRaw : [];
+  const ids = idsOfUser(uid).filter(id => rawUsers.some(u => u && u.id === id));
   return ids.length ? ids : [uid];
 };
 
 /** Single-Item Updates */
 async function bkSet(uid, userPatch, reqPatch, statuses) {
+  const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
-  const reqs = S.bulkReq.filter(q => canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  const reqs = reqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
 }
 
@@ -1413,15 +1418,20 @@ ACT.bkBulkReject = async () => {
 
 /** Task 2: Render Dashboard & Multi-Select Action Bar */
 RENDER.bulk = () => {
+  S.bulkReq = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  S.bkSel = S.bkSel || new Set();
+
   const rows = bulkRows(),
-    f = S.bkTab,
+    f = S.bkTab || 'pending',
     by = k => rows.filter(r => r.status === k);
 
-  S.bkSel.forEach(uid => {
-    if (!rows.some(r => r.uid === uid && r.status === f)) {
-      S.bkSel.delete(uid);
-    }
-  });
+  if (S.bkSel && S.bkSel.forEach) {
+    S.bkSel.forEach(uid => {
+      if (!rows.some(r => r.uid === uid && r.status === f)) {
+        S.bkSel.delete(uid);
+      }
+    });
+  }
 
   setHTML(
     $('#bk-tabs'),
