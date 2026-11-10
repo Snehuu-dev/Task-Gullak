@@ -86,15 +86,22 @@ function bulkRows() {
       r.name = (u && (u.fullName || u.email || u.username)) || (q && (q.userName || q.userEmail)) || r.uid;
       r.email = (u && u.email) || (q && q.userEmail) || '';
 
-      const isApproved = u && (u.bulkMode === true || String(u.bulkStatus).toLowerCase() === 'active' || String(u.bulkStatus).toLowerCase() === 'approved');
-      const isPending = (q && String(q.status).toLowerCase() === 'pending') || (u && (String(u.bulkStatus).toLowerCase() === 'pending' || String(u.bulkStatus).toLowerCase() === 'requested'));
-      const isRejected = (q && ['rejected', 'revoked'].includes(String(q.status).toLowerCase())) || (u && ['rejected', 'revoked'].includes(String(u.bulkStatus).toLowerCase()));
+      const uStatus = String((u && u.bulkStatus) || '').toLowerCase();
+      const qStatus = String((q && q.status) || '').toLowerCase();
+
+      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved';
+      const isPending = !isApproved && (qStatus === 'pending' || uStatus === 'pending' || uStatus === 'requested');
+      const isRejected = !isApproved && !isPending && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
 
       r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
       return r;
     })
     .filter(r => r.status !== 'other')
-    .sort((a, b) => tsMs(b.req && (b.req.createdAt || b.req.requestedAt)) - tsMs(a.req && (a.req.createdAt || a.req.requestedAt)));
+    .sort((a, b) => {
+      const ta = tsMs(a.req && (a.req.createdAt || a.req.requestedAt || a.req.updatedAt)) || 0;
+      const tb = tsMs(b.req && (b.req.createdAt || b.req.requestedAt || b.req.updatedAt)) || 0;
+      return tb - ta;
+    });
 }
 
 const bkIds = uid => {
@@ -391,114 +398,126 @@ ACT.bkBulkReject = async () => {
 
 /** Task 2: Render Dashboard & Multi-Select Action Bar */
 RENDER.bulk = () => {
-  S.bulkReq = Array.isArray(S.bulkReq) ? S.bulkReq : [];
-  S.bulkModReq = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
-  S.bkSel = S.bkSel || new Set();
+  try {
+    S.bulkReq = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+    S.bulkModReq = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+    S.bkSel = S.bkSel || new Set();
 
-  const rows = bulkRows(),
-    f = S.bkTab || 'pending',
-    by = k => rows.filter(r => r.status === k);
+    const rows = bulkRows(),
+      f = S.bkTab || 'pending',
+      by = k => rows.filter(r => r.status === k);
 
-  if (S.bkSel && S.bkSel.forEach) {
-    S.bkSel.forEach(uid => {
-      if (!rows.some(r => r.uid === uid && r.status === f)) {
-        S.bkSel.delete(uid);
-      }
-    });
+    if (S.bkSel && S.bkSel.forEach) {
+      S.bkSel.forEach(uid => {
+        if (!rows.some(r => r.uid === uid && r.status === f)) {
+          S.bkSel.delete(uid);
+        }
+      });
+    }
+
+    const tabBox = $('#bk-tabs');
+    if (tabBox) {
+      setHTML(
+        tabBox,
+        [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']]
+          .map(
+            ([k, l]) =>
+              `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`
+          )
+          .join('')
+      );
+    }
+
+    const listBox = $('#bk-list');
+    if (!listBox) return;
+
+    const list = by(f);
+    const pill = {
+      pending: '<span class="pill warn">Pending</span>',
+      active: '<span class="pill ok">Active</span>',
+      rejected: '<span class="pill bad">Not allowed</span>'
+    };
+
+    const allSelected = list.length > 0 && list.every(r => S.bkSel.has(r.uid));
+    const selCount = S.bkSel.size;
+
+    const headerHTML =
+      list.length > 0
+        ? `<div class="card row between wrap" style="gap:10px;padding:10px 16px;background:var(--card-bg,#ffffff)">
+            <label class="row fs13 b" style="gap:8px;cursor:pointer">
+              <input type="checkbox" class="chk" data-act="bkSelAll" ${allSelected ? 'checked' : ''}>
+              <span>Select All (${list.length})</span>
+            </label>
+            ${
+              selCount > 0
+                ? `<span class="fs12 brand-t b">${selCount} request${selCount > 1 ? 's' : ''} selected</span>`
+                : `<span class="fs12 muted">Select requests for bulk approval or rejection</span>`
+            }
+          </div>`
+        : '';
+
+    const bulkActionBarHTML =
+      selCount > 0
+        ? `<div class="card sticky-bulk-bar" style="position:sticky;top:60px;z-index:99;background:var(--card-bg,#1e293b);color:#ffffff;padding:12px 18px;border-radius:12px;margin-bottom:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.25)">
+            <div class="row between wrap" style="gap:12px">
+              <div class="row" style="gap:8px">
+                <span class="badge" style="background:#0EA5E9;color:#fff;padding:3px 10px;border-radius:20px;font-weight:bold">${selCount}</span>
+                <span class="b fs14">${selCount === 1 ? 'Request' : 'Requests'} selected</span>
+              </div>
+              <div class="row" style="gap:8px">
+                <button class="btn okfill sm" data-act="bkBulkApprove" ${busy ? 'disabled' : ''}>Approve Selected (${selCount})</button>
+                <button class="btn bad sm" data-act="bkBulkReject" ${busy ? 'disabled' : ''}>Reject Selected (${selCount})</button>
+                <button class="btn ghost sm" style="color:#e2e8f0;border-color:rgba(255,255,255,0.2)" data-act="bkSelClear">Clear Selection</button>
+              </div>
+            </div>
+          </div>`
+        : '';
+
+    const safeAvc = name => (typeof avc === 'function' ? avc(name) : '#0EA5E9');
+
+    const listHTML =
+      list
+        .map(r => {
+          const q = r.req,
+            uid = esc(r.uid),
+            isSel = S.bkSel.has(r.uid);
+          const reqData = (q && q.requestData) || {};
+          const reqCount = reqData.requestedCount || reqData.deviceCount || 2;
+          const act =
+            f === 'pending'
+              ? `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
+              : f === 'active'
+              ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
+              : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
+
+          return `<div class="card ${isSel ? 'sel' : ''}">
+          <div class="row" style="gap:12px;align-items:flex-start">
+            <input type="checkbox" class="chk" style="margin-top:4px" data-act="bkSelOne" data-uid="${uid}" ${isSel ? 'checked' : ''} aria-label="Select request">
+            <span class="avatar" style="background:${safeAvc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span>
+            <div class="grow" style="min-width:0">
+              <div class="row between wrap" style="gap:6px">
+                <div class="b fs14 trunc">${esc(r.name)}</div>
+                ${pill[r.status]}
+              </div>
+              <div class="fs12 muted trunc">${esc(r.email)}</div>
+              ${q ? `<div class="fs12 muted" style="margin-top:2px">Requested ${fmtDT(tsMs(q.createdAt || q.requestedAt))} • Tier: <b>${esc(reqData.tier || 'Standard')} (${reqCount} devices)</b></div>` : ''}
+              ${q && (q.note || q.reason) ? `<div class="fs12" style="margin-top:6px;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px">Note: ${esc(q.note || q.reason)}</div>` : ''}
+              ${f === 'rejected' && q && q.adminNote ? `<div class="fs12 bad-t" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}
+            </div>
+          </div>
+          <div class="row gap6 mt8" style="justify-content:flex-end">${act}</div>
+        </div>`;
+        })
+        .join('') ||
+      `<div class="card">${emptyHTML(
+        'bulk',
+        f === 'pending' ? 'No requests waiting.' : f === 'active' ? 'No user has Bulk mode yet.' : 'Nobody here.'
+      )}</div>`;
+
+    setHTML(listBox, headerHTML + bulkActionBarHTML + listHTML);
+  } catch (e) {
+    console.error('RENDER.bulk error:', e);
   }
-
-  setHTML(
-    $('#bk-tabs'),
-    [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']]
-      .map(
-        ([k, l]) =>
-          `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`
-      )
-      .join('')
-  );
-
-  const list = by(f);
-  const pill = {
-    pending: '<span class="pill warn">Pending</span>',
-    active: '<span class="pill ok">Active</span>',
-    rejected: '<span class="pill bad">Not allowed</span>'
-  };
-
-  const allSelected = list.length > 0 && list.every(r => S.bkSel.has(r.uid));
-  const selCount = S.bkSel.size;
-
-  const headerHTML =
-    list.length > 0
-      ? `<div class="card row between wrap" style="gap:10px;padding:10px 16px;background:var(--card-bg,#ffffff)">
-          <label class="row fs13 b" style="gap:8px;cursor:pointer">
-            <input type="checkbox" class="chk" data-act="bkSelAll" ${allSelected ? 'checked' : ''}>
-            <span>Select All (${list.length})</span>
-          </label>
-          ${
-            selCount > 0
-              ? `<span class="fs12 brand-t b">${selCount} request${selCount > 1 ? 's' : ''} selected</span>`
-              : `<span class="fs12 muted">Select requests for bulk approval or rejection</span>`
-          }
-        </div>`
-      : '';
-
-  const bulkActionBarHTML =
-    selCount > 0
-      ? `<div class="card sticky-bulk-bar" style="position:sticky;top:60px;z-index:99;background:var(--card-bg,#1e293b);color:#ffffff;padding:12px 18px;border-radius:12px;margin-bottom:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.25)">
-          <div class="row between wrap" style="gap:12px">
-            <div class="row" style="gap:8px">
-              <span class="badge" style="background:#0EA5E9;color:#fff;padding:3px 10px;border-radius:20px;font-weight:bold">${selCount}</span>
-              <span class="b fs14">${selCount === 1 ? 'Request' : 'Requests'} selected</span>
-            </div>
-            <div class="row" style="gap:8px">
-              <button class="btn okfill sm" data-act="bkBulkApprove" ${busy ? 'disabled' : ''}>Approve Selected (${selCount})</button>
-              <button class="btn bad sm" data-act="bkBulkReject" ${busy ? 'disabled' : ''}>Reject Selected (${selCount})</button>
-              <button class="btn ghost sm" style="color:#e2e8f0;border-color:rgba(255,255,255,0.2)" data-act="bkSelClear">Clear Selection</button>
-            </div>
-          </div>
-        </div>`
-      : '';
-
-  const listHTML =
-    list
-      .map(r => {
-        const q = r.req,
-          uid = esc(r.uid),
-          isSel = S.bkSel.has(r.uid);
-        const reqData = (q && q.requestData) || {};
-        const reqCount = reqData.requestedCount || reqData.deviceCount || 2;
-        const act =
-          f === 'pending'
-            ? `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
-            : f === 'active'
-            ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
-            : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
-
-        return `<div class="card ${isSel ? 'sel' : ''}">
-        <div class="row" style="gap:12px;align-items:flex-start">
-          <input type="checkbox" class="chk" style="margin-top:4px" data-act="bkSelOne" data-uid="${uid}" ${isSel ? 'checked' : ''} aria-label="Select request">
-          <span class="avatar" style="background:${avc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span>
-          <div class="grow" style="min-width:0">
-            <div class="row between wrap" style="gap:6px">
-              <div class="b fs14 trunc">${esc(r.name)}</div>
-              ${pill[r.status]}
-            </div>
-            <div class="fs12 muted trunc">${esc(r.email)}</div>
-            ${q ? `<div class="fs12 muted" style="margin-top:2px">Requested ${fmtDT(tsMs(q.createdAt || q.requestedAt))} • Tier: <b>${esc(reqData.tier || 'Standard')} (${reqCount} devices)</b></div>` : ''}
-            ${q && (q.note || q.reason) ? `<div class="fs12" style="margin-top:6px;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px">Note: ${esc(q.note || q.reason)}</div>` : ''}
-            ${f === 'rejected' && q && q.adminNote ? `<div class="fs12 bad-t" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}
-          </div>
-        </div>
-        <div class="row gap6 mt8" style="justify-content:flex-end">${act}</div>
-      </div>`;
-      })
-      .join('') ||
-    `<div class="card">${emptyHTML(
-      'bulk',
-      f === 'pending' ? 'No requests waiting.' : f === 'active' ? 'No user has Bulk mode yet.' : 'Nobody here.'
-    )}</div>`;
-
-  setHTML($('#bk-list'), headerHTML + bulkActionBarHTML + listHTML);
 };
 
 function startBulkListener() {
