@@ -3,30 +3,46 @@
    BULK ACCESS MANAGEMENT & ADMIN APPROVAL DASHBOARD
    ============================================================ */
 
+const findUser = uid => {
+  const c = typeof canon === 'function' ? canon(uid) : uid;
+  return (S.users || []).find(u => u && (u.id === c || u.id === uid || (u._aliases && u._aliases.includes(uid))));
+};
+
+const getUserIds = uid => {
+  const u = findUser(uid);
+  if (u && Array.isArray(u._aliases) && u._aliases.length) {
+    return [u.id, ...u._aliases];
+  }
+  return [uid];
+};
+
 function bulkRows() {
   const m = new Map();
   const row = uid => {
-    const c = canon(uid);
+    const c = typeof canon === 'function' ? canon(uid) : uid;
     let r = m.get(c);
     if (!r) m.set(c, (r = { uid: c, req: null }));
     return r;
   };
 
-  S.bulkReq.forEach(q => {
-    if (!q.userId) return;
+  const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  const userList = Array.isArray(S.users) ? S.users : [];
+
+  reqList.forEach(q => {
+    if (!q || !q.userId) return;
     const r = row(q.userId);
     if (!r.req) r.req = q;
   });
 
-  S.users.forEach(u => {
-    if (u.bulkMode === true) row(u.id);
+  userList.forEach(u => {
+    if (u && u.bulkMode === true) row(u.id);
   });
 
   return [...m.values()]
     .map(r => {
-      const u = userInfo(r.uid), q = r.req;
+      const u = findUser(r.uid), q = r.req;
       r.user = u;
-      r.name = (u && (u.fullName || u.email)) || (q && (q.userName || q.userEmail)) || r.uid;
+      r.name = (u && (u.fullName || u.email || u.username)) || (q && (q.userName || q.userEmail)) || r.uid;
       r.email = (u && u.email) || (q && q.userEmail) || '';
       r.status =
         u && u.bulkMode === true
@@ -39,24 +55,24 @@ function bulkRows() {
       return r;
     })
     .filter(r => r.status !== 'other')
-    .sort((a, b) => tsMs(b.req && b.req.createdAt) - tsMs(a.req && a.req.createdAt));
+    .sort((a, b) => tsMs(b.req && (b.req.createdAt || b.req.requestedAt)) - tsMs(a.req && (a.req.createdAt || a.req.requestedAt)));
 }
 
 const bkIds = uid => {
-  const ids = idsOfUser(uid).filter(id => S.usersRaw.some(u => u.id === id));
-  return ids.length ? ids : [uid];
+  return getUserIds(uid);
 };
 
 /** Single-Item Updates */
 async function bkSet(uid, userPatch, reqPatch, statuses) {
+  const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
-  const reqs = S.bulkReq.filter(q => canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  const reqs = reqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
 }
 
 ACT.bkTab = el => {
   S.bkTab = el.dataset.k;
-  S.bkSel.clear();
+  if (S.bkSel && S.bkSel.clear) S.bkSel.clear();
   renderAll();
 };
 
@@ -123,6 +139,7 @@ ACT.bkRevoke = async el => {
 
 /** Task 2: Multi-Select & Selection Handlers */
 ACT.bkSelOne = el => {
+  if (!S.bkSel) S.bkSel = new Set();
   const uid = el.dataset.uid;
   if (el.checked) {
     S.bkSel.add(uid);
@@ -133,6 +150,7 @@ ACT.bkSelOne = el => {
 };
 
 ACT.bkSelAll = el => {
+  if (!S.bkSel) S.bkSel = new Set();
   const rows = bulkRows().filter(r => r.status === S.bkTab);
   if (el.checked) {
     rows.forEach(r => S.bkSel.add(r.uid));
@@ -143,16 +161,15 @@ ACT.bkSelAll = el => {
 };
 
 ACT.bkSelClear = () => {
-  S.bkSel.clear();
+  if (S.bkSel && S.bkSel.clear) S.bkSel.clear();
   renderAll();
 };
 
 /**
  * Task 2: Batch Processing - Atomic batch update via writeBatch(db)
- * Updates all selected request IDs to status: "approved" (or "rejected")
- * and automatically updates corresponding users' profiles.
  */
 ACT.bkBulkApprove = async () => {
+  if (!S.bkSel) S.bkSel = new Set();
   const selectedUids = [...S.bkSel];
   if (!selectedUids.length) return toast('No requests selected', 'bad');
 
@@ -172,9 +189,9 @@ ACT.bkBulkApprove = async () => {
   renderAll();
 
   try {
-    // Process in batches of 200 (well within Firestore 500 limit)
     const chunkSize = 200;
     let approvedCount = 0;
+    const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
 
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
@@ -196,8 +213,8 @@ ACT.bkBulkApprove = async () => {
           );
         });
 
-        const reqs = S.bulkReq.filter(
-          q => canon(q.userId) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+        const reqs = reqList.filter(
+          q => q && canon(q.userId) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -227,6 +244,7 @@ ACT.bkBulkApprove = async () => {
 };
 
 ACT.bkBulkReject = async () => {
+  if (!S.bkSel) S.bkSel = new Set();
   const selectedUids = [...S.bkSel];
   if (!selectedUids.length) return toast('No requests selected', 'bad');
 
@@ -245,6 +263,7 @@ ACT.bkBulkReject = async () => {
   try {
     const chunkSize = 200;
     let rejectedCount = 0;
+    const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
 
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
@@ -264,8 +283,8 @@ ACT.bkBulkReject = async () => {
           );
         });
 
-        const reqs = S.bulkReq.filter(
-          q => canon(q.userId) === canon(r.uid) && q.status === 'pending'
+        const reqs = reqList.filter(
+          q => q && canon(q.userId) === canon(r.uid) && q.status === 'pending'
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -296,16 +315,20 @@ ACT.bkBulkReject = async () => {
 
 /** Task 2: Render Dashboard & Multi-Select Action Bar */
 RENDER.bulk = () => {
+  S.bulkReq = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  S.bkSel = S.bkSel || new Set();
+
   const rows = bulkRows(),
-    f = S.bkTab,
+    f = S.bkTab || 'pending',
     by = k => rows.filter(r => r.status === k);
 
-  // Validate selection set against current rows
-  S.bkSel.forEach(uid => {
-    if (!rows.some(r => r.uid === uid && r.status === f)) {
-      S.bkSel.delete(uid);
-    }
-  });
+  if (S.bkSel && S.bkSel.forEach) {
+    S.bkSel.forEach(uid => {
+      if (!rows.some(r => r.uid === uid && r.status === f)) {
+        S.bkSel.delete(uid);
+      }
+    });
+  }
 
   setHTML(
     $('#bk-tabs'),
@@ -329,7 +352,6 @@ RENDER.bulk = () => {
   const allSelected = list.length > 0 && list.every(r => S.bkSel.has(r.uid));
   const selCount = S.bkSel.size;
 
-  // Header Bar with "Select All"
   const headerHTML =
     list.length > 0
       ? `<div class="card row between wrap" style="gap:10px;padding:10px 16px;background:var(--card-bg,#ffffff)">
@@ -345,7 +367,6 @@ RENDER.bulk = () => {
         </div>`
       : '';
 
-  // Sticky / Floating Action Bar for Batch Operations
   const bulkActionBarHTML =
     selCount > 0
       ? `<div class="card sticky-bulk-bar" style="position:sticky;top:60px;z-index:99;background:var(--card-bg,#1e293b);color:#ffffff;padding:12px 18px;border-radius:12px;margin-bottom:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.25)">

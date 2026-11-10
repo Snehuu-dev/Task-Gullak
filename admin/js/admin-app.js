@@ -1131,10 +1131,23 @@ ACT.apZipAll = async () => { const sel = S.subs.filter(s => S.sel.has(s.id)); aw
    BULK ACCESS MANAGEMENT & ADMIN APPROVAL DASHBOARD
    ============================================================ */
 
+const findUser = uid => {
+  const c = typeof canon === 'function' ? canon(uid) : uid;
+  return (S.users || []).find(u => u && (u.id === c || u.id === uid || (u._aliases && u._aliases.includes(uid))));
+};
+
+const getUserIds = uid => {
+  const u = findUser(uid);
+  if (u && Array.isArray(u._aliases) && u._aliases.length) {
+    return [u.id, ...u._aliases];
+  }
+  return [uid];
+};
+
 function bulkRows() {
   const m = new Map();
   const row = uid => {
-    const c = canon(uid);
+    const c = typeof canon === 'function' ? canon(uid) : uid;
     let r = m.get(c);
     if (!r) m.set(c, (r = { uid: c, req: null }));
     return r;
@@ -1155,9 +1168,9 @@ function bulkRows() {
 
   return [...m.values()]
     .map(r => {
-      const u = userInfo(r.uid), q = r.req;
+      const u = findUser(r.uid), q = r.req;
       r.user = u;
-      r.name = (u && (u.fullName || u.email)) || (q && (q.userName || q.userEmail)) || r.uid;
+      r.name = (u && (u.fullName || u.email || u.username)) || (q && (q.userName || q.userEmail)) || r.uid;
       r.email = (u && u.email) || (q && q.userEmail) || '';
       r.status =
         u && u.bulkMode === true
@@ -1170,13 +1183,11 @@ function bulkRows() {
       return r;
     })
     .filter(r => r.status !== 'other')
-    .sort((a, b) => tsMs(b.req && b.req.createdAt) - tsMs(a.req && a.req.createdAt));
+    .sort((a, b) => tsMs(b.req && (b.req.createdAt || b.req.requestedAt)) - tsMs(a.req && (a.req.createdAt || a.req.requestedAt)));
 }
 
 const bkIds = uid => {
-  const rawUsers = Array.isArray(S.usersRaw) ? S.usersRaw : [];
-  const ids = idsOfUser(uid).filter(id => rawUsers.some(u => u && u.id === id));
-  return ids.length ? ids : [uid];
+  return getUserIds(uid);
 };
 
 /** Single-Item Updates */
