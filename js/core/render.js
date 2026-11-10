@@ -23,7 +23,7 @@ function renderChrome() {
   const pt = (S.tickets || []).filter(t => (t.status || 'open').toLowerCase() === 'open').length;
   const bt = $('#bdg-tickets'); if (bt) { bt.textContent = pt; bt.classList.toggle('hidden', !pt); }
   const bell = ps + pw; $('#bell-cnt').textContent = bell > 99 ? '99+' : bell; $('#bell-cnt').classList.toggle('hidden', !bell);
-  const core = ['users', 'tasks', 'submissions', 'withdrawals', 'broadcasts'];
+  const core = ['users', 'tasks', 'submissions', 'withdrawals'];
   const errs = core.filter(k => S.errs[k]), okAll = core.every(k => S.live[k]);
   const c = $('#conn');
   c.classList.toggle('off', !okAll);
