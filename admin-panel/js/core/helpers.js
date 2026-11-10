@@ -40,6 +40,18 @@ function saveText(name, text, mime = 'text/plain') {
 }
 const compact = v => v >= 1e7 ? (v / 1e7).toFixed(1).replace(/\.0$/, '') + 'Cr' : v >= 1e5 ? (v / 1e5).toFixed(1).replace(/\.0$/, '') + 'L' : v >= 1e3 ? (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K' : String(Math.round(v));
 const copyText = async t => { try { await navigator.clipboard.writeText(t); toast('Copied', 'ok'); } catch { toast('Copy not allowed in this browser', 'bad'); } };
+const LOADER = (label = 'Loading...') => `<div class="loader"><div class="ld-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ld-track" cx="24" cy="24" r="20"/><circle class="ld-arc" cx="24" cy="24" r="20"/></svg><i class="ld-core"></i></div><div class="ld-t">${label}</div></div>`;
+function loadGate(key, hasData, skel, box) {
+  if (!box) return false;
+  if ((S.live && S.live[key]) || hasData) return false;
+  const waited = Date.now() - (S.bootAt || Date.now());
+  if ((S.errs && S.errs[key]) || !navigator.onLine || waited > 8000) {
+    setHTML(box, `<div class="card"><div class="note bad">${ic('alert', 18)}<div class="grow"><b>${navigator.onLine ? 'Could not load data' : 'No internet connection'}</b><div class="fs12">${esc(String((S.errs && S.errs[key]) || (navigator.onLine ? 'Taking too long — check your connection or Firestore rules.' : 'It will load by itself when you are back online.')))}</div></div><button class="btn ghost xs" data-act="reloadPage">Retry</button></div></div>`);
+    return true;
+  }
+  setHTML(box, skel || LOADER());
+  return true;
+}
 
 /* ---------- icons (inline SVG, no CDN) ---------- */
 const ICONS = {
