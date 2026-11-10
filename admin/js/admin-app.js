@@ -302,7 +302,7 @@ const emptyHTML = (icon, msg) => `<div class="empty">${ic(icon, 30)}${msg}</div>
 const skelCards = n => Array.from({ length: n }, () => '<div class="skel" style="height:230px;border-radius:20px;margin:0"></div>').join('');
 const skelKpis = n => Array.from({ length: n }, () => '<div class="skel" style="height:94px;border-radius:22px;margin:0"></div>').join('');
 const skelHTML = n => Array.from({ length: n }, () => '<div class="skel" style="margin:10px 0"></div>').join('');
-const LOADER = (label = 'Loading...') => `<div class="loader"><div class="ld-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ld-track" cx="24" cy="24" r="20"/><circle class="ld-arc" cx="24" cy="24" r="20"/></svg><i class="ld-core"></i></div><div class="ld-t">${label}</div></div>`;
+const LOADER = (label = 'Loading...') => `<div class="card" style="text-align:center;padding:40px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;margin:12px 0"><div style="width:36px;height:36px;border:3px solid var(--line,#e2e8f0);border-top-color:var(--brand,#0ea5e9);border-radius:50%;animation:tgspin 0.8s linear infinite"></div><div style="font-size:13px;font-weight:600;color:var(--muted,#64748b)">${esc(label)}</div></div><style>@keyframes tgspin{to{transform:rotate(360deg)}}</style>`;
 function loadGate(key, hasData, skel, box) {
   if (!box) return false;
   if ((S.live && S.live[key]) || hasData) return false;

@@ -40,7 +40,7 @@ function saveText(name, text, mime = 'text/plain') {
 }
 const compact = v => v >= 1e7 ? (v / 1e7).toFixed(1).replace(/\.0$/, '') + 'Cr' : v >= 1e5 ? (v / 1e5).toFixed(1).replace(/\.0$/, '') + 'L' : v >= 1e3 ? (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K' : String(Math.round(v));
 const copyText = async t => { try { await navigator.clipboard.writeText(t); toast('Copied', 'ok'); } catch { toast('Copy not allowed in this browser', 'bad'); } };
-const LOADER = (label = 'Loading...') => `<div class="loader"><div class="ld-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ld-track" cx="24" cy="24" r="20"/><circle class="ld-arc" cx="24" cy="24" r="20"/></svg><i class="ld-core"></i></div><div class="ld-t">${label}</div></div>`;
+const LOADER = (label = 'Loading...') => `<div class="card" style="text-align:center;padding:40px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;margin:12px 0"><div style="width:36px;height:36px;border:3px solid var(--line,#e2e8f0);border-top-color:var(--brand,#0ea5e9);border-radius:50%;animation:tgspin 0.8s linear infinite"></div><div style="font-size:13px;font-weight:600;color:var(--muted,#64748b)">${esc(label)}</div></div><style>@keyframes tgspin{to{transform:rotate(360deg)}}</style>`;
 function loadGate(key, hasData, skel, box) {
   if (!box) return false;
   if ((S.live && S.live[key]) || hasData) return false;
