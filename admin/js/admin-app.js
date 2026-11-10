@@ -1144,6 +1144,9 @@ ACT.apZipAll = async () => { const sel = S.subs.filter(s => S.sel.has(s.id)); aw
    BULK ACCESS MANAGEMENT & ADMIN APPROVAL DASHBOARD
    ============================================================ */
 
+const AVC = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
+const avc = s => AVC[[...String(s || 'User')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
+
 const findUser = uid => {
   const c = typeof canon === 'function' ? canon(uid) : uid;
   return (S.users || []).find(u => u && (u.id === c || u.id === uid || (u._aliases && u._aliases.includes(uid))));
