@@ -1199,7 +1199,13 @@ fun HomeScreen(
                             bulkDeviceCount = profile?.bulkDeviceCount ?: 0,
                             supportBotMessages = supportBotMessages,
                             onSubmitBulkModRequest = { reason: String, count: Int ->
-                                viewModel?.submitBulkModRequest(reason, count)
+                                viewModel?.submitBulkModRequest(reason, count) { success ->
+                                    if (success) {
+                                        android.widget.Toast.makeText(context, "✅ Bulk Mod Application Submitted! Waiting for Admin Review.", android.widget.Toast.LENGTH_LONG).show()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "❌ Could not submit application. Please try again.", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             },
                             onSendSupportBotMessage = { text: String -> viewModel?.sendSupportBotMessage(text) },
                             onConfirmSupportBotAction = { actionType: String, actionData: String ->

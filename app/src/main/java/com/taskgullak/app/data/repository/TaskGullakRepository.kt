@@ -1512,12 +1512,13 @@ class TaskGullakRepository(
                 bulkReqRef.set(bulkPayload).await()
             }
 
-            userRef.update(
+            userRef.set(
                 mapOf(
                     "bulkStatus" to "pending",
                     "bulkDeviceCount" to safeDeviceCount,
                     "updatedAt" to FieldValue.serverTimestamp()
-                )
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
             ).await()
 
             // Also mirror to support_tickets so it appears in Admin Panel Support Tickets
