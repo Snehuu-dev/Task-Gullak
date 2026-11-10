@@ -235,6 +235,7 @@ fun TaskGullakApp(initialOpenNotifications: Boolean = false) {
                 val isEmailVerified = user.isEmailVerified || isGoogle
                 if (userEmail.isNotBlank() && isEmailVerified && FirebaseEmailDispatchService.isPasswordConfiguredLocally(context, userEmail)) {
                     isSessionLoggedIn = true
+                    TaskGullakNotificationHelper.recordUserLoginSession(context)
                     FirebaseEmailDispatchService.markEmailRegistered(
                         context = context,
                         email = userEmail,
@@ -264,6 +265,7 @@ fun TaskGullakApp(initialOpenNotifications: Boolean = false) {
     // Keep background Firestore notification listener & JobScheduler active whenever user is logged in
     LaunchedEffect(currentUser, isSessionLoggedIn) {
         if (currentUser != null || isSessionLoggedIn) {
+            TaskGullakNotificationHelper.recordUserLoginSession(context)
             FirebaseEmailDispatchService.syncAllKnownLocalAccountsToFirestore(context)
             TaskGullakBackgroundSyncService.startAndEnsureActive(context)
         } else {
@@ -274,6 +276,7 @@ fun TaskGullakApp(initialOpenNotifications: Boolean = false) {
     fun completeLoginAndEnterHome() {
         setOnboardingCompleted()
         FirebaseEmailDispatchService.setUserLoggedIn(context, true)
+        TaskGullakNotificationHelper.recordUserLoginSession(context)
         currentUser = FirebaseAuth.getInstance().currentUser
         isSessionLoggedIn = true
         TaskGullakBackgroundSyncService.startAndEnsureActive(context)

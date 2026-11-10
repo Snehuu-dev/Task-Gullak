@@ -58,6 +58,8 @@ object TaskGullakNotificationHelper {
     private const val KEY_FCM_TOPICS = "fcm_subscribed_topics_v1"
     private const val KEY_PUSH_HISTORY_JSON = "fcm_received_push_history_v1"
     private const val KEY_DISMISSED_NOTIFICATION_IDS = "dismissed_notification_ids_v1"
+    private const val KEY_SESSION_START_TIMESTAMP = "session_start_timestamp_v1"
+    private const val KEY_LAST_LOGOUT_TIMESTAMP = "last_logout_timestamp_v1"
 
     private val _receivedPushFlow = MutableStateFlow<List<ReceivedPushNotification>>(emptyList())
     val receivedPushFlow: StateFlow<List<ReceivedPushNotification>> = _receivedPushFlow.asStateFlow()
@@ -74,9 +76,51 @@ object TaskGullakNotificationHelper {
     }
 
     @Synchronized
+    fun recordUserLoginSession(context: Context) {
+        val userKey = getActiveUserKey(context)
+        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        prefs.edit()
+            .putLong("${KEY_SESSION_START_TIMESTAMP}_$userKey", now)
+            .putLong(KEY_SESSION_START_TIMESTAMP, now)
+            .apply()
+    }
+
+    @Synchronized
+    fun getSessionStartTimestamp(context: Context): Long {
+        val userKey = getActiveUserKey(context)
+        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val userSessionTime = prefs.getLong("${KEY_SESSION_START_TIMESTAMP}_$userKey", 0L)
+        if (userSessionTime > 0L) return userSessionTime
+        return prefs.getLong(KEY_SESSION_START_TIMESTAMP, 0L)
+    }
+
+    @Synchronized
+    fun getLogoutTimestamp(context: Context): Long {
+        val userKey = getActiveUserKey(context)
+        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val userLogoutTime = prefs.getLong("${KEY_LAST_LOGOUT_TIMESTAMP}_$userKey", 0L)
+        if (userLogoutTime > 0L) return userLogoutTime
+        return prefs.getLong(KEY_LAST_LOGOUT_TIMESTAMP, 0L)
+    }
+
+    @Synchronized
     fun clearNotificationStateForLogout(context: Context) {
+        val userKey = getActiveUserKey(context)
+        val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        prefs.edit()
+            .putLong("${KEY_LAST_LOGOUT_TIMESTAMP}_$userKey", now)
+            .putLong(KEY_LAST_LOGOUT_TIMESTAMP, now)
+            .apply()
+
         _receivedPushFlow.value = emptyList()
         _dismissedIdsFlow.value = emptySet()
+
+        try {
+            NotificationManagerCompat.from(context).cancelAll()
+        } catch (_: Exception) {
+        }
     }
 
     @Synchronized
@@ -199,17 +243,19 @@ object TaskGullakNotificationHelper {
         val userDismissedKey = "${KEY_DISMISSED_NOTIFICATION_IDS}_$userKey"
         val dismissed = HashSet(loadDismissedNotificationIds(context))
 
+        val raw = notificationId.removePrefix("push_").removePrefix("broadcast_").removePrefix("sub_app_").removePrefix("sub_rej_").removePrefix("sub_status_").removePrefix("tx_").removePrefix("task_")
         dismissed.add(notificationId)
-        if (notificationId.startsWith("push_")) {
-            dismissed.add(notificationId.removePrefix("push_"))
-        } else {
-            dismissed.add("push_$notificationId")
-        }
-        if (notificationId.startsWith("broadcast_")) {
-            dismissed.add(notificationId.removePrefix("broadcast_"))
-        } else {
-            dismissed.add("broadcast_$notificationId")
-        }
+        dismissed.add(raw)
+        dismissed.add("push_$raw")
+        dismissed.add("broadcast_$raw")
+        dismissed.add("task_$raw")
+        dismissed.add("tx_$raw")
+        dismissed.add("sub_app_$raw")
+        dismissed.add("sub_rej_$raw")
+        dismissed.add("sub_status_${raw}_approved")
+        dismissed.add("sub_status_${raw}_verified")
+        dismissed.add("sub_status_${raw}_rejected")
+        dismissed.add("sub_status_${raw}_declined")
 
         prefs.edit()
             .putStringSet(userDismissedKey, dismissed)
@@ -220,13 +266,10 @@ object TaskGullakNotificationHelper {
         syncDismissedNotificationsToFirestore(context, dismissed)
 
         markEventSeenSilently(context, notificationId)
-        if (notificationId.startsWith("push_")) {
-            markEventSeenSilently(context, "broadcast_${notificationId.removePrefix("push_")}")
-        }
+        markEventSeenSilently(context, raw)
 
-        val rawPushId = notificationId.removePrefix("push_")
         val remaining = loadPersistedPushHistory(context).filterNot {
-            it.id == rawPushId || it.id == notificationId || "push_${it.id}" == notificationId
+            it.id == raw || it.id == notificationId || "push_${it.id}" == notificationId
         }
         savePushHistoryList(context, remaining)
         _receivedPushFlow.value = remaining
@@ -242,10 +285,21 @@ object TaskGullakNotificationHelper {
         val dismissed = HashSet(loadDismissedNotificationIds(context))
 
         allNotificationIds.forEach { id ->
+            val raw = id.removePrefix("push_").removePrefix("broadcast_").removePrefix("sub_app_").removePrefix("sub_rej_").removePrefix("sub_status_").removePrefix("tx_").removePrefix("task_")
             dismissed.add(id)
-            if (id.startsWith("push_")) dismissed.add(id.removePrefix("push_")) else dismissed.add("push_$id")
-            if (id.startsWith("broadcast_")) dismissed.add(id.removePrefix("broadcast_")) else dismissed.add("broadcast_$id")
+            dismissed.add(raw)
+            dismissed.add("push_$raw")
+            dismissed.add("broadcast_$raw")
+            dismissed.add("task_$raw")
+            dismissed.add("tx_$raw")
+            dismissed.add("sub_app_$raw")
+            dismissed.add("sub_rej_$raw")
+            dismissed.add("sub_status_${raw}_approved")
+            dismissed.add("sub_status_${raw}_verified")
+            dismissed.add("sub_status_${raw}_rejected")
+            dismissed.add("sub_status_${raw}_declined")
             markEventSeenSilently(context, id)
+            markEventSeenSilently(context, raw)
         }
 
         prefs.edit()
@@ -409,7 +463,8 @@ object TaskGullakNotificationHelper {
     @Synchronized
     fun isEventAlreadySeen(context: Context, uniqueKey: String): Boolean {
         val dismissed = loadDismissedNotificationIds(context)
-        if (dismissed.contains(uniqueKey) || dismissed.contains(uniqueKey.removePrefix("push_"))) {
+        val rawKey = uniqueKey.removePrefix("push_").removePrefix("broadcast_").removePrefix("task_")
+        if (dismissed.contains(uniqueKey) || dismissed.contains(rawKey) || dismissed.contains("push_$rawKey") || dismissed.contains("broadcast_$rawKey")) {
             return true
         }
         val prefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
@@ -437,6 +492,7 @@ object TaskGullakNotificationHelper {
 
     @Synchronized
     fun processTasksSnapshot(context: Context, tasksList: List<AvailableTask>) {
+        val sessionStart = getSessionStartTimestamp(context)
         if (!isBaselineInitialized(context, "tasks")) {
             tasksList.forEach { task ->
                 markEventSeenSilently(context, "task_${task.id}")
@@ -469,6 +525,10 @@ object TaskGullakNotificationHelper {
             it.id != "system_maintenance_banner"
         }
 
+        val sessionStart = getSessionStartTimestamp(context)
+        val logoutTime = getLogoutTimestamp(context)
+        val cursorCutoff = maxOf(sessionStart, logoutTime)
+
         if (!isBaselineInitialized(context, "broadcasts")) {
             activeBroadcasts.forEach { b ->
                 markEventSeenSilently(context, "broadcast_${b.id}")
@@ -477,6 +537,11 @@ object TaskGullakNotificationHelper {
         } else {
             activeBroadcasts.forEach { b ->
                 val uniqueKey = "broadcast_${b.id}"
+                val createdAtMs = b.createdAt?.toDate()?.time ?: 0L
+                if (createdAtMs > 0L && cursorCutoff > 0L && createdAtMs < (cursorCutoff - 5000L)) {
+                    markEventSeenSilently(context, uniqueKey)
+                    return@forEach
+                }
                 if (!isEventAlreadySeen(context, uniqueKey)) {
                     showSystemNotification(
                         context = context,
@@ -491,6 +556,10 @@ object TaskGullakNotificationHelper {
 
     @Synchronized
     fun processSubmissionsSnapshot(context: Context, list: List<TaskSubmission>) {
+        val sessionStart = getSessionStartTimestamp(context)
+        val logoutTime = getLogoutTimestamp(context)
+        val cursorCutoff = maxOf(sessionStart, logoutTime)
+
         if (!isBaselineInitialized(context, "submissions_status")) {
             list.forEach { sub ->
                 markEventSeenSilently(
@@ -503,6 +572,11 @@ object TaskGullakNotificationHelper {
             list.forEach { sub ->
                 val statusLower = sub.status.lowercase()
                 val uniqueKey = "sub_status_${sub.id}_$statusLower"
+                val updatedAtMs = sub.updatedAt?.toDate()?.time ?: sub.createdAt?.toDate()?.time ?: 0L
+                if (updatedAtMs > 0L && cursorCutoff > 0L && updatedAtMs < (cursorCutoff - 5000L)) {
+                    markEventSeenSilently(context, uniqueKey)
+                    return@forEach
+                }
                 if (!isEventAlreadySeen(context, uniqueKey)) {
                     when (statusLower) {
                         "approved", "verified" -> {
@@ -543,6 +617,10 @@ object TaskGullakNotificationHelper {
 
     @Synchronized
     fun processTransactionsSnapshot(context: Context, list: List<WalletTransaction>) {
+        val sessionStart = getSessionStartTimestamp(context)
+        val logoutTime = getLogoutTimestamp(context)
+        val cursorCutoff = maxOf(sessionStart, logoutTime)
+
         if (!isBaselineInitialized(context, "wallet_tx")) {
             list.forEach { tx ->
                 markEventSeenSilently(context, "tx_${tx.id}")
@@ -551,6 +629,11 @@ object TaskGullakNotificationHelper {
         } else {
             list.forEach { tx ->
                 val uniqueKey = "tx_${tx.id}"
+                val createdAtMs = tx.createdAt?.toDate()?.time ?: 0L
+                if (createdAtMs > 0L && cursorCutoff > 0L && createdAtMs < (cursorCutoff - 5000L)) {
+                    markEventSeenSilently(context, uniqueKey)
+                    return@forEach
+                }
                 if (!isEventAlreadySeen(context, uniqueKey)) {
                     val typeLower = tx.type.lowercase()
                     // Silently add referral commission directly to wallet without push notification
