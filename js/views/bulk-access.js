@@ -30,31 +30,49 @@ function bulkRows() {
   const userList = Array.isArray(S.users) ? S.users : [];
 
   reqList.forEach(q => {
-    if (!q || !q.userId) return;
-    const r = row(q.userId);
+    if (!q) return;
+    const uid = q.userId || q.uid || q.user_id;
+    if (!uid) return;
+    const r = row(uid);
     if (!r.req) r.req = q;
   });
 
   modReqList.forEach(q => {
-    if (!q || !q.userId) return;
-    const r = row(q.userId);
+    if (!q) return;
+    const uid = q.userId || q.uid || q.user_id;
+    if (!uid) return;
+    const r = row(uid);
     if (!r.req) {
       r.req = {
-        id: q.id,
-        userId: q.userId,
-        userName: q.userName,
-        userEmail: q.userEmail,
+        id: q.id || 'mod_' + uid,
+        userId: uid,
+        userName: q.userName || q.name || q.userEmail || '',
+        userEmail: q.userEmail || q.email || '',
         note: q.reason || q.note || '',
         status: q.status || 'pending',
-        createdAt: q.createdAt,
-        requestData: { deviceCount: q.deviceCount || 2, tier: 'Standard' }
+        createdAt: q.createdAt || q.updatedAt,
+        requestData: { deviceCount: q.deviceCount || q.approvedLimit || 2, tier: 'Standard' }
       };
     }
   });
 
   userList.forEach(u => {
-    if (u && (u.bulkMode === true || u.bulkStatus === 'pending' || u.bulkStatus === 'active' || u.bulkStatus === 'rejected')) {
-      row(u.id);
+    if (!u) return;
+    const st = String(u.bulkStatus || '').toLowerCase();
+    if (u.bulkMode === true || st === 'pending' || st === 'active' || st === 'requested' || st === 'rejected') {
+      const r = row(u.id);
+      if (!r.req) {
+        r.req = {
+          id: 'user_' + u.id,
+          userId: u.id,
+          userName: u.fullName || u.username || u.name || '',
+          userEmail: u.email || '',
+          note: u.bulkRejectReason || 'Requested via Mobile App',
+          status: u.bulkMode === true ? 'approved' : (st === 'active' ? 'approved' : (st === 'pending' || st === 'requested' ? 'pending' : st)),
+          createdAt: u.updatedAt || u.createdAt,
+          requestData: { deviceCount: u.bulkDeviceCount || 2, tier: 'Standard' }
+        };
+      }
     }
   });
 
@@ -64,16 +82,12 @@ function bulkRows() {
       r.user = u;
       r.name = (u && (u.fullName || u.email || u.username)) || (q && (q.userName || q.userEmail)) || r.uid;
       r.email = (u && u.email) || (q && q.userEmail) || '';
-      r.status =
-        u && u.bulkMode === true
-          ? 'active'
-          : q && q.status === 'pending'
-          ? 'pending'
-          : (u && u.bulkStatus === 'pending')
-          ? 'pending'
-          : (q && ['rejected', 'revoked'].includes(q.status)) || (u && ['rejected', 'revoked'].includes(u.bulkStatus))
-          ? 'rejected'
-          : 'other';
+
+      const isApproved = u && (u.bulkMode === true || String(u.bulkStatus).toLowerCase() === 'active' || String(u.bulkStatus).toLowerCase() === 'approved');
+      const isPending = (q && String(q.status).toLowerCase() === 'pending') || (u && (String(u.bulkStatus).toLowerCase() === 'pending' || String(u.bulkStatus).toLowerCase() === 'requested'));
+      const isRejected = (q && ['rejected', 'revoked'].includes(String(q.status).toLowerCase())) || (u && ['rejected', 'revoked'].includes(String(u.bulkStatus).toLowerCase()));
+
+      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
       return r;
     })
     .filter(r => r.status !== 'other')
@@ -91,16 +105,16 @@ async function bkSet(uid, userPatch, reqPatch, statuses) {
 
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
 
-  const reqs = reqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  const reqs = reqList.filter(q => q && canon(q.userId || q.uid) === canon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
 
-  const modReqs = modReqList.filter(q => q && canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  const modReqs = modReqList.filter(q => q && canon(q.userId || q.uid) === canon(uid) && statuses.includes(q.status));
   await Promise.all(modReqs.map(q => updateDoc(doc(db, 'bulk_mod_requests', q.id), reqPatch)));
 
-  runCatching(() => {
+  try {
     const tRef = doc(db, 'support_tickets', `bulk_${uid}`);
-    updateDoc(tRef, { status: userPatch.bulkMode ? 'closed' : 'rejected', updatedAt: serverTimestamp() });
-  });
+    await updateDoc(tRef, { status: userPatch.bulkMode ? 'closed' : 'rejected', updatedAt: serverTimestamp() });
+  } catch (_) {}
 }
 
 ACT.bkTab = el => {
@@ -248,7 +262,7 @@ ACT.bkBulkApprove = async () => {
         });
 
         const reqs = reqList.filter(
-          q => q && canon(q.userId) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+          q => q && canon(q.userId || q.uid) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -260,7 +274,7 @@ ACT.bkBulkApprove = async () => {
         });
 
         const modReqs = modReqList.filter(
-          q => q && canon(q.userId) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+          q => q && canon(q.userId || q.uid) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
         );
         modReqs.forEach(q => {
           batch.update(doc(db, 'bulk_mod_requests', q.id), {
@@ -331,7 +345,7 @@ ACT.bkBulkReject = async () => {
         });
 
         const reqs = reqList.filter(
-          q => q && canon(q.userId) === canon(r.uid) && q.status === 'pending'
+          q => q && canon(q.userId || q.uid) === canon(r.uid) && q.status === 'pending'
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -343,7 +357,7 @@ ACT.bkBulkReject = async () => {
         });
 
         const modReqs = modReqList.filter(
-          q => q && canon(q.userId) === canon(r.uid) && q.status === 'pending'
+          q => q && canon(q.userId || q.uid) === canon(r.uid) && q.status === 'pending'
         );
         modReqs.forEach(q => {
           batch.update(doc(db, 'bulk_mod_requests', q.id), {
