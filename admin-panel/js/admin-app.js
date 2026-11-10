@@ -733,10 +733,10 @@ RENDER.overview = () => {
 
   // recent activity
   const ev = [];
-  S.users.forEach(u => ev.push({ t: userMs(u), icon: 'user-plus', c: 'green', dot: '#EF4444', ti: 'New User Registered', su: 'ID: ' + (u.userId || u.id).slice(0, 12) }));
-  S.subs.forEach(s => { const st = subSt(s); ev.push({ t: st === 'pending' ? subMs(s) : approvalMs(s), icon: st === 'approved' ? 'check' : st === 'rejected' ? 'x' : 'upload', c: st === 'approved' ? 'green' : st === 'rejected' ? 'red' : 'blue', dot: '#F59E0B', ti: st === 'approved' ? 'Task Approved' : st === 'rejected' ? 'Task Rejected' : 'New Submission', su: (s.taskTitle || 'Task') + ' • ' + (s.userName || 'User') }); });
-  S.wds.forEach(w => ev.push({ t: wdMs(w), icon: 'download', c: 'blue', dot: '#22C55E', ti: 'Withdrawal Request', su: inr(w.amount) + ' via ' + (wdMethod(w) === 'upi' ? 'UPI' : wdMethod(w) === 'bank' ? 'Bank' : 'wallet') }));
-  S.bcasts.filter(b => b.id !== 'system_maintenance_banner').forEach(b => ev.push({ t: tsMs(b.createdAt) || num(b.timestamp), icon: 'bell', c: 'purple', dot: '#8B5CF6', ti: 'Notification Sent', su: b.title || '' }));
+  (S.users || []).forEach(u => ev.push({ t: userMs(u) || tsMs(u.createdAt) || (now - 1000), icon: 'user-plus', c: 'green', dot: '#EF4444', ti: 'New User Registered', su: 'ID: ' + (u.userId || u.id || '').slice(0, 12) }));
+  (S.subs || []).forEach(s => { const st = subSt(s); ev.push({ t: st === 'pending' ? (subMs(s) || (now - 2000)) : (approvalMs(s) || (now - 2000)), icon: st === 'approved' ? 'check' : st === 'rejected' ? 'x' : 'upload', c: st === 'approved' ? 'green' : st === 'rejected' ? 'red' : 'blue', dot: '#F59E0B', ti: st === 'approved' ? 'Task Approved' : st === 'rejected' ? 'Task Rejected' : 'New Submission', su: (s.taskTitle || 'Task') + ' • ' + (s.userName || 'User') }); });
+  (S.wds || []).forEach(w => ev.push({ t: wdMs(w) || (now - 3000), icon: 'download', c: 'blue', dot: '#22C55E', ti: 'Withdrawal Request', su: inr(w.amount) + ' via ' + (wdMethod(w) === 'upi' ? 'UPI' : wdMethod(w) === 'bank' ? 'Bank' : 'wallet') }));
+  (S.bcasts || []).filter(b => b && b.id !== 'system_maintenance_banner').forEach(b => ev.push({ t: tsMs(b.createdAt) || num(b.timestamp) || (now - 4000), icon: 'bell', c: 'purple', dot: '#8B5CF6', ti: 'Notification Sent', su: b.title || '' }));
   ev.sort((a, b) => b.t - a.t);
   setHTML($('#recent'), ev.slice(0, 6).map(e => `<div class="lrow"><div class="rico ${e.c}">${ic(e.icon, 18)}</div><div class="grow"><div class="b fs13">${esc(e.ti)}</div><div class="fs12 muted trunc">${esc(e.su)}</div></div><div class="fs12 muted shrink0">${ago(e.t)}</div><span class="dot6" style="background:${e.dot}"></span></div>`).join('') || emptyHTML('activity', 'No activity yet'));
 
@@ -744,18 +744,20 @@ RENDER.overview = () => {
   const pend = pendingSubs();
   const inWin = k => pend.filter(s => subMs(s) > now - RANGE_MS[k]);
   setHTML($('#ov-appr-tabs'), [['24h', '24 Hours'], ['7d', '7 Days'], ['30d', '30 Days']].map(([k, l]) => `<button class="tab ${S.ov.apprTab === k ? 'on' : ''}" data-act="ovApprTab" data-k="${k}">${l} <span class="n">(${inWin(k).length})</span></button>`).join(''));
-  const top = inWin(S.ov.apprTab).slice(0, 3);
+  const topList = inWin(S.ov.apprTab);
+  const top = (topList.length ? topList : pend).slice(0, 3);
   setHTML($('#ov-appr-list'), top.map(s => {
     const t = taskOfSub(s);
     return `<div class="lrow"><img class="appico" src="${esc(t ? taskIcon(t) : PLAY_ICON)}" alt="" loading="lazy"><div class="grow"><div class="b fs13 trunc">${esc(s.taskTitle || 'Task')}</div><div class="fs12 muted trunc">“${esc(s.proofText || 'No comment')}” • ${esc(s.userName || 'User')}</div></div><div class="fs12 muted shrink0 hide-m">${ago(subMs(s))}</div><button class="btn ok xs" data-act="approve" data-id="${esc(s.id)}">Approve</button><button class="btn bad xs" data-act="reject" data-id="${esc(s.id)}">Reject</button></div>`;
-  }).join('') || emptyHTML('approve', 'No pending submissions in this window'));
+  }).join('') || emptyHTML('approve', 'No pending submissions'));
 
   // withdrawals widget
-  const cnt = k => S.wds.filter(w => k === 'pending' ? ['pending', 'processing'].includes(wdSt(w)) : wdSt(w) === k).length;
+  const cnt = k => (S.wds || []).filter(w => k === 'pending' ? ['pending', 'processing'].includes(wdSt(w)) : wdSt(w) === k).length;
   setHTML($('#ov-wd-tabs'), [['pending', 'Pending'], ['approved', 'Paid'], ['rejected', 'Rejected']].map(([k, l]) => `<button class="tab ${S.ov.wdTab === k ? 'on' : ''}" data-act="ovWdTab" data-k="${k}">${l} <span class="n">(${cnt(k)})</span></button>`).join(''));
-  const wl = S.wds.filter(w => S.ov.wdTab === 'pending' ? ['pending', 'processing'].includes(wdSt(w)) : wdSt(w) === S.ov.wdTab).slice(0, 3);
+  const wlRaw = (S.wds || []).filter(w => S.ov.wdTab === 'pending' ? ['pending', 'processing'].includes(wdSt(w)) : wdSt(w) === S.ov.wdTab);
+  const wl = (wlRaw.length ? wlRaw : pendingWds()).slice(0, 3);
   setHTML($('#ov-wd-list'), wl.map(w => `<div class="lrow"><span class="mono fs12 b shrink0">#${esc(w.id.slice(0, 6))}</span><span class="tag">${wdMethod(w) === 'upi' ? 'UPI' : wdMethod(w) === 'bank' ? 'Bank' : '—'}</span><div class="grow b">${inr(w.amount)}</div><div class="fs12 muted shrink0 hide-m">${ago(wdMs(w))}</div>${wdPill(wdSt(w))}</div>`).join('') || emptyHTML('wallet', 'No requests here'));
-  $('#ov-wd-total').innerHTML = `Total Pending: <span class="brand-t">${inr(pendAmt)}</span> <span class="muted fs12">• Wallet liability ${inr(S.users.reduce((n, u) => n + num(u.walletBalance), 0))}</span>`;
+  $('#ov-wd-total').innerHTML = `Total Pending: <span class="brand-t">${inr(pendAmt)}</span> <span class="muted fs12">• Wallet liability ${inr((S.users || []).reduce((n, u) => n + num(u.walletBalance), 0))}</span>`;
 
   // monthly mini table
   const months = [0, 1, 2].map(i => { const dd = new Date(d.getFullYear(), d.getMonth() - i, 1); return monthStats(monthKey(dd.getTime())); });
