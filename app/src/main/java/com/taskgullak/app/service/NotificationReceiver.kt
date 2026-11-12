@@ -240,6 +240,7 @@ class TaskGullakFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         TaskGullakNotificationHelper.saveFcmToken(applicationContext, token)
+        TaskGullakFcmClient.syncFcmTokenToFirestore(applicationContext, token)
         TaskGullakFcmClient.subscribeDefaultTopics(applicationContext)
     }
 
@@ -271,11 +272,30 @@ object TaskGullakFcmClient {
             messaging.token.addOnSuccessListener { token ->
                 if (!token.isNullOrBlank()) {
                     TaskGullakNotificationHelper.saveFcmToken(appContext, token)
+                    syncFcmTokenToFirestore(appContext, token)
                 }
             }
             subscribeDefaultTopics(appContext)
         } catch (_: Exception) {
             // Gracefully handle environments where Google Play Services is unavailable (e.g. unit tests)
+        }
+    }
+
+    fun syncFcmTokenToFirestore(context: Context, token: String) {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: com.taskgullak.app.data.remote.FirebaseEmailDispatchService.resolveActiveFirestoreUserId(context)
+        if (uid.isNullOrBlank() || token.isBlank()) return
+        try {
+            val databaseId = try { context.getString(R.string.firestore_database_id) } catch (_: Exception) { "(default)" }
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance(databaseId)
+            db.collection("users").document(uid).set(
+                mapOf(
+                    "fcmToken" to token,
+                    "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+        } catch (_: Exception) {
         }
     }
 

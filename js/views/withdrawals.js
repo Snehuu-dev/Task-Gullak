@@ -57,99 +57,168 @@ ACT.wdReveal = async el => {
   if (!await confirmBox('Show full account number?', 'This is sensitive bank information. This access will be recorded in the audit log.', { ok: 'Show' })) return;
   S.wd.reveal.add(id); logAction('reveal_bank_details', id); renderAll();
 };
+
+/* ============================================================
+   REFERRAL REWARDS  (credited ONLY when admin marks a withdrawal PAID)
+   ============================================================ */
+const REF_FIRST_WD_BONUS = 5, REF_WD_COMM_PCT = 1, MIN_WITHDRAWAL = 100;
+const refEvId = (...p) => p.join('_').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+const refCommission = amt => Math.max(1, Math.round(num(amt) * REF_WD_COMM_PCT / 100));
+
 ACT.wdPay = async el => {
   const w = S.wds.find(x => x.id === el.dataset.id); if (!w || busy) return;
   const v = await ask({
-    title: 'Mark payout as paid', body: `Pay <b>${inr(w.amount)}</b> to <b>${esc(w.userName || w.userId || 'user')}</b> via ${wdMethod(w) === 'upi' ? 'UPI <span class="mono">' + esc(w.upiId) + '</span>' : 'bank transfer'}.<br>Confirm only after the payment has been sent.`, ok: 'Confirm paid',
-    fields: [{ id: 'utr', label: 'UTR / transaction reference', required: true, placeholder: 'e.g. 4231 5678 9012' }, { id: 'paid', label: 'Paid amount (₹)', type: 'number', value: String(num(w.amount)), required: true, min: 1 }, { id: 'note', label: 'Note (optional)', type: 'textarea' }]
+    title: 'Mark payout as paid',
+    body: `Pay <b>${inr(w.amount)}</b> to <b>${esc(w.userName || w.userId || 'user')}</b> via ${wdMethod(w) === 'upi' ? 'UPI <span class="mono">' + esc(w.upiId) + '</span>' : 'bank transfer'}.<br>Confirm only after the payment has been sent.`,
+    ok: 'Confirm paid',
+    fields: [
+      { id: 'utr', label: 'UTR / transaction reference', required: true, placeholder: 'e.g. 4231 5678 9012' },
+      { id: 'paid', label: 'Paid amount (₹)', type: 'number', value: String(num(w.amount)), required: true, min: 1 },
+      { id: 'note', label: 'Note (optional)', type: 'textarea' }
+    ]
   });
   if (!v) return; busy = true;
   try {
-    const ref = doc(db, 'withdrawals', w.id), note = v.note || `Paid manually by Admin (UTR: ${v.utr})`;
-    const uref = w.userId ? doc(db, 'users', w.userId) : null;
+    const wRef = doc(db, 'withdrawals', w.id);
+    const uRef = w.userId ? doc(db, 'users', w.userId) : null;
+    const note = v.note || `Paid manually by Admin (UTR: ${v.utr})`;
+    let commCredited = 0, bonusCredited = 0;
+
     await runTransaction(db, async tx => {
-      const snap = await tx.get(ref); const cur = String(snap.data()?.status || 'pending').toLowerCase();
-      if (!['pending', 'processing'].includes(cur)) throw new Error('This request is already ' + cur + '.');
-      tx.update(ref, { status: 'approved', utrNumber: v.utr, paidAmount: num(v.paid), paidAt: serverTimestamp(), processedAt: serverTimestamp(), processedBy: S.admin, adminNote: note, updatedAt: serverTimestamp() });
+      /* === READ 1: Withdrawal doc === */
+      const wSnap = await tx.get(wRef);
+      if (!wSnap.exists()) throw new Error('Withdrawal not found.');
+      const curStatus = String(wSnap.data()?.status || 'pending').toLowerCase();
+      if (!['pending', 'processing'].includes(curStatus)) {
+        throw new Error('This request is already ' + curStatus + '.');
+      }
 
-      if (uref) {
-        const us = await tx.get(uref);
-        if (us && us.exists()) {
-          const uData = us.data();
-          const referredByUid = uData.referredByUserId || '';
-          const referredByCode = uData.referredByCode || '';
-          const withdrawAmt = num(v.paid);
+      /* === READ 2: Referred User doc === */
+      const uSnap = uRef ? await tx.get(uRef) : null;
+      const uData = (uSnap && uSnap.exists()) ? uSnap.data() : null;
 
-          // 1. Check First Withdrawal Bonus Eligibility (₹5 for Referred User B, ₹5 for Referrer A)
-          const firstWdClaimed = uData.firstWithdrawalBonusClaimed === true;
-          const isEligibleFirstWd = (referredByUid || referredByCode) && !firstWdClaimed;
+      // Find Referrer ID
+      let aid = '';
+      if (uData) {
+        aid = uData.referredByUserId || '';
+        if (!aid && uData.referredByCode) {
+          const c = String(uData.referredByCode).trim().toUpperCase();
+          aid = (S.users.find(x => x.referralCode && String(x.referralCode).trim().toUpperCase() === c) || {}).id || '';
+        }
+      }
+      if (aid === w.userId) aid = '';
 
-          if (isEligibleFirstWd) {
-            tx.update(uref, {
-              firstWithdrawalBonusClaimed: true,
-              walletBalance: num(uData.walletBalance) + 5,
-              totalReferralBonusEarned: num(uData.totalReferralBonusEarned) + 5,
-              updatedAt: serverTimestamp()
-            });
-            tx.set(doc(collection(db, 'users', w.userId, 'transactions')), {
-              userId: w.userId,
-              amount: 5,
-              type: 'referral_bonus',
-              note: '1st Withdrawal Referral Bonus (+₹5)',
-              createdAt: serverTimestamp()
+      /* === READ 3: Referrer doc === */
+      const aRef = aid ? doc(db, 'users', aid) : null;
+      const aSnap = aRef ? await tx.get(aRef) : null;
+      const aData = (aSnap && aSnap.exists()) ? aSnap.data() : null;
+
+      /* === READ 4: Commission transaction idempotency doc === */
+      const commEventId = (aid && w.id) ? refEvId('comm_wd', aid, w.userId, w.id) : null;
+      const commRef = (aid && commEventId) ? doc(db, 'users', aid, 'transactions', commEventId) : null;
+      const commSnap = commRef ? await tx.get(commRef) : null;
+
+      /* === ALL WRITES (STRICTLY AFTER ALL READS) === */
+      // Write 1: Update withdrawal status to approved
+      tx.update(wRef, {
+        status: 'approved',
+        utrNumber: v.utr,
+        paidAmount: num(v.paid),
+        paidAt: serverTimestamp(),
+        processedAt: serverTimestamp(),
+        processedBy: S.admin,
+        adminNote: note,
+        updatedAt: serverTimestamp()
+      });
+
+      // Write 2: Process referral bonus and 1% lifetime commission if applicable
+      if (uData) {
+        const withdrawAmt = num(v.paid);
+        const commDone = (commSnap && commSnap.exists());
+        const isFirstWd = (uData.firstWithdrawalBonusClaimed !== true);
+
+        const comm = (aid && aData && !commDone) ? refCommission(withdrawAmt) : 0;
+        const bonus = (aid && aData && isFirstWd) ? REF_FIRST_WD_BONUS : 0;
+        commCredited = comm;
+        bonusCredited = bonus;
+
+        const now = serverTimestamp();
+
+        // Update Referred User B
+        const bUp = { updatedAt: now };
+        if (aid && !uData.referredByUserId) bUp.referredByUserId = aid;
+        if (aid && isFirstWd) {
+          bUp.firstWithdrawalBonusClaimed = true;
+          bUp.walletBalance = num(uData.walletBalance) + bonus;
+          bUp.totalReferralBonusEarned = num(uData.totalReferralBonusEarned) + bonus;
+          const bTxRef = doc(db, 'users', w.userId, 'transactions', refEvId('bonus_first_wd_self', w.userId, w.id));
+          tx.set(bTxRef, {
+            userId: w.userId,
+            amount: bonus,
+            type: 'referral_bonus',
+            withdrawalId: w.id,
+            note: `Referral Bonus (+₹${bonus}): your 1st withdrawal was approved`,
+            createdAt: now
+          });
+        }
+        if (comm) {
+          bUp.commissionGeneratedForReferrer = num(uData.commissionGeneratedForReferrer) + comm;
+        }
+        tx.update(uRef, bUp);
+
+        // Update Referrer A
+        if (aid && aData) {
+          tx.update(aRef, {
+            walletBalance: num(aData.walletBalance) + comm + bonus,
+            totalLifetimeCommissionEarned: num(aData.totalLifetimeCommissionEarned) + comm,
+            totalReferralBonusEarned: num(aData.totalReferralBonusEarned) + bonus,
+            updatedAt: now
+          });
+
+          if (comm && commRef) {
+            tx.set(commRef, {
+              userId: aid,
+              amount: comm,
+              type: 'referral_commission',
+              withdrawalId: w.id,
+              fromUserId: w.userId,
+              note: `1% Commission: ${w.userName || 'Friend'} withdrew ₹${withdrawAmt} (+₹${comm})`,
+              createdAt: now
             });
           }
 
-          // 2. Credit 1% Lifetime Referral Commission to Referrer A
-          const targetRefUid = referredByUid || (S.users.find(u => u.referralCode && u.referralCode.toUpperCase() === referredByCode.toUpperCase()) || {}).id || '';
-          if (targetRefUid) {
-            const referrerRef = doc(db, 'users', targetRefUid);
-            const refSnap = await tx.get(referrerRef);
-            if (refSnap.exists()) {
-              const commAmount = Math.max(1, Math.round(withdrawAmt * 0.01));
-              const refBal = num(refSnap.data().walletBalance);
-              const refComm = num(refSnap.data().totalLifetimeCommissionEarned);
-              const refBonus = isEligibleFirstWd ? 5 : 0;
-
-              tx.update(referrerRef, {
-                walletBalance: refBal + commAmount + refBonus,
-                totalLifetimeCommissionEarned: refComm + commAmount,
-                totalReferralBonusEarned: num(refSnap.data().totalReferralBonusEarned) + refBonus,
-                updatedAt: serverTimestamp()
-              });
-
-              // Log 1% Lifetime Commission Transaction
-              const commEventId = `comm_wd_${targetRefUid}_${w.userId}_${w.id}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-              tx.set(doc(db, 'users', targetRefUid, 'transactions', commEventId), {
-                userId: targetRefUid,
-                amount: commAmount,
-                type: 'referral_commission',
-                note: `1% Lifetime Commission: ${w.userName || 'Friend'} withdrew ₹${withdrawAmt} (+₹${commAmount})`,
-                withdrawalId: w.id,
-                createdAt: serverTimestamp()
-              });
-
-              // Log ₹5 Bonus Transaction for Referrer
-              if (isEligibleFirstWd) {
-                const bonusEventId = `bonus_first_wd_${targetRefUid}_${w.userId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
-                tx.set(doc(db, 'users', targetRefUid, 'transactions', bonusEventId), {
-                  userId: targetRefUid,
-                  amount: 5,
-                  type: 'referral_bonus',
-                  note: `Referral Bonus (+₹5): ${w.userName || 'Friend'} completed 1st withdrawal`,
-                  createdAt: serverTimestamp()
-                });
-              }
-            }
+          if (bonus) {
+            const aBonusTxRef = doc(db, 'users', aid, 'transactions', refEvId('bonus_first_wd', aid, w.userId, w.id));
+            tx.set(aBonusTxRef, {
+              userId: aid,
+              amount: bonus,
+              type: 'referral_bonus',
+              withdrawalId: w.id,
+              fromUserId: w.userId,
+              note: `Referral Bonus (+₹${bonus}): ${w.userName || 'Friend'} completed 1st withdrawal`,
+              createdAt: now
+            });
           }
         }
       }
     });
-    if (w.userId) { try { await setDoc(doc(db, 'users', w.userId, 'withdrawals', w.id), { status: 'approved', utrNumber: v.utr, adminNote: note, updatedAt: serverTimestamp() }, { merge: true }); } catch (_) { } }
-    logAction('payout_paid', w.id, { user: w.userId, amount: num(v.paid), utr: v.utr }); toast(`Marked ${inr(v.paid)} as paid`, 'ok');
+
+    if (w.userId) {
+      try {
+        await setDoc(doc(db, 'users', w.userId, 'withdrawals', w.id), {
+          status: 'approved',
+          utrNumber: v.utr,
+          adminNote: note,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (_) { }
+    }
+    logAction('payout_paid', w.id, { user: w.userId, amount: num(v.paid), utr: v.utr, refCommission: commCredited, refBonus: bonusCredited });
+    toast(`Marked ${inr(v.paid)} as paid` + (commCredited || bonusCredited ? ` • Referral: ${bonusCredited ? '₹5 + ₹5 bonus, ' : ''}₹${commCredited} commission` : ''), 'ok');
   } catch (e) { toast(e.message, 'bad'); }
   busy = false; renderAll();
 };
+
 ACT.wdReject = async el => {
   const w = S.wds.find(x => x.id === el.dataset.id); if (!w || busy) return;
   const v = await ask({ title: 'Reject & refund?', body: `<b>${inr(w.amount)}</b> will be credited back to the user’s wallet. The reason will be shown to the user.`, ok: 'Reject & refund', danger: true, fields: [{ id: 'reason', label: 'Reason', type: 'textarea', required: true, value: 'Invalid payment details' }] });
@@ -157,9 +226,14 @@ ACT.wdReject = async el => {
   try {
     const ref = doc(db, 'withdrawals', w.id), uref = w.userId ? doc(db, 'users', w.userId) : null;
     await runTransaction(db, async tx => {
-      const snap = await tx.get(ref); const cur = String(snap.data()?.status || 'pending').toLowerCase();
+      /* === ALL READS FIRST === */
+      const snap = await tx.get(ref);
+      if (!snap.exists()) throw new Error('Withdrawal not found.');
+      const cur = String(snap.data()?.status || 'pending').toLowerCase();
       if (!['pending', 'processing'].includes(cur)) throw new Error('This request is already ' + cur + '.');
       const us = uref ? await tx.get(uref) : null;
+
+      /* === ALL WRITES SECOND === */
       tx.update(ref, { status: 'rejected', adminNote: v.reason, rejectionReason: v.reason, processedBy: S.admin, updatedAt: serverTimestamp() });
       if (us && us.exists()) {
         tx.update(uref, { walletBalance: num(us.data().walletBalance) + num(w.amount), updatedAt: serverTimestamp() });
@@ -171,6 +245,7 @@ ACT.wdReject = async el => {
   } catch (e) { toast(e.message, 'bad'); }
   busy = false; renderAll();
 };
+
 ACT.wdCsv = () => {
   const rows = [['Withdrawal ID', 'User ID', 'Name', 'Amount', 'Requested', 'Status', 'Method', 'UPI / Bank', 'Account (masked)', 'IFSC', 'UTR', 'Paid at', 'Processed by', 'Note']];
   wdFiltered().forEach(w => rows.push([w.id, w.userId, w.userName || w.userEmail, num(w.amount), fmtDT(wdMs(w)), wdSt(w), wdMethod(w), w.upiId || w.bankName || '', mask(w.accountNumber), w.ifscCode || '', w.utrNumber || '', wdSt(w) === 'approved' ? fmtDT(wdPaidMs(w)) : '', w.processedBy || '', w.adminNote || '']));

@@ -229,18 +229,6 @@ fun onGoogleSignInClicked(
                     extractedEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
                 }
 
-                val existsInDb = FirebaseEmailDispatchService.checkGoogleEmailAccountExistsInDatabase(context, extractedEmail)
-                if (!existsInDb) {
-                    onRequirePasswordSetup(
-                        PendingGooglePasswordSetup(
-                            fullName = extractedName,
-                            email = extractedEmail,
-                            idToken = googleCred.idToken
-                        )
-                    )
-                    return@launch
-                }
-
                 // Save Google account session and ensure profile in database
                 FirebaseEmailDispatchService.saveGoogleAccountSession(
                     context = context,
@@ -266,20 +254,12 @@ fun onGoogleSignInClicked(
                         explicitUserId = firebaseUser?.uid,
                         referralCode = FirebaseEmailDispatchService.getOrCreateReferralCode(context, resolvedEmail),
                         referredByCode = FirebaseEmailDispatchService.getReferredByCode(context, resolvedEmail),
-                        creditReferrerOnLogin = true
+                        creditReferrerOnLogin = false
                     )
                 }.onFailure { err ->
                     Log.w("Auth", "Firebase credential link note (continuing with Google profile): ${err.message}")
                 }
 
-                val singleDeviceErr = FirebaseEmailDispatchService.checkSingleAccountPerPhoneRule(
-                    context = context,
-                    candidateEmail = extractedEmail
-                )
-                if (singleDeviceErr != null) {
-                    onAuthError(singleDeviceErr)
-                    return@launch
-                }
                 FirebaseEmailDispatchService.bindDeviceToAccount(
                     context = context,
                     email = extractedEmail,

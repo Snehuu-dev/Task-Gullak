@@ -1035,11 +1035,23 @@ fun HomeScreen(
                             approvedCount = approvedCount,
                             rejectedCount = rejectedCount,
                             walletBalance = walletBalance,
+                            bulkStatus = profile?.bulkStatus.orEmpty().ifBlank { "none" },
+                            bulkDeviceCount = profile?.bulkDeviceCount ?: 0,
                             isSubmitting = vmIsSubmitting,
                             feedbackMessage = feedbackMsg,
                             onClearFeedback = {
                                 viewModel?.clearFeedback()
                                 localFeedbackMsg = null
+                            },
+                            onAllocateBulkComments = { task, count ->
+                                viewModel?.allocateBulkComments(task, count)
+                            },
+                            onSubmitBulkTaskProofs = { task, allocations, deviceScreenshots ->
+                                viewModel?.submitBulkTaskProofs(task, allocations, deviceScreenshots) { success ->
+                                    if (success) {
+                                        android.widget.Toast.makeText(context, "✅ Bulk Task Proofs Submitted Successfully!", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             },
                             onSubmitTaskProof = { task, message, screenshotBase64, onComplete ->
                                 FirebaseEmailDispatchService.creditReferrerLifetimeBonusForTask(
@@ -1110,7 +1122,8 @@ fun HomeScreen(
                         ReferTabShellContent(
                             walletIdCode = walletIdCode,
                             referredUsers = referredUsers,
-                            liveReferralSummary = referralSummary
+                            liveReferralSummary = referralSummary,
+                            currentUserProfile = profile
                         )
                     }
                 }

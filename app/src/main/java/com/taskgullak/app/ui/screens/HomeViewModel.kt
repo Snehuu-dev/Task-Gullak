@@ -757,6 +757,29 @@ class HomeViewModel(
         }
     }
 
+    fun allocateBulkComments(
+        task: com.taskgullak.app.data.model.AvailableTask,
+        count: Int,
+        onResult: (List<com.taskgullak.app.data.model.BulkCommentAllocation>?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val res = repository.allocateBulkCommentsForTask(task, count, currentUserId)
+            onResult(res.getOrNull())
+        }
+    }
+
+    fun submitBulkTaskProofs(
+        task: com.taskgullak.app.data.model.AvailableTask,
+        allocations: List<com.taskgullak.app.data.model.BulkCommentAllocation>,
+        deviceScreenshots: Map<Int, String>,
+        onResult: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val res = repository.submitBulkTaskProofs(task, allocations, deviceScreenshots, currentUserId)
+            onResult(res.isSuccess)
+        }
+    }
+
     fun sendSupportBotMessage(text: String) {
         val clean = text.trim()
         if (clean.isBlank()) return

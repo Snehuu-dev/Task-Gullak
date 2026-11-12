@@ -134,7 +134,7 @@ class ExampleRobolectricTest {
             taskRewardCoins = 10000,
             taskTitle = "App Review Task"
         )
-        assertEquals(5.0, commissionCredited, 0.01)
+        assertEquals(1.0, commissionCredited, 0.01)
 
         // 3. Verify 50 achievement batches (10 to 500 tasks)
         val batches = FirebaseEmailDispatchService.getAchievementBatches(completedTasksCount = 25)

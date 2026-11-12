@@ -45,9 +45,7 @@ class TaskGullakBackgroundSyncService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // When user swipes Task Gullak away from Recent Apps ("Close All"),
-        // immediately schedule both a service restart and a JobScheduler wakeup
-        // so real-time Admin Panel notifications continue arriving in the background.
-        scheduleImmediateServiceRestart(applicationContext)
+        // schedule JobScheduler sync so notifications continue arriving in background.
         scheduleBackgroundSyncJobs(applicationContext, immediateWakeup = true)
         super.onTaskRemoved(rootIntent)
     }
@@ -226,27 +224,6 @@ class TaskGullakBackgroundSyncService : Service() {
                 val scheduler = appCtx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
                 scheduler?.cancel(JOB_ID_PERIODIC_SYNC)
                 scheduler?.cancel(JOB_ID_IMMEDIATE_WAKEUP)
-            } catch (_: Exception) {
-            }
-        }
-
-        internal fun scheduleImmediateServiceRestart(context: Context) {
-            try {
-                val restartIntent = Intent(context.applicationContext, TaskGullakBackgroundSyncService::class.java).apply {
-                    setPackage(context.packageName)
-                }
-                val pendingIntent = PendingIntent.getService(
-                    context.applicationContext,
-                    REQUEST_CODE_RESTART,
-                    restartIntent,
-                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-                alarmManager?.set(
-                    AlarmManager.ELAPSED_REALTIME,
-                    SystemClock.elapsedRealtime() + 1500L,
-                    pendingIntent
-                )
             } catch (_: Exception) {
             }
         }

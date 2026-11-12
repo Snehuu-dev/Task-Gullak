@@ -5,9 +5,10 @@
 
 const AVC = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 const avc = s => AVC[[...String(s || 'User')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
+const safeCanon = id => (typeof canon === 'function' ? canon(id) : id);
 
 const findUser = uid => {
-  const c = typeof canon === 'function' ? canon(uid) : uid;
+  const c = safeCanon(uid);
   return (S.users || []).find(u => u && (u.id === c || u.id === uid || (u._aliases && u._aliases.includes(uid))));
 };
 
@@ -22,7 +23,7 @@ const getUserIds = uid => {
 function bulkRows() {
   const m = new Map();
   const row = uid => {
-    const c = typeof canon === 'function' ? canon(uid) : uid;
+    const c = safeCanon(uid);
     let r = m.get(c);
     if (!r) m.set(c, (r = { uid: c, req: null }));
     return r;
@@ -116,10 +117,10 @@ async function bkSet(uid, userPatch, reqPatch, statuses) {
 
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
 
-  const reqs = reqList.filter(q => q && canon(q.userId || q.uid) === canon(uid) && statuses.includes(q.status));
+  const reqs = reqList.filter(q => q && safeCanon(q.userId || q.uid) === safeCanon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
 
-  const modReqs = modReqList.filter(q => q && canon(q.userId || q.uid) === canon(uid) && statuses.includes(q.status));
+  const modReqs = modReqList.filter(q => q && safeCanon(q.userId || q.uid) === safeCanon(uid) && statuses.includes(q.status));
   await Promise.all(modReqs.map(q => updateDoc(doc(db, 'bulk_mod_requests', q.id), reqPatch)));
 
   try {
@@ -273,7 +274,7 @@ ACT.bkBulkApprove = async () => {
         });
 
         const reqs = reqList.filter(
-          q => q && canon(q.userId || q.uid) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && ['pending', 'approved'].includes(q.status)
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -285,7 +286,7 @@ ACT.bkBulkApprove = async () => {
         });
 
         const modReqs = modReqList.filter(
-          q => q && canon(q.userId || q.uid) === canon(r.uid) && ['pending', 'approved'].includes(q.status)
+          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && ['pending', 'approved'].includes(q.status)
         );
         modReqs.forEach(q => {
           batch.update(doc(db, 'bulk_mod_requests', q.id), {
@@ -356,7 +357,7 @@ ACT.bkBulkReject = async () => {
         });
 
         const reqs = reqList.filter(
-          q => q && canon(q.userId || q.uid) === canon(r.uid) && q.status === 'pending'
+          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && q.status === 'pending'
         );
         reqs.forEach(q => {
           batch.update(doc(db, 'bulkRequests', q.id), {
@@ -368,7 +369,7 @@ ACT.bkBulkReject = async () => {
         });
 
         const modReqs = modReqList.filter(
-          q => q && canon(q.userId || q.uid) === canon(r.uid) && q.status === 'pending'
+          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && q.status === 'pending'
         );
         modReqs.forEach(q => {
           batch.update(doc(db, 'bulk_mod_requests', q.id), {

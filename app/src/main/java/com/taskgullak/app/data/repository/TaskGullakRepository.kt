@@ -177,62 +177,15 @@ class TaskGullakRepository(
 
     /**
      * Processes any newly completed tasks on a referred user's Firestore `/users/{referredUserId}` document
-     * and credits the percentage-based commission to the referrer's `/users/{referrerUserId}` wallet in real-time.
+     * Note: Referral commission and first withdrawal bonuses are credited ONLY when a referred user's withdrawal
+     * is approved by Admin. Task completions do not grant instant referral commissions.
      */
     suspend fun processReferredUserTaskCompletions(
         referredProfile: UserProfile,
         explicitReferrerUserId: String? = null,
         commissionRatePercent: Double = DEFAULT_REFERRAL_COMMISSION_PERCENT
     ): Result<Long> {
-        val referredUid = referredProfile.userId.ifBlank { referredProfile.id }
-        if (referredUid.isBlank()) return Result.success(0L)
-
-        val completedCount = referredProfile.completedTasksCount
-        val alreadyCreditedCount = referredProfile.lastCreditedCompletedTasksCount
-        if (completedCount <= alreadyCreditedCount) {
-            return Result.success(0L)
-        }
-
-        val resolvedReferrerUid = explicitReferrerUserId?.takeIf { it.isNotBlank() }
-            ?: referredProfile.referredByUserId.takeIf { it.isNotBlank() }
-            ?: resolveReferrerUserIdByCode(referredProfile.referredByCode)
-            ?: return Result.success(0L)
-
-        if (resolvedReferrerUid == referredUid) {
-            return Result.success(0L)
-        }
-
-        val taskRewardBase = referredProfile.lastCompletedTaskReward.takeIf { it > 0L } ?: 50L
-        val effectiveRate = referredProfile.referralCommissionRatePercent
-            .takeIf { it in 1L..100L }?.toDouble() ?: commissionRatePercent
-
-        var totalCommissionCredited = 0L
-        for (taskIndex in (alreadyCreditedCount + 1L)..completedCount) {
-            val singleCreditResult = creditReferrerWalletForReferredTaskCompletion(
-                referrerUserId = resolvedReferrerUid,
-                referrerCode = referredProfile.referredByCode,
-                referredUserId = referredUid,
-                referredUserName = referredProfile.fullName.ifBlank { "Referred Friend" },
-                referredUserEmail = referredProfile.email,
-                completedTasksCountSnapshot = taskIndex,
-                taskRewardAmount = taskRewardBase,
-                commissionRatePercent = effectiveRate,
-                taskTitle = "Task #$taskIndex"
-            )
-            totalCommissionCredited += singleCreditResult.getOrDefault(0L)
-        }
-
-        // Advance lastCreditedCompletedTasksCount on the referred user's document so each completion is credited once
-        runCatching {
-            db.collection("users").document(referredUid).update(
-                mapOf(
-                    "lastCreditedCompletedTasksCount" to completedCount,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-        }
-
-        return Result.success(totalCommissionCredited)
+        return Result.success(0L)
     }
 
     private suspend fun resolveReferrerUserIdByCode(referralCode: String): String? {
@@ -371,119 +324,37 @@ class TaskGullakRepository(
         val cleanCode = referredByCode.trim().uppercase()
         val cleanReferrerId = referrerUserId.trim()
         val cleanReferredId = referredUserId.trim()
-        if ((cleanCode.isBlank() && cleanReferrerId.isBlank()) || loginBonusInr <= 0L) {
-            return Result.success(0L)
-        }
-        val resolvedReferrerUid = when {
-            cleanReferrerId.isNotBlank() -> cleanReferrerId
-            cleanCode.isNotBlank() -> resolveReferrerUserIdByCode(cleanCode)
-            else -> null
-        } ?: return Result.success(0L)
 
-        if (cleanReferredId.isNotBlank() && resolvedReferrerUid == cleanReferredId) {
-            return Result.success(0L)
-        }
-
-        return try {
-            val referrerDocRef = db.collection("users").document(resolvedReferrerUid)
-            val referrerSnap = referrerDocRef.get().await()
-            if (!referrerSnap.exists()) {
-                return Result.success(0L)
-            }
-
-            val rawEventId = when {
-                loginEventKey.isNotBlank() ->
-                    "login_bonus_${resolvedReferrerUid}_${loginEventKey}"
-                cleanReferredId.isNotBlank() ->
-                    "login_bonus_${resolvedReferrerUid}_${cleanReferredId}"
-                referredUserEmail.isNotBlank() ->
-                    "login_bonus_${resolvedReferrerUid}_${referredUserEmail.trim().lowercase().replace("@", "_at_")}"
-                else ->
-                    "login_bonus_${resolvedReferrerUid}_${cleanCode}"
-            }.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(120)
-
-            val eventDocRef = db.collection("referral_commissions").document(rawEventId)
-            val existingEvent = runCatching { eventDocRef.get().await() }.getOrNull()
-            if (existingEvent != null && existingEvent.exists()) {
-                return Result.success(0L)
-            }
-
-            val displayFriend = referredUserName.trim().ifBlank {
-                referredUserEmail.trim().substringBefore("@").ifBlank { "Friend" }
-            }
-
-            // Write the event document FIRST to guarantee idempotency across concurrent syncs
-            eventDocRef.set(
-                mapOf(
-                    "referrerUserId" to resolvedReferrerUid,
-                    "referredUserId" to cleanReferredId,
-                    "referredUserName" to displayFriend,
-                    "referredUserEmail" to referredUserEmail.trim().take(150),
-                    "referredByCode" to cleanCode,
-                    "commissionAmount" to loginBonusInr,
-                    "type" to "referral_login_bonus",
-                    "createdAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-
-            val currentWallet = referrerSnap.getLong("walletBalance") ?: 0L
-            val currentCommissionEarned = referrerSnap.getLong("referralCommissionEarned") ?: 0L
-            referrerDocRef.update(
-                mapOf(
-                    "walletBalance" to (currentWallet + loginBonusInr),
-                    "referralCommissionEarned" to (currentCommissionEarned + loginBonusInr),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-
-            val txRef = referrerDocRef.collection("transactions").document()
-            val noteText = "Referral Bonus (+₹$loginBonusInr): $displayFriend joined"
-            txRef.set(
-                mapOf(
-                    "userId" to resolvedReferrerUid,
-                    "amount" to loginBonusInr,
-                    "type" to "referral_bonus",
-                    "note" to noteText.take(280),
-                    "createdAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-
-            // Ensure referred user's document also links referredByUserId if missing and credits joining bonus
-            if (cleanReferredId.isNotBlank()) {
-                runCatching {
+        if (cleanReferredId.isNotBlank()) {
+            runCatching {
+                val resolvedReferrerUid = when {
+                    cleanReferrerId.isNotBlank() -> cleanReferrerId
+                    cleanCode.isNotBlank() -> resolveReferrerUserIdByCode(cleanCode)
+                    else -> null
+                }
+                if (resolvedReferrerUid != null && resolvedReferrerUid != cleanReferredId) {
                     val referredRef = db.collection("users").document(cleanReferredId)
                     val referredSnap = referredRef.get().await()
                     if (referredSnap.exists()) {
-                        val refBal = referredSnap.getLong("walletBalance") ?: 0L
                         val updates = mutableMapOf<String, Any>(
-                            "walletBalance" to (refBal + loginBonusInr),
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                         if (referredSnap.getString("referredByUserId").isNullOrBlank()) {
                             updates["referredByUserId"] = resolvedReferrerUid
                         }
-                        referredRef.update(updates).await()
-
-                        val bTxRef = referredRef.collection("transactions").document()
-                        bTxRef.set(
-                            mapOf(
-                                "userId" to cleanReferredId,
-                                "amount" to loginBonusInr,
-                                "type" to "referral_bonus",
-                                "note" to "Joining Bonus (+₹$loginBonusInr): You joined via referral",
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                        ).await()
+                        if (referredSnap.getString("referredByCode").isNullOrBlank() && cleanCode.isNotBlank()) {
+                            updates["referredByCode"] = cleanCode
+                        }
+                        if (updates.size > 1) {
+                            referredRef.update(updates).await()
+                        }
                     }
                 }
             }
-
-            Result.success(loginBonusInr)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
         }
+        // Zero instant joining bonus credited to wallet on signup/login.
+        // Bonuses (₹5+₹5) and 1% lifetime commission are credited ONLY on approved withdrawals.
+        return Result.success(0L)
     }
 
     suspend fun requestWithdrawal(
@@ -1621,6 +1492,109 @@ class TaskGullakRepository(
                 }
             }
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun allocateBulkCommentsForTask(
+        task: AvailableTask,
+        count: Int,
+        explicitUserId: String? = null
+    ): Result<List<BulkCommentAllocation>> {
+        val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
+        if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
+        val safeCount = count.coerceIn(1, 100)
+
+        val fallbackComments = listOf(
+            "Best app experience! Very fast, clean interface and super helpful features.",
+            "Awesome application, easy to navigate and very smooth performance.",
+            "Highly recommended app! Super clean UI and great reward system.",
+            "Really useful app with great design and responsive features. Loving it!",
+            "Top-notch performance and user-friendly experience. Highly satisfied!",
+            "Very smooth app, excellent layout and fast processing. 5 stars!",
+            "Great work by the developers! Works perfectly and very reliable.",
+            "Fantastic user interface, super easy to use and very rewarding."
+        )
+
+        val allocations = mutableListOf<BulkCommentAllocation>()
+        val batch = db.batch()
+
+        for (i in 1..safeCount) {
+            val commentText = task.commentsList.getOrNull(i - 1)
+                ?: task.assignedComment.takeIf { it.isNotBlank() && i == 1 }
+                ?: fallbackComments[(i - 1) % fallbackComments.size]
+
+            val allocDoc = db.collection("bulk_comment_allocations").document()
+            val payload = mapOf(
+                "id" to allocDoc.id,
+                "userId" to uid,
+                "offerId" to task.id,
+                "taskTitle" to task.title,
+                "commentText" to commentText,
+                "deviceIndex" to i,
+                "status" to "taken",
+                "allocatedAt" to FieldValue.serverTimestamp()
+            )
+            batch.set(allocDoc, payload)
+            allocations.add(
+                BulkCommentAllocation(
+                    id = allocDoc.id,
+                    userId = uid,
+                    offerId = task.id,
+                    commentText = commentText,
+                    deviceIndex = i
+                )
+            )
+        }
+        return try {
+            batch.commit().await()
+            Result.success(allocations)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun submitBulkTaskProofs(
+        task: AvailableTask,
+        allocations: List<BulkCommentAllocation>,
+        deviceScreenshots: Map<Int, String>,
+        explicitUserId: String? = null
+    ): Result<Int> {
+        val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
+        if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
+        if (allocations.isEmpty()) return Result.failure(IllegalArgumentException("No allocations specified"))
+
+        val batch = db.batch()
+        var submittedCount = 0
+
+        for (alloc in allocations) {
+            val screenshotBase64 = deviceScreenshots[alloc.deviceIndex].orEmpty()
+            val subRef = db.collection("submissions").document()
+            val subPayload = mapOf(
+                "id" to subRef.id,
+                "userId" to uid,
+                "taskId" to task.id,
+                "taskTitle" to "${task.title} (Device #${alloc.deviceIndex})",
+                "rewardAmount" to task.rewardInr,
+                "proofMessage" to "Bulk Execution Device #${alloc.deviceIndex}: ${alloc.commentText}",
+                "screenshotBase64" to screenshotBase64,
+                "status" to "pending",
+                "isBulk" to true,
+                "deviceIndex" to alloc.deviceIndex,
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            batch.set(subRef, subPayload)
+
+            val allocRef = db.collection("bulk_comment_allocations").document(alloc.id)
+            batch.update(allocRef, mapOf("status" to "submitted", "submittedAt" to FieldValue.serverTimestamp()))
+            submittedCount++
+        }
+
+        return try {
+            batch.commit().await()
+            Result.success(submittedCount)
         } catch (e: Exception) {
             Result.failure(e)
         }

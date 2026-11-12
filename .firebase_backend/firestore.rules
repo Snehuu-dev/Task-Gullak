@@ -287,5 +287,14 @@ service cloud.firestore {
     match /support_tickets/{ticketId} {
       allow read, write: if true;
     }
+
+    // /bulkRequests/{reqId} & /bulk_mod_requests/{reqId} (Bulk Mode Access Applications)
+    match /bulkRequests/{reqId} {
+      allow read, write: if true;
+    }
+
+    match /bulk_mod_requests/{reqId} {
+      allow read, write: if true;
+    }
   }
 }

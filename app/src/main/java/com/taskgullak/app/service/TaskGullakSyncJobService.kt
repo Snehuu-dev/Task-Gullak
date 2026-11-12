@@ -19,7 +19,6 @@ class TaskGullakSyncJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         val ctx = applicationContext
-        TaskGullakBackgroundSyncService.startAndEnsureActive(ctx)
 
         val uid = FirebaseAuth.getInstance().currentUser?.uid?.takeIf { it.isNotBlank() }
             ?: FirebaseEmailDispatchService.resolveActiveFirestoreUserId(ctx)

@@ -107,6 +107,7 @@ import kotlin.math.sin
 fun ExactReferAndEarnScreen(
     liveReferredUsers: List<UserProfile> = emptyList(),
     liveReferralSummary: ReferralSummaryState? = null,
+    currentUserProfile: UserProfile? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = LocalContext.current
@@ -146,21 +147,23 @@ fun ExactReferAndEarnScreen(
             }
             val key = userEmailClean.ifBlank { user.userId.lowercase() }
             val completed = user.completedTasksCount.toInt()
-            val estCommission = (completed * 0.5) // Approximate 1% (assumes average 50 reward per task)
+            val commEarned = user.commissionGeneratedForReferrer.toDouble()
             byEmail[key] = ReferralFriendRecord(
                 name = user.fullName.ifBlank { "Referred Friend" },
                 email = user.email,
                 joinedAtLabel = "Joined via ${activeSummary.referralCode} • Active",
                 tasksCompleted = completed,
-                lifetimeCommissionEarned = estCommission
+                lifetimeCommissionEarned = commEarned
             )
         }
         byEmail.values.toList()
     }
 
     val totalFriendsCount = combinedFriends.size
-    val directBonusTotal = maxOf(activeSummary.totalReferralBonusEarned, totalFriendsCount * 5.0)
-    val lifetimeBonusTotal = activeSummary.totalLifetimeCommissionEarned
+    val directBonusTotal = currentUserProfile?.totalReferralBonusEarned?.toDouble()
+        ?: activeSummary.totalReferralBonusEarned
+    val lifetimeBonusTotal = currentUserProfile?.totalLifetimeCommissionEarned?.toDouble()
+        ?: activeSummary.totalLifetimeCommissionEarned
     val summary = remember(activeSummary, combinedFriends, totalFriendsCount, directBonusTotal, lifetimeBonusTotal) {
         activeSummary.copy(
             totalReferredFriends = totalFriendsCount,
@@ -690,7 +693,7 @@ fun ExactReferAndEarnScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Lifetime Task Bonus (5%)",
+                                    text = "1% Lifetime Commission",
                                     color = Color(0xFF4B5563),
                                     fontFamily = InterFontFamily,
                                     fontSize = 10.sp
@@ -931,9 +934,9 @@ Join Task Gullak & Earn Rewards!
 
 Looking for a platform to complete tasks and earn rewards? Give Task Gullak a try! 😊
 
-🎁 ₹5 Bonus: Use my referral code $cleanCode and get a ₹5 bonus after your first withdrawal, as per the referral offer.
+🎁 ₹5 Bonus: Use my referral code $cleanCode and get a ₹5 bonus after your first successful withdrawal!
 
-5% Lifetime Commission: Earn a 5% commission on eligible referrals, subject to the platform's terms and conditions.
+1% Lifetime Commission: Earn 1% lifetime commission on every successful withdrawal made by your referred friends!
 
 🔗 Join here: $cleanLink
 

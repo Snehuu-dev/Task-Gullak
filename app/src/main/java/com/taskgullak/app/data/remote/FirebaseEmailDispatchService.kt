@@ -1610,44 +1610,7 @@ object FirebaseEmailDispatchService {
         candidateEmail: String,
         candidatePhoneE164: String = ""
     ): String? = withContext(Dispatchers.IO) {
-        val cleanCandidate = candidateEmail.trim().lowercase()
-        val deviceId = getDeviceHardwareId(context)
-        
-        // 1. Check local preferences first (fast)
-        val existingOwnerEmail = getDeviceOwnerEmail(context)
-        if (existingOwnerEmail.isNotBlank() &&
-            cleanCandidate.isNotBlank() &&
-            !existingOwnerEmail.equals(cleanCandidate, ignoreCase = true)
-        ) {
-            return@withContext "Only 1 account is allowed per phone. This device is already registered with $existingOwnerEmail."
-        }
-        val existingOwnerPhone = getDeviceOwnerPhone(context)
-        if (existingOwnerPhone.isNotBlank() &&
-            candidatePhoneE164.isNotBlank() &&
-            existingOwnerPhone != candidatePhoneE164 &&
-            existingOwnerEmail.isNotBlank() &&
-            !existingOwnerEmail.equals(cleanCandidate, ignoreCase = true)
-        ) {
-            return@withContext "Only 1 account can be created on this phone (linked to $existingOwnerPhone)."
-        }
-
-        // 2. Check Firestore backend (strict enforcement across re-installs/clear data)
-        try {
-            val db = resolveFirestoreInstance(context)
-            val doc = db.collection("device_accounts").document(deviceId).get().await()
-            if (doc.exists()) {
-                val dbOwnerEmail = doc.getString("ownerEmail").orEmpty().trim().lowercase()
-                if (dbOwnerEmail.isNotBlank() && dbOwnerEmail != cleanCandidate) {
-                    // Update local preferences to restore the lock if it was cleared
-                    val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
-                    prefs.edit().putString(KEY_DEVICE_OWNER_EMAIL, dbOwnerEmail).apply()
-                    return@withContext "Only 1 account is allowed per phone. This device is already registered with $dbOwnerEmail."
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to check device_accounts in Firestore: ${e.message}")
-        }
-        
+        // Temporarily allow multiple accounts per phone
         return@withContext null
     }
 

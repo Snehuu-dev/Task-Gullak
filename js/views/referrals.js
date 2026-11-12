@@ -1,70 +1,23 @@
 'use strict';
 /* === REFERRAL MANAGEMENT VIEW === */
 ACT.fixReferralBalances = async () => {
-  if (!await confirmBox('Sync All Missing Referral Earnings?', 'This will scan ALL users, calculate missing 1% commissions and ₹5 bonuses based on their friends\' approved tasks, and credit the missing amounts to their wallets. It checks transaction history to prevent double-crediting.')) return;
+  if (!await confirmBox('Sync missing referral rewards?', 'Scans all APPROVED withdrawals of referred users and credits what is missing: ₹5 + ₹5 on the 1st approved withdrawal and 1% commission on every approved withdrawal. Each reward has a fixed ID, so nothing can be credited twice.')) return;
   busy = true; renderAll();
   try {
-    let totalFixed = 0, totalMoney = 0;
-    for (const u of S.users) {
-      const friends = S.users.filter(x => x.referredByUserId === u.id || (u.referralCode && x.referredByCode && x.referredByCode.toUpperCase() === u.referralCode.toUpperCase()));
-
-      let expectedComm = 0;
-      friends.forEach(f => {
-        S.subs.filter(s => s.userId === f.id && subSt(s) === 'approved').forEach(s => {
-          expectedComm += Math.max(1, Math.round(num(s.rewardAmount) * 0.01));
-        });
+    let fixed = 0, money = 0;
+    // oldest first, so the 1st withdrawal of a user gets the ₹5 bonus and later ones only commission
+    const paid = S.wds.filter(w => wdSt(w) === 'approved' && w.userId).sort((x, y) => wdPaidMs(x) - wdPaidMs(y));
+    for (const w of paid) {
+      const u = S.users.find(x => x.id === w.userId);
+      if (!u || !refFindReferrerId(u, w.userId)) continue;
+      const res = await runTransaction(db, async tx => {
+        const plan = await refReadPlan(tx, w);
+        if (!plan || (plan.commDone && !plan.first)) return { comm: 0, bonus: 0 };
+        return refApplyPlan(tx, plan, w);
       });
-
-      let expectedBonus = 0;
-      // 1. You get 5 for every friend you referred
-      expectedBonus += (friends.length * 5);
-      // 2. You get 5 for being referred by someone (if you were referred)
-      if (u.referredByUserId || u.referredByCode) {
-        expectedBonus += 5;
-      }
-
-      if (expectedComm === 0 && expectedBonus === 0) continue;
-
-      const txs = await getDocs(collection(db, 'users', u.id, 'transactions'));
-      let creditedComm = 0, creditedBonus = 0;
-      txs.forEach(d => {
-        const t = d.data();
-        if (t.type === 'referral_commission') creditedComm += num(t.amount);
-        if (t.type === 'referral_bonus' || t.type === 'referral_login_bonus') creditedBonus += num(t.amount);
-      });
-
-      const missingComm = Math.max(0, expectedComm - creditedComm);
-      const missingBonus = Math.max(0, expectedBonus - creditedBonus);
-
-      if (missingComm > 0 || missingBonus > 0) {
-        await runTransaction(db, async tx => {
-          const uRef = doc(db, 'users', u.id);
-          const uSnap = await tx.get(uRef);
-          if (!uSnap.exists()) return;
-          tx.update(uRef, {
-            walletBalance: num(uSnap.data().walletBalance) + missingComm + missingBonus,
-            totalLifetimeCommissionEarned: expectedComm,
-            referralCommissionEarned: expectedComm,
-            totalReferralBonusEarned: expectedBonus,
-            updatedAt: serverTimestamp()
-          });
-          if (missingComm > 0) {
-            tx.set(doc(collection(db, 'users', u.id, 'transactions')), {
-              userId: u.id, amount: missingComm, type: 'referral_commission',
-              note: `Retroactive 1% Lifetime Comm Sync (+₹${missingComm})`, createdAt: serverTimestamp()
-            });
-          }
-          if (missingBonus > 0) {
-            tx.set(doc(collection(db, 'users', u.id, 'transactions')), {
-              userId: u.id, amount: missingBonus, type: 'referral_bonus',
-              note: `Retroactive Referral Bonus Sync (+₹${missingBonus})`, createdAt: serverTimestamp()
-            });
-          }
-        });
-        totalFixed++; totalMoney += (missingComm + missingBonus);
-      }
+      if (res.comm || res.bonus) { fixed++; money += res.comm + res.bonus * 2; }
     }
-    toast(`Success! Credited ₹${totalMoney} to ${totalFixed} users.`, 'ok');
+    toast(`Done. Credited ₹${money} for ${fixed} withdrawal${fixed === 1 ? '' : 's'}.`, 'ok');
   } catch (e) { console.error(e); toast(e.message, 'bad'); }
   busy = false; renderAll();
 };
@@ -92,7 +45,7 @@ RENDER.referrals = () => {
   }
 
   setHTML(container, referredUsersList.map(u => {
-    const referredCount = users.filter(x => x.referredByUserId === u.id || (u.referralCode && x.referredByCode === u.referralCode)).length;
+    const referredCount = users.filter(x => refFindReferrerId(x, x.id) === u.id).length;
     const bonus = num(u.totalReferralBonusEarned) || 0;
     const comm = num(u.totalLifetimeCommissionEarned) || num(u.referralCommissionEarned) || 0;
 

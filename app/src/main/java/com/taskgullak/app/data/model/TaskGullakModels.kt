@@ -36,6 +36,7 @@ data class UserProfile(
     val referralCommissionEarned: Long = 0L,
     val totalReferralBonusEarned: Long = 0L,
     val totalLifetimeCommissionEarned: Long = 0L,
+    val commissionGeneratedForReferrer: Long = 0L,
     val lastCreditedCompletedTasksCount: Long = 0L,
     val lastCompletedTaskReward: Long = 50L,
     val dailyStreakDays: Long = 1L,
@@ -425,6 +426,7 @@ data class BulkCommentAllocation(
     val offerId: String = "",
     val commentId: String = "",
     val commentText: String = "",
+    val deviceIndex: Int = 1,
     val status: String = "taken", // taken, submitted, returned
     @ServerTimestamp val takenAt: Timestamp? = null,
     @ServerTimestamp val returnedAt: Timestamp? = null
