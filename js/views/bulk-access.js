@@ -33,9 +33,24 @@ function bulkRows() {
   const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
   const userList = Array.isArray(S.users) ? S.users : [];
 
+  const resolveReqUid = q => {
+    if (!q) return '';
+    let uid = q.userId || q.uid || q.user_id;
+    if (!uid && (q.userEmail || q.email)) {
+      const em = String(q.userEmail || q.email).trim().lowercase();
+      const match = userList.find(u => u && String(u.email || '').trim().lowercase() === em);
+      if (match) uid = match.id;
+    }
+    if (!uid && q.id && !String(q.id).startsWith('mod_') && !String(q.id).startsWith('user_')) {
+      const match = userList.find(u => u && u.id === q.id);
+      if (match) uid = match.id;
+    }
+    return uid || q.id || '';
+  };
+
   reqList.forEach(q => {
     if (!q) return;
-    const uid = q.userId || q.uid || q.user_id;
+    const uid = resolveReqUid(q);
     if (!uid) return;
     const r = row(uid);
     if (!r.req) r.req = q;
@@ -43,7 +58,7 @@ function bulkRows() {
 
   modReqList.forEach(q => {
     if (!q) return;
-    const uid = q.userId || q.uid || q.user_id;
+    const uid = resolveReqUid(q);
     if (!uid) return;
     const r = row(uid);
     if (!r.req) {
