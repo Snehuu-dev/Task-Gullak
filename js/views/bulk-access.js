@@ -31,17 +31,18 @@ function bulkRows() {
 
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
   const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+  const ticketList = Array.isArray(S.tickets) ? S.tickets : [];
   const userList = Array.isArray(S.users) ? S.users : [];
 
   const resolveReqUid = q => {
     if (!q) return '';
     let uid = q.userId || q.uid || q.user_id;
     if (!uid && (q.userEmail || q.email)) {
-      const em = String(q.userEmail || q.email).trim().lowercase();
-      const match = userList.find(u => u && String(u.email || '').trim().lowercase() === em);
+      const em = String(q.userEmail || q.email).trim().toLowerCase();
+      const match = userList.find(u => u && String(u.email || '').trim().toLowerCase() === em);
       if (match) uid = match.id;
     }
-    if (!uid && q.id && !String(q.id).startsWith('mod_') && !String(q.id).startsWith('user_')) {
+    if (!uid && q.id && !String(q.id).startsWith('mod_') && !String(q.id).startsWith('user_') && !String(q.id).startsWith('bulk_')) {
       const match = userList.find(u => u && u.id === q.id);
       if (match) uid = match.id;
     }
@@ -71,6 +72,25 @@ function bulkRows() {
         status: q.status || 'pending',
         createdAt: q.createdAt || q.updatedAt,
         requestData: { deviceCount: q.deviceCount || q.approvedLimit || 2, tier: 'Standard' }
+      };
+    }
+  });
+
+  ticketList.forEach(t => {
+    if (!t || (!String(t.id || '').startsWith('bulk_') && String(t.category || '').toLowerCase() !== 'bulk')) return;
+    const uid = t.userId || (String(t.id).startsWith('bulk_') ? String(t.id).replace('bulk_', '') : '');
+    if (!uid) return;
+    const r = row(uid);
+    if (!r.req) {
+      r.req = {
+        id: t.id,
+        userId: uid,
+        userName: t.userName || t.userEmail || '',
+        userEmail: t.userEmail || '',
+        note: t.message || '',
+        status: t.status === 'open' ? 'pending' : (t.status === 'closed' ? 'approved' : t.status),
+        createdAt: t.createdAt || t.updatedAt,
+        requestData: { deviceCount: 2, tier: 'Standard' }
       };
     }
   });
@@ -106,17 +126,16 @@ function bulkRows() {
       const uStatus = String((u && u.bulkStatus) || '').toLowerCase();
       const qStatus = String((q && q.status) || '').toLowerCase();
 
-      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved';
-      const isPending = !isApproved && (qStatus === 'pending' || uStatus === 'pending' || uStatus === 'requested');
-      const isRejected = !isApproved && !isPending && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
+      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved' || qStatus === 'active';
+      const isRejected = !isApproved && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
+      const isPending = !isApproved && !isRejected;
 
-      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
+      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'pending';
       return r;
     })
-    .filter(r => r.status !== 'other')
     .sort((a, b) => {
-      const ta = tsMs(a.req && (a.req.createdAt || a.req.requestedAt || a.req.updatedAt)) || 0;
-      const tb = tsMs(b.req && (b.req.createdAt || b.req.requestedAt || b.req.updatedAt)) || 0;
+      const ta = tsMs(a.req && (a.req.createdAt || a.req.requestedAt || a.req.updatedAt)) || (a.user && tsMs(a.user.updatedAt)) || 0;
+      const tb = tsMs(b.req && (b.req.createdAt || b.req.requestedAt || b.req.updatedAt)) || (b.user && tsMs(b.user.updatedAt)) || 0;
       return tb - ta;
     });
 }
