@@ -1,5 +1,5 @@
 /* Load order of the app files. Add / remove / re-order files here. Bump APP_VERSION after every update so browsers fetch the new files. */
-window.APP_VERSION = '1.0.3';
+window.APP_VERSION = '1.0.4';
 window.APP_FILES = [
   'js/core/firebase.js',
   'js/core/config.js',
