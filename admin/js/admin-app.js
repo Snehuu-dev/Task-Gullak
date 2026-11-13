@@ -1622,7 +1622,7 @@ function tasksSubsMap() {
   });
   return m;
 }
-const TASK_PILL = { active: '<span class="pill ok">LIVE</span>', paused: '<span class="pill mute">PAUSED</span>', draft: '<span class="pill info">DRAFT</span>', archived: '<span class="pill mute">ARCHIVED</span>' };
+const TASK_PILL = { active: '<span class="pill ok">LIVE</span>', paused: '<span class="pill mute">PAUSED</span>', draft: '<span class="pill info">DRAFT</span>', archived: '<span class="pill mute">ARCHIVED</span>', exhausted: '<span class="pill bad">EXHAUSTED</span>' };
 RENDER.tasks = () => {
   const f = S.tasksUI, q = f.q.trim().toLowerCase();
   const sm = tasksSubsMap(), rg = taskDayRange(f);
@@ -1635,11 +1635,21 @@ RENDER.tasks = () => {
   setHTML($('#tasks-grid'), p.items.map(t => {
     const subs = (sm.get(t.id) || []).filter(x => !rg || (subMs(x) >= rg.from && subMs(x) <= rg.to)), pn = subs.filter(s => subSt(s) === 'pending').length, ap = subs.filter(s => subSt(s) === 'approved').length, rj = subs.filter(s => subSt(s) === 'rejected').length;
     const st = taskStatus(t), liability = pn * taskReward(t);
+    const mType = (t.modeType || t.mode_type || (t.isBulk ? 'BULK' : 'NORMAL')).toUpperCase();
+    const modeBadge = mType === 'BOTH' ? '<span class="pill info">BOTH (NORMAL + BULK)</span>' : mType === 'BULK' ? '<span class="pill brand">BULK ONLY</span>' : '<span class="pill mute">NORMAL ONLY</span>';
+    const totalQty = num(t.totalQuantity || t.total_quantity || 50);
+    const usedQty = num(t.usedQuantity || t.used_quantity || 0);
+    const remQty = Math.max(0, num(t.remainingQuantity || t.remaining_quantity || (totalQty - usedQty)));
+    const stockBadge = remQty === 0 ? '<span class="pill bad">STOCK EXHAUSTED (0 Left)</span>' : `<span class="pill ok">Stock: ${remQty}/${totalQty}</span>`;
+    const bulkMin = num(t.bulkMinQuantity || t.bulk_min_quantity || 1);
+    const bulkMax = num(t.bulkMaxQuantity || t.bulk_max_quantity || 5);
+    const bulkLimitsTag = (mType === 'BULK' || mType === 'BOTH') ? `<span class="tag brand">Min ${bulkMin} • Max ${bulkMax}</span><span class="tag warn">Timer: Disabled</span>` : '';
+
     return `<div class="card tcard">
       <div class="row" style="align-items:flex-start;gap:12px"><img class="appico" src="${esc(taskIcon(t))}" alt="" loading="lazy">
-        <div class="grow" style="min-width:0"><div class="row between" style="gap:6px"><h4 class="b fs16 trunc">${esc(taskName(t))}</h4>${TASK_PILL[st]}</div>
-          <div class="row wrap gap6 fs12 mt4 tmeta"><span class="brand-t xb">${inr(taskReward(t))}</span><span class="mchip rate">${ic('star', 12)}${esc(String(t.appRating || t.rating || '—'))}</span><span class="mchip">${ic('download', 12)}${esc(String(t.appDownloads || t.downloads || '—'))}</span><span class="mchip">${ic('clock', 12)}${num(t.durationMinutes) || 15}m</span></div>
-          <div class="row wrap gap6 mt8"><span class="tag mono">ID ${esc(t.id.slice(0, 8))}</span><span class="tag tgi">${ic('file', 11)}${(t.comments || []).length} comments</span><span class="tag tgi">${ic('ban', 11)}${(t.blockedUserIds || []).length} blocked</span><span class="tag tgi" title="Users who already submitted — this task is hidden from them">${ic('check', 11)}${(t.submittedUserIds || []).length} submitted</span><span class="tag">${fmtD(tsMs(t.createdAt))}</span></div></div></div>
+        <div class="grow" style="min-width:0"><div class="row between wrap" style="gap:6px"><h4 class="b fs16 trunc">${esc(taskName(t))}</h4><div class="row gap6">${modeBadge}${TASK_PILL[st] || TASK_PILL.active}</div></div>
+          <div class="row wrap gap6 fs12 mt4 tmeta"><span class="brand-t xb">${inr(taskReward(t))}</span><span class="mchip rate">${ic('star', 12)}${esc(String(t.appRating || t.rating || '—'))}</span><span class="mchip">${ic('download', 12)}${esc(String(t.appDownloads || t.downloads || '—'))}</span><span class="mchip">${ic('clock', 12)}${mType === 'BULK' ? 'No Timer' : (num(t.durationMinutes) || 15) + 'm'}</span>${stockBadge}</div>
+          <div class="row wrap gap6 mt8"><span class="tag mono">ID ${esc(t.id.slice(0, 8))}</span>${bulkLimitsTag}<span class="tag tgi">${ic('file', 11)}${(t.comments || []).length} comments</span><span class="tag tgi">${ic('ban', 11)}${(t.blockedUserIds || []).length} blocked</span><span class="tag tgi" title="Users who already submitted — this task is hidden from them">${ic('check', 11)}${(t.submittedUserIds || []).length} submitted</span><span class="tag">${fmtD(tsMs(t.createdAt))}</span></div></div></div>
       <div class="mini" style="grid-template-columns:repeat(4,1fr)"><div><b>${subs.length}</b>Submitted</div><div><b>${subs.filter(x => x.screenshotBase64).length}</b>Screenshots</div><div><b>${pn}</b>Pending</div><div><b>${ap}</b>Approved</div></div>
       <div class="row between wrap fs12"><span class="muted">${rj} rejected</span><span class="b">Pending reward liability: <span class="brand-t">${inr(liability)}</span></span></div>
       <div class="row wrap" style="border-top:1px solid var(--line);padding-top:12px;gap:6px">
@@ -1708,6 +1718,19 @@ function openTaskModal(t) {
   $('#tm-duration').value = t ? (num(t.durationMinutes) || 15) : 15;
   $('#tm-once').value = t && t.hideAfterComplete === false ? 'keep' : 'hide';
   $('#tm-category').value = t ? (t.category || 'App') : 'App';
+
+  const mType = t ? (t.modeType || t.mode_type || (t.isBulk ? 'BULK' : 'NORMAL')).toUpperCase() : 'NORMAL';
+  const bulkMin = t ? (num(t.bulkMinQuantity || t.bulk_min_quantity) || 1) : 1;
+  const bulkMax = t ? (num(t.bulkMaxQuantity || t.bulk_max_quantity) || 5) : 5;
+  const totalQty = t ? (num(t.totalQuantity || t.total_quantity) || 50) : 50;
+
+  if ($('#tm-mode-type')) $('#tm-mode-type').value = mType;
+  if ($('#tm-bulk-min')) $('#tm-bulk-min').value = bulkMin;
+  if ($('#tm-bulk-max')) $('#tm-bulk-max').value = bulkMax;
+  if ($('#tm-total-quantity')) $('#tm-total-quantity').value = totalQty;
+  if ($('#tm-bulk-wrap')) $('#tm-bulk-wrap').style.display = (mType === 'BULK' || mType === 'BOTH') ? 'flex' : 'none';
+  if ($('#tm-duration')) $('#tm-duration').disabled = (mType === 'BULK');
+
   $('#tm-status').value = t ? taskStatus(t) : 'active';
   $('#tm-instructions').value = (t && (t.instructions || []).length ? t.instructions : DEFAULT_INSTRUCTIONS).join('\n');
   $('#tm-comments').value = t ? (t.comments || []).join('\n') : '';
@@ -1731,6 +1754,11 @@ function updateTaskPreview() {
 }
 let fetchTimer = 0;
 INP.tmPrev = (el) => { updateTaskPreview(); if (el.id === 'tm-title') refreshCompleted(); };
+INP.tmModeType = el => {
+  const m = (el.value || 'NORMAL').toUpperCase();
+  if ($('#tm-bulk-wrap')) $('#tm-bulk-wrap').style.display = (m === 'BULK' || m === 'BOTH') ? 'flex' : 'none';
+  if ($('#tm-duration')) $('#tm-duration').disabled = (m === 'BULK');
+};
 INP.tmUrl = el => { clearTimeout(fetchTimer); if (pkgOf(el.value)) fetchTimer = setTimeout(fetchPlayMeta, 500); };
 INP.tmIconFile = el => {
   const f = el.files && el.files[0]; if (!f) return; const img = new Image(), url = URL.createObjectURL(f);
@@ -1764,7 +1792,23 @@ ACT.tmSave = async () => {
   if (!title) { err.textContent = 'An app name or a valid Play Store link is required.'; return; }
   const reward = Math.max(1, parseInt($('#tm-reward').value || '0', 10) || 0), duration = Math.max(1, parseInt($('#tm-duration').value || '0', 10) || 15);
   if (!reward) { err.textContent = 'Reward must be ₹1 or more.'; return; }
-  const onceMode = $('#tm-once').value, hideAfterComplete = onceMode !== 'keep', reshow = onceMode === 'reshow' && !!existingId, status = $('#tm-status').value, active = status === 'active';
+
+  const modeType = ($('#tm-mode-type')?.value || 'NORMAL').toUpperCase();
+  const bulkMin = Math.max(1, parseInt($('#tm-bulk-min')?.value || '1', 10) || 1);
+  const bulkMax = Math.max(bulkMin, parseInt($('#tm-bulk-max')?.value || '5', 10) || 5);
+  const totalQty = Math.max(1, parseInt($('#tm-total-quantity')?.value || '50', 10) || 50);
+  const usedQty = existing ? Math.max(0, num(existing.usedQuantity || existing.used_quantity || 0)) : 0;
+  const remainingQty = Math.max(0, totalQty - usedQty);
+
+  const onceMode = $('#tm-once').value, hideAfterComplete = onceMode !== 'keep', reshow = onceMode === 'reshow' && !!existingId;
+  let status = $('#tm-status').value;
+  if (remainingQty <= 0 && status === 'active') {
+    status = 'exhausted';
+  }
+  const active = status === 'active';
+  const isBulk = modeType === 'BULK' || modeType === 'BOTH';
+  const timerEnabled = modeType === 'BULK' ? false : (existing?.timerEnabled ?? true);
+
   const appId = pkgOf(url) || title.toLowerCase().replace(/\W+/g, '_');
   if (!existingId && S.tasks.some(t => (t.appId || t.packageName) === appId && taskStatus(t) !== 'archived')) {
     if (!await confirmBox('Duplicate task?', 'A task for this app already exists. Create a new one anyway?', { ok: 'Create anyway' })) return;
@@ -1781,6 +1825,13 @@ ACT.tmSave = async () => {
     category, rewardInr: reward, rewardAmount: reward, reward, durationMinutes: duration, timerMinutes: duration, deadlineHours: existing?.deadlineHours || 24, maxSubmissions: 0, hideAfterComplete, oneTimePerUser: hideAfterComplete, ...(reshow ? { reshowAt: Date.now(), submittedUserIds: [] } : {}),
     instructions: ins, description: ins.join('\n'), proofRequirement: existing?.proofRequirement || 'Upload completion screenshot and your genuine feedback',
     active, isActive: active, pausedByMaintenance: false, status,
+    isBulk, modeType, mode_type: modeType,
+    bulkMinQuantity: bulkMin, bulk_min_quantity: bulkMin,
+    bulkMaxQuantity: bulkMax, bulk_max_quantity: bulkMax,
+    totalQuantity: totalQty, total_quantity: totalQty,
+    usedQuantity: usedQty, used_quantity: usedQty,
+    remainingQuantity: remainingQty, remaining_quantity: remainingQty,
+    timerEnabled, timer_enabled: timerEnabled,
     comments: texts, commentPool: texts, commentItems: buildCommentItems(docRef.id, title, appId, texts, existing?.commentItems), updatedAt: serverTimestamp(), updatedBy: S.admin
   };
   if (!existingId) { payload.createdAt = serverTimestamp(); payload.createdBy = S.admin; }
@@ -1788,7 +1839,7 @@ ACT.tmSave = async () => {
   try {
     await setDoc(docRef, payload, { merge: true });
     try { await setDoc(doc(db, 'offers', docRef.id), payload, { merge: true }); } catch (_) { }
-    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status });
+    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status, modeType, remainingQty });
     closeTask(); toast(`Task “${title}” saved (${inr(reward)}, ${status === 'active' ? 'LIVE' : status})`, 'ok');
   } catch (e) { err.textContent = 'Save failed: ' + (e.code || e.message); }
   btn.disabled = false;

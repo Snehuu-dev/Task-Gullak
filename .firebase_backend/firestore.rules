@@ -115,7 +115,11 @@ service cloud.firestore {
     // /offers/{offerId} (Mirror of /tasks for User App compatibility)
     match /offers/{offerId} {
       allow get, list: if true;
-      allow create, update, delete: if isValidId(offerId) && isAdminPanel();
+      allow create, delete: if isValidId(offerId) && isAdminPanel();
+      allow update: if isValidId(offerId) && (
+        isAdminPanel() ||
+        (isSignedInUser() && !isMaintenanceActive() && !isUserBanned(request.auth.uid))
+      );
     }
 
     // /comment_claims/{claimId}

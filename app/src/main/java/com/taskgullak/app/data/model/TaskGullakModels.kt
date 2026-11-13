@@ -158,7 +158,14 @@ data class AdminTask(
     val comments: List<String> = emptyList(),
     @get:PropertyName("isBulk") @set:PropertyName("isBulk")
     var isBulk: Boolean = false,
-    val timerEnabled: Boolean = false,
+    val modeType: String = "NORMAL", // NORMAL, BULK, BOTH
+    val bulkMinQuantity: Int = 1,
+    val bulkMaxQuantity: Int = 5,
+    val totalQuantity: Int = 50,
+    val usedQuantity: Int = 0,
+    val remainingQuantity: Int = 50,
+    val status: String = "active", // active, paused, archived, exhausted
+    val timerEnabled: Boolean = true,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 ) {
@@ -272,8 +279,15 @@ data class AdminTask(
             completedCount = completedCount.toInt().coerceAtLeast(0),
             assignedComment = resolvedComment,
             commentsList = resolvedComments,
-            isBulk = isBulk || category.contains("bulk", ignoreCase = true) || targetCount > 1L,
-            timerEnabled = false,
+            isBulk = isBulk || modeType.equals("BULK", ignoreCase = true) || modeType.equals("BOTH", ignoreCase = true) || category.contains("bulk", ignoreCase = true) || targetCount > 1L,
+            modeType = if (modeType.isNotBlank()) modeType.uppercase() else if (isBulk) "BULK" else "NORMAL",
+            bulkMinQuantity = bulkMinQuantity.coerceAtLeast(1),
+            bulkMaxQuantity = bulkMaxQuantity.coerceAtLeast(bulkMinQuantity),
+            totalQuantity = totalQuantity.coerceAtLeast(1),
+            usedQuantity = usedQuantity.coerceAtLeast(0),
+            remainingQuantity = remainingQuantity.coerceAtLeast(0),
+            status = status.ifBlank { "active" },
+            timerEnabled = if (modeType.equals("BULK", ignoreCase = true)) false else timerEnabled,
             totalCommentsCount = commentItems.size.coerceAtLeast(resolvedComments.size),
             availableCommentsCount = resolvedComments.size
         )
@@ -366,7 +380,14 @@ data class AvailableTask(
     val assignedComment: String = "Great app! Very easy to use and helpful features. Highly recommended! 👍",
     val commentsList: List<String> = emptyList(),
     val isBulk: Boolean = false,
-    val timerEnabled: Boolean = false,
+    val modeType: String = "NORMAL",
+    val bulkMinQuantity: Int = 1,
+    val bulkMaxQuantity: Int = 5,
+    val totalQuantity: Int = 50,
+    val usedQuantity: Int = 0,
+    val remainingQuantity: Int = 50,
+    val status: String = "active",
+    val timerEnabled: Boolean = true,
     val totalCommentsCount: Int = 0,
     val availableCommentsCount: Int = 0
 )
@@ -498,16 +519,26 @@ data class UserOfferTask(
     val instructions: List<String> = emptyList(),
     val active: Boolean = true,
     val blockedUserIds: List<String> = emptyList(),
-    val commentItems: List<TaskCommentItem> = emptyList()
+    val commentItems: List<TaskCommentItem> = emptyList(),
+    val modeType: String = "NORMAL", // NORMAL, BULK, BOTH
+    val bulkMinQuantity: Int = 1,
+    val bulkMaxQuantity: Int = 5,
+    val totalQuantity: Int = 50,
+    val usedQuantity: Int = 0,
+    val remainingQuantity: Int = 50,
+    val status: String = "active", // active, paused, archived, exhausted
+    val timerEnabled: Boolean = true
 ) {
     /**
      * Point 5 & Point 8:
      * - Checks if the user is blocked specifically from this app/task (`blockedUserIds`).
      * - Checks completion strictly by `taskId` (`completedTaskIds`), so multiple tasks
      *   for the same app remain independently available unless the user completed THIS specific taskId.
+     * - Automatically hides task if remainingQuantity <= 0 or status is exhausted/paused/archived.
      */
     fun isVisibleToUser(currentUserId: String, completedTaskIds: Set<String>): Boolean {
-        if (!active) return false
+        if (!active || status.equals("exhausted", ignoreCase = true) || status.equals("archived", ignoreCase = true) || status.equals("paused", ignoreCase = true)) return false
+        if (remainingQuantity <= 0 && totalQuantity > 0) return false
         if (currentUserId.isNotBlank() && blockedUserIds.contains(currentUserId)) return false
         if (completedTaskIds.contains(id)) return false
         return true

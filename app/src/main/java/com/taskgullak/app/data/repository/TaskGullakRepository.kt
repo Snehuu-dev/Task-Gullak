@@ -626,12 +626,24 @@ class TaskGullakRepository(
                 querySnapshot.documents.mapNotNull { doc ->
                     val data = doc.data ?: return@mapNotNull null
                     val isActive = (data["active"] as? Boolean) ?: (data["isActive"] as? Boolean) ?: true
+                    val statusStr = doc.getString("status")?.lowercase().orEmpty()
+                    val totalQty = ((data["totalQuantity"] as? Number) ?: (data["total_quantity"] as? Number))?.toInt() ?: 50
+                    val usedQty = ((data["usedQuantity"] as? Number) ?: (data["used_quantity"] as? Number))?.toInt() ?: 0
+                    val remQty = ((data["remainingQuantity"] as? Number) ?: (data["remaining_quantity"] as? Number))?.toInt() ?: (totalQty - usedQty)
+
                     val isExplicitlyInactive = !isActive ||
-                        doc.getString("status")?.equals("inactive", ignoreCase = true) == true
-                    
+                        statusStr == "inactive" || statusStr == "archived" || statusStr == "paused" || statusStr == "exhausted" ||
+                        (remQty <= 0 && totalQty > 0)
+
                     if (isExplicitlyInactive) {
                         null
                     } else {
+                        val rawMode = (data["modeType"] as? String) ?: (data["mode_type"] as? String) ?: "NORMAL"
+                        val isBulkFlag = (data["isBulk"] as? Boolean) ?: rawMode.equals("BULK", ignoreCase = true) || rawMode.equals("BOTH", ignoreCase = true)
+                        val minQty = ((data["bulkMinQuantity"] as? Number) ?: (data["bulk_min_quantity"] as? Number))?.toInt() ?: 1
+                        val maxQty = ((data["bulkMaxQuantity"] as? Number) ?: (data["bulk_max_quantity"] as? Number))?.toInt() ?: 5
+                        val timerEnabled = if (rawMode.equals("BULK", ignoreCase = true)) false else ((data["timerEnabled"] as? Boolean) ?: (data["timer_enabled"] as? Boolean) ?: true)
+
                         AdminTask(
                             id = doc.id,
                             title = (data["title"] as? String)?.ifBlank { null } ?: (data["appName"] as? String) ?: "",
@@ -646,6 +658,15 @@ class TaskGullakRepository(
                             comments = (data["comments"] as? List<*>)?.mapNotNull { it?.toString()?.trim()?.takeIf { s -> s.isNotEmpty() } } ?: emptyList(),
                             commentItems = (data["commentItems"] as? List<*>)?.mapNotNull { it as? Map<String, Any?> } ?: emptyList(),
                             blockedUserIds = (data["blockedUserIds"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList(),
+                            isBulk = isBulkFlag,
+                            modeType = rawMode.uppercase(),
+                            bulkMinQuantity = minQty,
+                            bulkMaxQuantity = maxQty,
+                            totalQuantity = totalQty,
+                            usedQuantity = usedQty,
+                            remainingQuantity = remQty,
+                            status = if (statusStr.isNotBlank()) statusStr else "active",
+                            timerEnabled = timerEnabled,
                             active = true
                         )
                     }
@@ -1504,7 +1525,54 @@ class TaskGullakRepository(
     ): Result<List<BulkCommentAllocation>> {
         val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
         if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
-        val safeCount = count.coerceIn(1, 100)
+        
+        if (count < task.bulkMinQuantity) {
+            return Result.failure(IllegalArgumentException("Minimum ${task.bulkMinQuantity} devices/items required for this bulk order."))
+        }
+        if (count > task.bulkMaxQuantity) {
+            return Result.failure(IllegalArgumentException("Maximum allowed is ${task.bulkMaxQuantity} devices/items per request."))
+        }
+        val safeCount = count.coerceIn(task.bulkMinQuantity, task.bulkMaxQuantity)
+
+        // Atomic stock check and deduction in Firestore
+        val taskDocRef = db.collection("tasks").document(task.id)
+        val offerDocRef = db.collection("offers").document(task.id)
+
+        try {
+            val checkTx = db.runTransaction { tx ->
+                val snap = tx.get(taskDocRef)
+                if (!snap.exists()) return@runTransaction true
+                val totalQty = ((snap.get("totalQuantity") as? Number) ?: (snap.get("total_quantity") as? Number))?.toInt() ?: task.totalQuantity
+                val usedQty = ((snap.get("usedQuantity") as? Number) ?: (snap.get("used_quantity") as? Number))?.toInt() ?: task.usedQuantity
+                val currentRem = ((snap.get("remainingQuantity") as? Number) ?: (snap.get("remaining_quantity") as? Number))?.toInt() ?: (totalQty - usedQty)
+
+                if (currentRem < safeCount) {
+                    throw IllegalStateException("Only $currentRem remaining")
+                }
+
+                val newUsed = usedQty + safeCount
+                val newRem = (totalQty - newUsed).coerceAtLeast(0)
+                val newStatus = if (newRem == 0) "exhausted" else (snap.getString("status") ?: "active")
+
+                val patch = mapOf(
+                    "usedQuantity" to newUsed,
+                    "used_quantity" to newUsed,
+                    "remainingQuantity" to newRem,
+                    "remaining_quantity" to newRem,
+                    "status" to newStatus,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                tx.update(taskDocRef, patch)
+                tx.update(offerDocRef, patch)
+                true
+            }.await()
+        } catch (e: Exception) {
+            val msg = e.message.orEmpty()
+            if (msg.contains("Only ") && msg.contains("remaining")) {
+                return Result.failure(IllegalStateException(msg))
+            }
+            Log.w("TaskGullakRepository", "Bulk allocation stock check note: ${e.message}")
+        }
 
         val fallbackComments = listOf(
             "Best app experience! Very fast, clean interface and super helpful features.",

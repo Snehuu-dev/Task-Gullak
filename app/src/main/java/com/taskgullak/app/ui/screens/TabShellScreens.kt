@@ -50,6 +50,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -5583,13 +5585,17 @@ private fun BulkAccessOffersScreenContent(
                         }
 
                         // Device Quantity Picker
+                        val taskMinQty = task.bulkMinQuantity.coerceIn(1, maxAllowedCount)
+                        val taskMaxQty = task.bulkMaxQuantity.coerceIn(taskMinQty, maxAllowedCount)
+                        val remQty = task.remainingQuantity.takeIf { it > 0 } ?: 999
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Devices (1..$maxAllowedCount):",
+                                text = "Devices ($taskMinQty..$taskMaxQty):",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF475569)
@@ -5600,11 +5606,11 @@ private fun BulkAccessOffersScreenContent(
                             ) {
                                 IconButton(
                                     onClick = {
-                                        if (currentReqCount > 1) {
+                                        if (currentReqCount > taskMinQty) {
                                             requestedCountMap = requestedCountMap + (task.id to currentReqCount - 1)
                                         }
                                     },
-                                    enabled = currentReqCount > 1
+                                    enabled = currentReqCount > taskMinQty
                                 ) {
                                     Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 }
@@ -5616,11 +5622,13 @@ private fun BulkAccessOffersScreenContent(
                                 )
                                 IconButton(
                                     onClick = {
-                                        if (currentReqCount < maxAllowedCount) {
+                                        if (currentReqCount < taskMaxQty && currentReqCount < remQty) {
                                             requestedCountMap = requestedCountMap + (task.id to currentReqCount + 1)
+                                        } else if (currentReqCount >= remQty) {
+                                            android.widget.Toast.makeText(context, "Only $remQty remaining", android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    enabled = currentReqCount < maxAllowedCount
+                                    enabled = currentReqCount < taskMaxQty && currentReqCount < remQty
                                 ) {
                                     Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 }
@@ -5629,6 +5637,10 @@ private fun BulkAccessOffersScreenContent(
 
                         Button(
                             onClick = {
+                                if (currentReqCount > remQty) {
+                                    android.widget.Toast.makeText(context, "Only $remQty remaining", android.widget.Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
                                 activeBulkTask = task
                                 onAllocateBulkComments(task, currentReqCount)
                                 val fallbackComments = listOf(
@@ -5723,6 +5735,8 @@ private fun BulkTaskExecutionModal(
                 modifier = Modifier
                     .fillMaxSize()
                     .systemBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
