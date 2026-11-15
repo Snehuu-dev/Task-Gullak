@@ -1204,6 +1204,8 @@ internal fun OffersTabShellContent(
                             }
                         }
 
+                        val currentModeChoice = modeChoiceMap[task.id] ?: if (task.modeType.equals("BOTH", true) && isBulkActive) "BULK" else task.modeType.uppercase()
+
                         // Right Column: Glowing Timer Pill Card + Golden Ticket Price Card (Matching Image 2)
                         Column(
                             horizontalAlignment = Alignment.End,
@@ -1218,10 +1220,11 @@ internal fun OffersTabShellContent(
                             val timerProgress = (liveRemainingSeconds.toFloat() / totalDurationSecs).coerceIn(0f, 1f)
                             val isTimerRunning = liveRemainingSeconds < rawTotalDuration && liveRemainingSeconds > 0L
 
-                            if (task.timerEnabled && !isBulkActive && !task.isBulk && !task.modeType.equals("BULK", ignoreCase = true)) {
+                            val isNormalModeSelected = currentModeChoice == "NORMAL" || (!task.isBulk && !task.modeType.equals("BULK", ignoreCase = true))
+                            if (task.timerEnabled && isNormalModeSelected) {
                                 AppTimerPill(
                                     displayTime = timerDisplay,
-                                    isOn = isTimerRunning,
+                                    isOn = isTimerRunning || liveRemainingSeconds > 0L,
                                     progress = timerProgress
                                 )
                             }
@@ -2342,10 +2345,11 @@ private fun TaskDetailsFullScreenModal(
                             val timerProgress = (liveRemainingSeconds.toFloat() / totalDurationSecs).coerceIn(0f, 1f)
                             val isTimerRunning = liveRemainingSeconds < rawTotalDuration && liveRemainingSeconds > 0L
 
-                            if (task.timerEnabled && !task.isBulk && !task.modeType.equals("BULK", ignoreCase = true)) {
+                            val isNormalTask = !task.isBulk && !task.modeType.equals("BULK", ignoreCase = true)
+                            if (task.timerEnabled && isNormalTask) {
                                 AppTimerPill(
                                     displayTime = timerDisplay,
-                                    isOn = isTimerRunning,
+                                    isOn = isTimerRunning || liveRemainingSeconds > 0L,
                                     progress = timerProgress
                                 )
                             }
