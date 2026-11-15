@@ -262,7 +262,7 @@ fun ExactReferAndEarnScreen(
                     )
 
                     Text(
-                        text = "Earn 5% lifetime commission on friend's completed tasks — zero deduction!",
+                        text = "Earn 1% lifetime commission on friend's completed tasks — zero deduction!",
                         color = Color(0xFFD1FAE5).copy(alpha = 0.88f),
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium,
@@ -767,7 +767,7 @@ fun ExactReferAndEarnScreen(
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Share your code (${summary.referralCode}) with friends. When they join, their progress and your 5% lifetime bonus will appear here!",
+                            text = "Share your code (${summary.referralCode}) with friends. When they join, their progress and your 1% lifetime bonus will appear here!",
                             color = Color(0xFF4B5563),
                             fontFamily = InterFontFamily,
                             fontSize = 11.5.sp,

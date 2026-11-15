@@ -652,6 +652,7 @@ internal fun OffersTabShellContent(
         }
     }
 
+    val scope = rememberCoroutineScope()
     var activeTaskForProof by remember { mutableStateOf<AvailableTask?>(null) }
     var appliedTasksRefreshTick by remember { mutableIntStateOf(0) }
     var celebratedSubmittedTask by remember {
@@ -1543,7 +1544,10 @@ internal fun OffersTabShellContent(
                 onSubmit = { proofMsg, screenshotB64 ->
                     val submittedTask = currentTask
                     activeTaskForProof = null
-                    celebratedSubmittedTask = Pair(submittedTask, null)
+                    scope.launch {
+                        delay(120)
+                        celebratedSubmittedTask = Pair(submittedTask, null)
+                    }
 
                     onSubmitTaskProof(submittedTask, proofMsg, screenshotB64) { aiResult ->
                         if (celebratedSubmittedTask?.first?.id == submittedTask.id) {
@@ -1593,7 +1597,10 @@ internal fun OffersTabShellContent(
                             FirebaseEmailDispatchService.markTaskApplied(context, task.id)
                             requestedCountMap = requestedCountMap.toMutableMap().apply { put(task.id, selectedDeviceCount) }
                             appliedTasksRefreshTick += 1
-                            activeTaskForProof = task
+                            scope.launch {
+                                delay(100)
+                                activeTaskForProof = task
+                            }
                         }
                     }
                 )
@@ -4770,7 +4777,7 @@ internal fun ProfileTabShellContent(
                iconTint = Color(0xFFEA580C),
                iconBg = Color(0xFFFFEDD5),
                title = "Rewards & Offers",
-               subtitle = "Refer friends on taskgullak.space & earn 5% lifetime",
+               subtitle = "Refer friends on taskgullak.space & earn 1% lifetime",
                onClick = onNavigateToRefer,
                testTag = "profile_rewards_offers_row"
            )

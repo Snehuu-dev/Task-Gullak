@@ -512,7 +512,7 @@ object TaskGullakNotificationHelper {
         val sessionStart = getSessionStartTimestamp(context)
         if (!isBaselineInitialized(context, "tasks")) {
             tasksList.forEach { task ->
-                markEventSeenSilently(context, "task_${task.id}")
+                markEventSeenSilently(context, "task_init_${task.id}")
             }
             setBaselineInitialized(context, "tasks")
         } else {
@@ -529,13 +529,13 @@ object TaskGullakNotificationHelper {
                     else -> true
                 }
 
-                if (shouldNotifyThisUser) {
-                    val uniqueKey = "task_${task.id}"
+                if (shouldNotifyThisUser && task.status.equals("active", ignoreCase = true)) {
+                    val uniqueKey = "task_live_${task.id}"
                     if (!isEventAlreadySeen(context, uniqueKey)) {
                         showSystemNotification(
                             context = context,
                             uniqueKey = uniqueKey,
-                            title = "New Project Added: ${task.title}",
+                            title = "New Project Live: ${task.title} 🚀",
                             message = "Earn ₹${task.rewardInr} by completing '${task.title}'. Open Offers to start!"
                         )
                     }
