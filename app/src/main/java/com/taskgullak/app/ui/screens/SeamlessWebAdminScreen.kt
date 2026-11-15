@@ -309,9 +309,8 @@ fun SeamlessWebAdminScreen(
                                       document.addEventListener('click', function(e) {
                                         var navItem = e.target.closest('a, button, .nav-item, .sidebar-item, [data-act], [data-view]');
                                         if (navItem && !navItem.classList.contains('menu-toggle') && !navItem.closest('.menu-toggle')) {
-                                          var sidebar = document.querySelector('.sidebar, .drawer, #sidebar, .nav-drawer, aside, .sidebar-drawer');
-                                          if (sidebar && (sidebar.classList.contains('open') || sidebar.classList.contains('active') || sidebar.classList.contains('show'))) {
-                                            sidebar.classList.remove('open', 'active', 'show');
+                                          if (document.body.classList.contains('nav-open')) {
+                                            document.body.classList.remove('nav-open');
                                           }
                                         }
                                       });
