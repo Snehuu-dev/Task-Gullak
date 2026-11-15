@@ -192,6 +192,13 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
+private fun formatCountdownHms(totalSeconds: Long): String {
+    val hrs = totalSeconds / 3600L
+    val mins = (totalSeconds % 3600L) / 60L
+    val secs = totalSeconds % 60L
+    return String.format(java.util.Locale.US, "%02d:%02d:%02d", hrs, mins, secs)
+}
+
 private val RemoteIconBitmapCache = ConcurrentHashMap<String, ImageBitmap>()
 
 /**
@@ -653,6 +660,23 @@ internal fun OffersTabShellContent(
     var activeAllocations by remember { mutableStateOf<List<com.taskgullak.app.data.model.BulkCommentAllocation>?>(null) }
     var requestedCountMap by remember { mutableStateOf(mapOf<String, Int>()) }
     var modeChoiceMap by remember { mutableStateOf(mapOf<String, String>()) }
+
+    val dailyCompletedCount = userProfile?.getEffectiveDailyCompletedCount() ?: 0L
+    val isDailyLimitReached = dailyCompletedCount >= 5L
+    var dailyResetRemainingSecs by remember(userProfile?.lastTaskCompletedTimestamp, isDailyLimitReached) {
+        mutableLongStateOf(userProfile?.getDailyLimitResetRemainingSeconds() ?: 0L)
+    }
+
+    LaunchedEffect(userProfile?.lastTaskCompletedTimestamp, isDailyLimitReached) {
+        if (isDailyLimitReached) {
+            while (true) {
+                val rem = userProfile?.getDailyLimitResetRemainingSeconds() ?: 0L
+                dailyResetRemainingSecs = rem
+                if (rem <= 0L) break
+                kotlinx.coroutines.delay(1000L)
+            }
+        }
+    }
 
     val filteredTasks = remember(availableTasks, isBulkActive) {
         availableTasks.filter { task ->
@@ -1311,16 +1335,21 @@ internal fun OffersTabShellContent(
                         // Bulk Mode Action Button on Task Card
                         val bulkBtnColors = when {
                             isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
+                            isDailyLimitReached -> listOf(Color(0xFF64748B), Color(0xFF475569))
                             else -> listOf(Color(0xFF0284C7), Color(0xFF0EA5E9), Color(0xFF38BDF8))
                         }
-                        val bulkBtnText = if (isCompletedForUser) "✓ Completed" else "Apply in Bulk Mode ⚡"
+                        val bulkBtnText = when {
+                            isCompletedForUser -> "✓ Completed"
+                            isDailyLimitReached -> "🔒 Daily Limit Reached (Reset in ${formatCountdownHms(dailyResetRemainingSecs)})"
+                            else -> "Apply in Bulk Mode ⚡"
+                        }
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(42.dp)
                                 .shadow(
-                                    elevation = if (isCompletedForUser) 2.dp else 6.dp,
+                                    elevation = if (isCompletedForUser || isDailyLimitReached) 2.dp else 6.dp,
                                     shape = RoundedCornerShape(12.dp),
                                     spotColor = Color(0xFF0284C7).copy(alpha = 0.25f)
                                 )
@@ -1328,8 +1357,8 @@ internal fun OffersTabShellContent(
                                 .background(Brush.horizontalGradient(colors = bulkBtnColors))
                                 .clickable(enabled = !isCompletedForUser) {
                                     if (!isCompletedForUser) {
-                                        if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
-                                            Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                                        if (isDailyLimitReached) {
+                                            Toast.makeText(context, "🔒 Daily limit reached (5/5 tasks completed). Unlocks in ${formatCountdownHms(dailyResetRemainingSecs)}", Toast.LENGTH_LONG).show()
                                         } else {
                                             promptBulkTask = task
                                         }
@@ -1344,7 +1373,7 @@ internal fun OffersTabShellContent(
                                 color = Color.White,
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.5.sp
+                                fontSize = if (isDailyLimitReached) 11.5.sp else 12.5.sp
                             )
                         }
                     } else {
@@ -1354,6 +1383,7 @@ internal fun OffersTabShellContent(
                             isPendingReview -> listOf(Color(0xFFD97706), Color(0xFFF59E0B))
                             isReworkRequired -> listOf(Color(0xFFE11D48), Color(0xFFF43F5E))
                             isAppliedForUser -> listOf(Color(0xFF4F46E5), Color(0xFF7C3AED))
+                            isDailyLimitReached -> listOf(Color(0xFF64748B), Color(0xFF475569))
                             else -> listOf(Color(0xFF5B21B6), Color(0xFF7C3AED), Color(0xFF9333EA))
                         }
                         val buttonText = when {
@@ -1361,6 +1391,7 @@ internal fun OffersTabShellContent(
                             isPendingReview -> "In Review • Submitted  >"
                             isReworkRequired -> "Re-work & Submit Proof  >"
                             isAppliedForUser -> "Applied • Upload Proof  >"
+                            isDailyLimitReached -> "🔒 Daily Limit Reached (Reset in ${formatCountdownHms(dailyResetRemainingSecs)})"
                             else -> "Apply for Task  >"
                         }
 
@@ -1369,7 +1400,7 @@ internal fun OffersTabShellContent(
                                 .fillMaxWidth()
                                 .height(42.dp)
                                 .shadow(
-                                    elevation = if (isCompletedForUser) 2.dp else 6.dp,
+                                    elevation = if (isCompletedForUser || isDailyLimitReached) 2.dp else 6.dp,
                                     shape = RoundedCornerShape(12.dp),
                                     spotColor = Color(0xFF6D28D9).copy(alpha = 0.25f)
                                 )
@@ -1377,8 +1408,8 @@ internal fun OffersTabShellContent(
                                 .background(Brush.horizontalGradient(colors = buttonColors))
                                 .clickable(enabled = !isCompletedForUser) {
                                     if (!isCompletedForUser) {
-                                        if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
-                                            Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                                        if (isDailyLimitReached && !isAppliedForUser && !isPendingReview && !isReworkRequired) {
+                                            Toast.makeText(context, "🔒 Daily limit reached (5/5 tasks completed). Unlocks in ${formatCountdownHms(dailyResetRemainingSecs)}", Toast.LENGTH_LONG).show()
                                         } else {
                                             FirebaseEmailDispatchService.markTaskApplied(context, task.id)
                                             appliedTasksRefreshTick += 1
@@ -1394,7 +1425,7 @@ internal fun OffersTabShellContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                if (!isSelectedTask && !isCompletedForUser) {
+                                if (!isSelectedTask && !isCompletedForUser && !isDailyLimitReached) {
                                     Box(
                                         modifier = Modifier
                                             .size(22.dp)
@@ -1415,7 +1446,7 @@ internal fun OffersTabShellContent(
                                     color = Color.White,
                                     fontFamily = PoppinsFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.5.sp
+                                    fontSize = if (isDailyLimitReached && !isAppliedForUser && !isPendingReview && !isReworkRequired) 11.5.sp else 12.5.sp
                                 )
                             }
                         }

@@ -70,6 +70,15 @@ data class UserProfile(
     fun canCompleteTaskToday(nowMillis: Long = System.currentTimeMillis()): Boolean {
         return getEffectiveDailyCompletedCount(nowMillis) < 5L
     }
+
+    fun getDailyLimitResetRemainingSeconds(nowMillis: Long = System.currentTimeMillis()): Long {
+        val lastTs = lastTaskCompletedTimestamp?.toDate()?.time ?: 0L
+        if (lastTs <= 0L) return 0L
+        val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+        val resetAtMs = lastTs + twentyFourHoursMs
+        val remainingMs = resetAtMs - nowMillis
+        return (remainingMs / 1000L).coerceAtLeast(0L)
+    }
 }
 
 @IgnoreExtraProperties
