@@ -1100,68 +1100,63 @@ fun HomeScreen(
                                 }
                             },
                             onSubmitTaskProof = { task, message, screenshotBase64, onComplete ->
-                                val effectiveDailyCount = profile?.getEffectiveDailyCompletedCount() ?: 0L
-                                if (effectiveDailyCount >= 5L) {
-                                    android.widget.Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", android.widget.Toast.LENGTH_LONG).show()
-                                } else {
-                                    FirebaseEmailDispatchService.creditReferrerLifetimeBonusForTask(
-                                        context = context,
-                                        taskRewardCoins = (task.rewardInr * 100).coerceAtLeast(100),
-                                        taskTitle = task.title
+                                FirebaseEmailDispatchService.creditReferrerLifetimeBonusForTask(
+                                    context = context,
+                                    taskRewardCoins = (task.rewardInr * 100).coerceAtLeast(100),
+                                    taskTitle = task.title
+                                )
+                                if (viewModel != null) {
+                                    viewModel.submitProof(
+                                        taskId = task.id,
+                                        taskTitle = task.title,
+                                        category = task.category,
+                                        rewardAmount = task.rewardInr.toLong(),
+                                        proofText = message,
+                                        screenshotBase64 = screenshotBase64,
+                                        userName = displayName,
+                                        userEmail = displayEmail,
+                                        assignedComment = task.assignedComment,
+                                        appName = task.appName.ifBlank { task.title },
+                                        referenceScreenshotUrl = task.referenceScreenshotUrl,
+                                        onComplete = onComplete
                                     )
-                                    if (viewModel != null) {
-                                        viewModel.submitProof(
+                                } else {
+                                    val fallbackResult = AiTaskVerificationResult(
+                                        completionPercentage = 100,
+                                        matchedTaskName = task.appName.ifBlank { task.title },
+                                        status = "approved",
+                                        originalRewardInr = task.rewardInr.toLong(),
+                                        creditedRewardInr = task.rewardInr.toLong(),
+                                        aiVerdict = "TIER_96_100_FULL_CREDIT",
+                                        adminNote = "Verification Complete (100% Match): Task requirements met.",
+                                        aiSummary = "Verification Complete (100% Match): Task requirements met."
+                                    )
+                                    localSubmissions.add(
+                                        0,
+                                        TaskSubmission(
+                                            id = "local_${System.currentTimeMillis()}",
+                                            userId = "local_user",
+                                            userName = displayName,
+                                            userEmail = displayEmail,
                                             taskId = task.id,
                                             taskTitle = task.title,
                                             category = task.category,
-                                            rewardAmount = task.rewardInr.toLong(),
                                             proofText = message,
                                             screenshotBase64 = screenshotBase64,
-                                            userName = displayName,
-                                            userEmail = displayEmail,
-                                            assignedComment = task.assignedComment,
-                                            appName = task.appName.ifBlank { task.title },
                                             referenceScreenshotUrl = task.referenceScreenshotUrl,
-                                            onComplete = onComplete
-                                        )
-                                    } else {
-                                        val fallbackResult = AiTaskVerificationResult(
-                                            completionPercentage = 100,
-                                            matchedTaskName = task.appName.ifBlank { task.title },
+                                            rewardAmount = task.rewardInr.toLong(),
+                                            originalRewardAmount = task.rewardInr.toLong(),
                                             status = "approved",
-                                            originalRewardInr = task.rewardInr.toLong(),
-                                            creditedRewardInr = task.rewardInr.toLong(),
-                                            aiVerdict = "TIER_96_100_FULL_CREDIT",
-                                            adminNote = "Verification Complete (100% Match): Task requirements met.",
-                                            aiSummary = "Verification Complete (100% Match): Task requirements met."
+                                            adminNote = fallbackResult.adminNote,
+                                            aiVerified = true,
+                                            aiCompletionPercent = 100,
+                                            aiVerdict = fallbackResult.aiVerdict,
+                                            aiSummary = fallbackResult.aiSummary,
+                                            matchedTaskName = fallbackResult.matchedTaskName
                                         )
-                                        localSubmissions.add(
-                                            0,
-                                            TaskSubmission(
-                                                id = "local_${System.currentTimeMillis()}",
-                                                userId = "local_user",
-                                                userName = displayName,
-                                                userEmail = displayEmail,
-                                                taskId = task.id,
-                                                taskTitle = task.title,
-                                                category = task.category,
-                                                proofText = message,
-                                                screenshotBase64 = screenshotBase64,
-                                                referenceScreenshotUrl = task.referenceScreenshotUrl,
-                                                rewardAmount = task.rewardInr.toLong(),
-                                                originalRewardAmount = task.rewardInr.toLong(),
-                                                status = "approved",
-                                                adminNote = fallbackResult.adminNote,
-                                                aiVerified = true,
-                                                aiCompletionPercent = 100,
-                                                aiVerdict = fallbackResult.aiVerdict,
-                                                aiSummary = fallbackResult.aiSummary,
-                                                matchedTaskName = fallbackResult.matchedTaskName
-                                            )
-                                        )
-                                        localFeedbackMsg = "Verification Complete (100% Match): +₹${task.rewardInr} credited to your Gullak."
-                                        onComplete(fallbackResult)
-                                    }
+                                    )
+                                    localFeedbackMsg = "Verification Complete (100% Match): +₹${task.rewardInr} credited to your Gullak."
+                                    onComplete(fallbackResult)
                                 }
                             }
                         )
