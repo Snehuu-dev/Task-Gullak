@@ -50,6 +50,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
@@ -130,6 +131,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -163,6 +165,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -170,6 +174,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import android.view.ViewGroup
+import androidx.core.view.WindowCompat
 import com.taskgullak.app.data.model.AiTaskVerificationResult
 import com.taskgullak.app.data.model.BroadcastNotification
 import com.taskgullak.app.ui.components.AppTimerPill
@@ -1003,6 +1010,29 @@ internal fun OffersTabShellContent(
                             .padding(horizontal = 14.dp, vertical = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Lock Banner (Shown when user has completed 5/5 tasks today)
+                        if (isDailyLimitReached && !isCompletedForUser && !isAppliedForUser && !isPendingReview) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFFEF2F2))
+                                    .border(1.dp, Color(0xFFFECDD3), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("🔒", fontSize = 12.sp)
+                                Text(
+                                    text = "Locked • Daily Limit (5/5 Tasks). Resets in ${formatCountdownHms(dailyResetRemainingSecs)}",
+                                    color = Color(0xFF991B1B),
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
                         // Top Status Row (Only shown when rework required / rejected)
                         if (!isCompletedForUser && isReworkRequired) {
                             Row(
@@ -1333,6 +1363,7 @@ internal fun OffersTabShellContent(
 
                     if (isBulkActive && (currentModeChoice == "BULK" || task.modeType.equals("BULK", true))) {
                         // Bulk Mode Action Button on Task Card
+                        val isBulkDisabled = isCompletedForUser || isDailyLimitReached
                         val bulkBtnColors = when {
                             isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
                             isDailyLimitReached -> listOf(Color(0xFF64748B), Color(0xFF475569))
@@ -1340,7 +1371,7 @@ internal fun OffersTabShellContent(
                         }
                         val bulkBtnText = when {
                             isCompletedForUser -> "✓ Completed"
-                            isDailyLimitReached -> "🔒 Daily Limit Reached (Reset in ${formatCountdownHms(dailyResetRemainingSecs)})"
+                            isDailyLimitReached -> "🔒 Daily Limit Reached (${formatCountdownHms(dailyResetRemainingSecs)})"
                             else -> "Apply in Bulk Mode ⚡"
                         }
 
@@ -1349,19 +1380,16 @@ internal fun OffersTabShellContent(
                                 .fillMaxWidth()
                                 .height(42.dp)
                                 .shadow(
-                                    elevation = if (isCompletedForUser || isDailyLimitReached) 2.dp else 6.dp,
+                                    elevation = if (isBulkDisabled) 1.dp else 6.dp,
                                     shape = RoundedCornerShape(12.dp),
                                     spotColor = Color(0xFF0284C7).copy(alpha = 0.25f)
                                 )
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Brush.horizontalGradient(colors = bulkBtnColors))
-                                .clickable(enabled = !isCompletedForUser) {
-                                    if (!isCompletedForUser) {
-                                        if (isDailyLimitReached) {
-                                            Toast.makeText(context, "🔒 Daily limit reached (5/5 tasks completed). Unlocks in ${formatCountdownHms(dailyResetRemainingSecs)}", Toast.LENGTH_LONG).show()
-                                        } else {
-                                            promptBulkTask = task
-                                        }
+                                .then(if (isDailyLimitReached && !isCompletedForUser) Modifier.graphicsLayer(alpha = 0.5f) else Modifier)
+                                .clickable(enabled = !isBulkDisabled) {
+                                    if (!isBulkDisabled) {
+                                        promptBulkTask = task
                                     }
                                 }
                                 .testTag("offer_bulk_apply_${task.id}"),
@@ -1378,6 +1406,7 @@ internal fun OffersTabShellContent(
                         }
                     } else {
                         // Normal Mode Action Button
+                        val isNormalActionDisabled = isCompletedForUser || (isDailyLimitReached && !isAppliedForUser && !isPendingReview && !isReworkRequired)
                         val buttonColors = when {
                             isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
                             isPendingReview -> listOf(Color(0xFFD97706), Color(0xFFF59E0B))
@@ -1391,7 +1420,7 @@ internal fun OffersTabShellContent(
                             isPendingReview -> "In Review • Submitted  >"
                             isReworkRequired -> "Re-work & Submit Proof  >"
                             isAppliedForUser -> "Applied • Upload Proof  >"
-                            isDailyLimitReached -> "🔒 Daily Limit Reached (Reset in ${formatCountdownHms(dailyResetRemainingSecs)})"
+                            isDailyLimitReached -> "🔒 Daily Limit Reached (${formatCountdownHms(dailyResetRemainingSecs)})"
                             else -> "Apply for Task  >"
                         }
 
@@ -1400,21 +1429,18 @@ internal fun OffersTabShellContent(
                                 .fillMaxWidth()
                                 .height(42.dp)
                                 .shadow(
-                                    elevation = if (isCompletedForUser || isDailyLimitReached) 2.dp else 6.dp,
+                                    elevation = if (isNormalActionDisabled) 1.dp else 6.dp,
                                     shape = RoundedCornerShape(12.dp),
                                     spotColor = Color(0xFF6D28D9).copy(alpha = 0.25f)
                                 )
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Brush.horizontalGradient(colors = buttonColors))
-                                .clickable(enabled = !isCompletedForUser) {
-                                    if (!isCompletedForUser) {
-                                        if (isDailyLimitReached && !isAppliedForUser && !isPendingReview && !isReworkRequired) {
-                                            Toast.makeText(context, "🔒 Daily limit reached (5/5 tasks completed). Unlocks in ${formatCountdownHms(dailyResetRemainingSecs)}", Toast.LENGTH_LONG).show()
-                                        } else {
-                                            FirebaseEmailDispatchService.markTaskApplied(context, task.id)
-                                            appliedTasksRefreshTick += 1
-                                            activeTaskForProof = if (isSelectedTask) null else task
-                                        }
+                                .then(if (isNormalActionDisabled && !isCompletedForUser) Modifier.graphicsLayer(alpha = 0.5f) else Modifier)
+                                .clickable(enabled = !isNormalActionDisabled) {
+                                    if (!isNormalActionDisabled) {
+                                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                                        appliedTasksRefreshTick += 1
+                                        activeTaskForProof = if (isSelectedTask) null else task
                                     }
                                 }
                                 .testTag("offer_view_details_${task.id}"),
@@ -1706,6 +1732,13 @@ private fun MySubmissionsFullScreenModal(
             decorFitsSystemWindows = false
         )
     ) {
+        val view = LocalView.current
+        SideEffect {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            }
+        }
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFFF8FAFC)
@@ -1713,7 +1746,7 @@ private fun MySubmissionsFullScreenModal(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .systemBarsPadding()
+                    .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -2089,6 +2122,13 @@ private fun TaskDetailsFullScreenModal(
             decorFitsSystemWindows = false
         )
     ) {
+        val view = LocalView.current
+        SideEffect {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            }
+        }
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFFF8FAFC)
@@ -2096,9 +2136,7 @@ private fun TaskDetailsFullScreenModal(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .systemBarsPadding()
-                    .navigationBarsPadding()
-                    .imePadding()
+                    .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 14.dp)
                     .padding(bottom = 24.dp),
@@ -4256,6 +4294,7 @@ internal fun ProfileTabShellContent(
    totalTasks: Int,
    approvedCount: Int,
    walletBalance: Long,
+   userProfile: com.taskgullak.app.data.model.UserProfile? = null,
    isSavingName: Boolean = false,
    remoteBio: String = "",
    remoteUsername: String = "",
@@ -4804,8 +4843,26 @@ internal fun ProfileTabShellContent(
                color = Color(0xFFF1F5F9),
                modifier = Modifier.padding(horizontal = 16.dp)
            )
+           val dailyCompletedCount = userProfile?.getEffectiveDailyCompletedCount() ?: 0L
+           val isDailyLimitReached = dailyCompletedCount >= 5L
+           var dailyResetRemainingSecs by remember(userProfile?.lastTaskCompletedTimestamp, isDailyLimitReached) {
+               mutableLongStateOf(userProfile?.getDailyLimitResetRemainingSeconds() ?: 0L)
+           }
+
+           LaunchedEffect(userProfile?.lastTaskCompletedTimestamp, isDailyLimitReached) {
+               if (isDailyLimitReached) {
+                   while (true) {
+                       val rem = userProfile?.getDailyLimitResetRemainingSeconds() ?: 0L
+                       dailyResetRemainingSecs = rem
+                       if (rem <= 0L) break
+                       kotlinx.coroutines.delay(1000L)
+                   }
+               }
+           }
+
            val isBulkUserActive = bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
            val bulkSubtitle = when {
+               isDailyLimitReached -> "🔒 Daily Limit Reached (5/5 completed) • Reset in ${formatCountdownHms(dailyResetRemainingSecs)}"
                bulkStatus.equals("pending", ignoreCase = true) -> "Request Pending Admin Review"
                isBulkUserActive -> "Bulk Mod Active (Limit: $bulkDeviceCount Devices) • Tap to Manage Access"
                bulkStatus.equals("banned", ignoreCase = true) -> "Bulk Mod Banned"
@@ -4813,12 +4870,15 @@ internal fun ProfileTabShellContent(
            }
            ProfileSettingRow(
                icon = Icons.Outlined.GroupWork,
-               iconTint = Color(0xFF7B3FE4),
-               iconBg = Color(0xFFF3E8FF),
+               iconTint = if (isDailyLimitReached) Color(0xFF94A3B8) else Color(0xFF7B3FE4),
+               iconBg = if (isDailyLimitReached) Color(0xFFF1F5F9) else Color(0xFFF3E8FF),
                title = if (isBulkUserActive) "Bulk Mod Active ⚡" else "Apply for Bulk Mod",
                subtitle = bulkSubtitle,
+               enabled = !isDailyLimitReached,
                onClick = {
-                   showBulkModSheet = true
+                   if (!isDailyLimitReached) {
+                       showBulkModSheet = true
+                   }
                },
                testTag = "profile_apply_bulk_mod_row"
            )
@@ -4918,13 +4978,16 @@ private fun ProfileSettingRow(
    subtitle: String,
    trailingText: String? = null,
    testTag: String? = null,
+   enabled: Boolean = true,
    onClick: () -> Unit
 ) {
    val baseModifier = Modifier
        .fillMaxWidth()
+       .then(if (!enabled) Modifier.graphicsLayer(alpha = 0.5f) else Modifier)
        .clickable(
            interactionSource = remember { MutableInteractionSource() },
            indication = null,
+           enabled = enabled,
            onClick = onClick
        )
        .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -5935,13 +5998,18 @@ private fun BulkTaskSequentialExecutionModal(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
+        val view = LocalView.current
+        SideEffect {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            }
+        }
         Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF8FAFC)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .systemBarsPadding()
-                    .navigationBarsPadding()
-                    .imePadding()
+                    .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -6114,26 +6182,64 @@ private fun BulkDevicePickerPromptModal(
     val maxQty = minOf(task.bulkMaxQuantity, task.remainingQuantity, maxAllowedLimit).coerceAtLeast(minQty)
     var selectedQty by remember(task.id) { mutableIntStateOf(minQty) }
 
-    androidx.compose.material3.AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Apply in Bulk Mode ⚡",
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = Color(0xFF0F172A)
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = true
+        )
+    ) {
+        val view = LocalView.current
+        SideEffect {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                window.setDimAmount(0.5f)
+            }
+        }
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 420.dp)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(24.dp)),
+            color = Color.White,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Apply in Bulk Mode ⚡",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = Color(0xFF0F172A)
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Cancel",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 Text(
                     text = "App: ${task.appName.ifBlank { task.title }}",
-                    fontSize = 13.sp,
+                    fontSize = 13.5.sp,
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0F172A)
                 )
+
                 Text(
                     text = "Choose the number of devices you will use for this task (Approved Limit: $maxAllowedLimit devices):",
                     fontSize = 12.sp,
@@ -6149,19 +6255,19 @@ private fun BulkDevicePickerPromptModal(
                     IconButton(
                         onClick = { if (selectedQty > minQty) selectedQty -= 1 },
                         enabled = selectedQty > minQty
-                    ) { Text("-", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text("-", fontSize = 24.sp, fontWeight = FontWeight.Bold) }
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = Color(0xFF0F172A)
                     ) {
                         Text(
                             text = "$selectedQty Devices",
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
                         )
                     }
 
@@ -6174,32 +6280,45 @@ private fun BulkDevicePickerPromptModal(
                             }
                         },
                         enabled = selectedQty < maxQty
-                    ) { Text("+", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold) }
                 }
 
                 Text(
                     text = "Total Reward: ₹${task.rewardInr * selectedQty}",
-                    fontSize = 13.5.sp,
+                    fontSize = 14.sp,
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF16A34A)
                 )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selectedQty) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Done & Reserve Comments", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", fontSize = 12.5.sp)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(0.35f)
+                    ) {
+                        Text("Cancel", fontSize = 13.sp, color = Color(0xFF64748B))
+                    }
+
+                    Button(
+                        onClick = { onConfirm(selectedQty) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(0.65f)
+                    ) {
+                        Text(
+                            text = "Done & Reserve Comments",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
             }
         }
-    )
+    }
 }
 
