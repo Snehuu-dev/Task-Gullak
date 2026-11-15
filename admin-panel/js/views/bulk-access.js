@@ -458,10 +458,19 @@ RENDER.bulk = () => {
     const allSelected = list.length > 0 && list.every(r => S.bkSel.has(r.uid));
     const selCount = S.bkSel.size;
 
-    const summaryCardsHTML = `<div class="g3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
-      <div class="card" style="cursor:pointer;border:${f === 'pending' ? '2px solid #F59E0B' : '1px solid var(--line)'}" data-act="bkTab" data-k="pending"><div class="fs12 muted b">Pending</div><div class="fs20 xb" style="color:#F59E0B;margin-top:4px">${by('pending').length}</div></div>
-      <div class="card" style="cursor:pointer;border:${f === 'active' ? '2px solid #16A34A' : '1px solid var(--line)'}" data-act="bkTab" data-k="active"><div class="fs12 muted b">Successful</div><div class="fs20 xb" style="color:#16A34A;margin-top:4px">${by('active').length}</div></div>
-      <div class="card" style="cursor:pointer;border:${f === 'rejected' ? '2px solid #E11D48' : '1px solid var(--line)'}" data-act="bkTab" data-k="rejected"><div class="fs12 muted b">Rejected</div><div class="fs20 xb" style="color:#E11D48;margin-top:4px">${by('rejected').length}</div></div>
+    const summaryCardsHTML = `<div class="g3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div class="card" style="cursor:pointer;border:${f === 'pending' ? '2px solid #F59E0B' : '1px solid var(--line)'}" data-act="bkTab" data-k="pending">
+        <div class="fs12 muted b">Pending Requests</div>
+        <div class="fs20 xb" style="color:#F59E0B;margin-top:4px">${by('pending').length}</div>
+      </div>
+      <div class="card" style="cursor:pointer;border:${f === 'active' ? '2px solid #16A34A' : '1px solid var(--line)'}" data-act="bkTab" data-k="active">
+        <div class="fs12 muted b">Successful (Approved)</div>
+        <div class="fs20 xb" style="color:#16A34A;margin-top:4px">${by('active').length}</div>
+      </div>
+      <div class="card" style="cursor:pointer;border:${f === 'rejected' ? '2px solid #E11D48' : '1px solid var(--line)'}" data-act="bkTab" data-k="rejected">
+        <div class="fs12 muted b">Rejected</div>
+        <div class="fs20 xb" style="color:#E11D48;margin-top:4px">${by('rejected').length}</div>
+      </div>
     </div>`;
 
     const headerHTML =

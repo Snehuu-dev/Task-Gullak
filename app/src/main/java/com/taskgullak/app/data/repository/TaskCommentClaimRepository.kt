@@ -104,14 +104,49 @@ class TaskCommentClaimRepository(
                 .filter { it.isAvailableForPool(nowMs) }
                 .map { it.commentText }
 
+            val totalQty = ((snap.get("totalQuantity") as? Number) ?: (snap.get("total_quantity") as? Number))?.toInt() ?: (rawItems.size.takeIf { it > 0 } ?: 50)
+            val usedQty = ((snap.get("usedQuantity") as? Number) ?: (snap.get("used_quantity") as? Number))?.toInt()?.coerceAtLeast(0) ?: 0
+            val currentRem = ((snap.get("remainingQuantity") as? Number) ?: (snap.get("remaining_quantity") as? Number))?.toInt() ?: (totalQty - usedQty)
+
+            if (currentRem <= 0) {
+                throw IllegalStateException("Stock exhausted (0 remaining)")
+            }
+
+            val newUsed = usedQty + 1
+            val newRem = (totalQty - newUsed).coerceAtLeast(0)
+            val isExhausted = newRem == 0
+            val newStatus = if (isExhausted) "exhausted" else (snap.getString("status") ?: "active")
+            val newActive = if (isExhausted) false else (snap.getBoolean("active") ?: true)
+
             tx.update(
                 taskRef,
                 mapOf(
                     "commentItems" to normalizedItems.map { it.toFirestoreMap() },
                     "comments" to availableStrings,
+                    "usedQuantity" to newUsed,
+                    "used_quantity" to newUsed,
+                    "remainingQuantity" to newRem,
+                    "remaining_quantity" to newRem,
+                    "status" to newStatus,
+                    "active" to newActive,
+                    "isActive" to newActive,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             )
+
+            try {
+                val offerRef = firestore.collection("offers").document(taskId)
+                tx.update(offerRef, mapOf(
+                    "usedQuantity" to newUsed,
+                    "used_quantity" to newUsed,
+                    "remainingQuantity" to newRem,
+                    "remaining_quantity" to newRem,
+                    "status" to newStatus,
+                    "active" to newActive,
+                    "isActive" to newActive,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+            } catch (ignored: Exception) {}
 
             // Sync subcollection document as well
             if (claimedItem.id.isNotBlank()) {

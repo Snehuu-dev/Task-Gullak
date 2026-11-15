@@ -684,32 +684,61 @@ class TaskGullakRepository(
             }
     }
 
-    fun observeActiveBroadcasts(): Flow<List<BroadcastNotification>> {
-        val path = "broadcasts"
-        return db.collection("broadcasts")
-            .snapshots()
-            .map { querySnapshot ->
-                querySnapshot.documents.mapNotNull { doc ->
-                    val data = doc.data ?: return@mapNotNull null
+    fun observeActiveBroadcasts(explicitUserId: String? = null): Flow<List<BroadcastNotification>> {
+        val uid = auth.currentUser?.uid ?: explicitUserId.orEmpty()
+
+        val parseDoc: (DocumentSnapshot) -> BroadcastNotification? = { doc ->
+            if (doc.exists()) {
+                val data = doc.data
+                if (data != null) {
                     val isActive = (data["active"] as? Boolean) ?: (data["isActive"] as? Boolean) ?: true
-                    if (!isActive) null
-                    else {
+                    if (isActive) {
+                        val target = (data["targetUserId"] as? String)
+                            ?: (data["targetUser"] as? String)
+                            ?: (data["userId"] as? String)
+                            ?: "all"
                         BroadcastNotification(
                             id = (data["id"] as? String)?.ifBlank { null } ?: doc.id,
                             title = (data["title"] as? String) ?: "",
-                            message = (data["message"] as? String) ?: (data["body"] as? String) ?: "",
+                            message = (data["message"] as? String) ?: (data["body"] as? String) ?: (data["description"] as? String) ?: "",
                             type = (data["type"] as? String) ?: "broadcast",
-                            targetUserId = (data["targetUserId"] as? String) ?: (data["targetUser"] as? String) ?: "all",
+                            targetUserId = target,
                             active = true,
                             createdAt = doc.getTimestamp("createdAt")
                         )
-                    }
+                    } else null
+                } else null
+            } else null
+        }
+
+        val broadcastsFlow = db.collection("broadcasts").snapshots().map { snap ->
+            snap.documents.mapNotNull { parseDoc(it) }
+        }.catch { emit(emptyList()) }
+
+        val notificationsFlow = db.collection("notifications").snapshots().map { snap ->
+            snap.documents.mapNotNull { parseDoc(it) }
+        }.catch { emit(emptyList()) }
+
+        val userNotifsFlow = if (uid.isNotBlank()) {
+            db.collection("users").document(uid).collection("notifications").snapshots().map { snap ->
+                snap.documents.mapNotNull { parseDoc(it) }
+            }.catch { emit(emptyList()) }
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+
+        return combine(broadcastsFlow, notificationsFlow, userNotifsFlow) { list1, list2, list3 ->
+            (list1 + list2 + list3)
+                .filter { notif ->
+                    val target = notif.targetUserId.trim()
+                    notif.active && (target == "all" || target.isBlank() || target == uid)
                 }
-            }
-            .catch { error ->
-                Log.w("TaskGullakRepository", "Active broadcasts read note ($path): ${error.message}")
-                emit(emptyList())
-            }
+                .distinctBy { it.id }
+                .sortedByDescending { it.createdAt?.toDate()?.time ?: 0L }
+        }.catch { error ->
+            Log.w("TaskGullakRepository", "Active broadcasts combine read note: ${error.message}")
+            emit(emptyList())
+        }
     }
 
     fun observeUserTransactions(userId: String): Flow<List<WalletTransaction>> {
@@ -1545,20 +1574,25 @@ class TaskGullakRepository(
         val offerDocRef = db.collection("offers").document(task.id)
 
         try {
-            val checkTx = db.runTransaction { tx ->
+            db.runTransaction { tx ->
                 val snap = tx.get(taskDocRef)
-                if (!snap.exists()) return@runTransaction true
+                if (!snap.exists()) throw IllegalStateException("Task does not exist")
                 val totalQty = ((snap.get("totalQuantity") as? Number) ?: (snap.get("total_quantity") as? Number))?.toInt() ?: task.totalQuantity
                 val usedQty = ((snap.get("usedQuantity") as? Number) ?: (snap.get("used_quantity") as? Number))?.toInt() ?: task.usedQuantity
                 val currentRem = ((snap.get("remainingQuantity") as? Number) ?: (snap.get("remaining_quantity") as? Number))?.toInt() ?: (totalQty - usedQty)
 
-                if (currentRem < safeCount) {
+                if (currentRem <= 0) {
+                    throw IllegalStateException("Stock exhausted (0 remaining)")
+                }
+                if (safeCount > currentRem) {
                     throw IllegalStateException("Only $currentRem remaining")
                 }
 
                 val newUsed = usedQty + safeCount
                 val newRem = (totalQty - newUsed).coerceAtLeast(0)
-                val newStatus = if (newRem == 0) "exhausted" else (snap.getString("status") ?: "active")
+                val isExhausted = newRem == 0
+                val newStatus = if (isExhausted) "exhausted" else (snap.getString("status") ?: "active")
+                val newActive = if (isExhausted) false else (snap.getBoolean("active") ?: true)
 
                 val patch = mapOf(
                     "usedQuantity" to newUsed,
@@ -1566,18 +1600,20 @@ class TaskGullakRepository(
                     "remainingQuantity" to newRem,
                     "remaining_quantity" to newRem,
                     "status" to newStatus,
+                    "active" to newActive,
+                    "isActive" to newActive,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 tx.update(taskDocRef, patch)
-                tx.update(offerDocRef, patch)
+                try { tx.update(offerDocRef, patch) } catch (ignored: Exception) {}
                 true
             }.await()
         } catch (e: Exception) {
             val msg = e.message.orEmpty()
-            if (msg.contains("Only ") && msg.contains("remaining")) {
+            if (msg.contains("Stock exhausted") || (msg.contains("Only ") && msg.contains("remaining"))) {
                 return Result.failure(IllegalStateException(msg))
             }
-            Log.w("TaskGullakRepository", "Bulk allocation stock check note: ${e.message}")
+            return Result.failure(e)
         }
 
         val fallbackComments = listOf(

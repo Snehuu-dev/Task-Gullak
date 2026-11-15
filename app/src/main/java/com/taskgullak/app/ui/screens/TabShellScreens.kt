@@ -643,7 +643,31 @@ internal fun OffersTabShellContent(
         mutableStateOf<Pair<AvailableTask, AiTaskVerificationResult?>?>(null)
     }
 
-    val filteredTasks = availableTasks
+    val isBulkActive = remember(bulkStatus) {
+        bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
+    }
+
+    var activeBulkTask by remember { mutableStateOf<AvailableTask?>(null) }
+    var activeAllocations by remember { mutableStateOf<List<com.taskgullak.app.data.model.BulkCommentAllocation>?>(null) }
+    var requestedCountMap by remember { mutableStateOf(mapOf<String, Int>()) }
+    var modeChoiceMap by remember { mutableStateOf(mapOf<String, String>()) }
+
+    val filteredTasks = remember(availableTasks, isBulkActive) {
+        availableTasks.filter { task ->
+            val mode = task.modeType.uppercase()
+            val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted")
+            val isStockExhausted = task.remainingQuantity <= 0 && task.totalQuantity > 0
+
+            if (isExhaustedOrClosed || isStockExhausted) return@filter false
+
+            when (mode) {
+                "NORMAL" -> true
+                "BULK" -> isBulkActive
+                "BOTH" -> true
+                else -> true
+            }
+        }
+    }
 
     if (celebratedSubmittedTask != null) {
         val (doneTask, aiResult) = celebratedSubmittedTask!!
@@ -652,22 +676,6 @@ internal fun OffersTabShellContent(
             aiVerificationResult = aiResult,
             onDismiss = { celebratedSubmittedTask = null }
         )
-    }
-
-    val isBulkActive = remember(bulkStatus) {
-        bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
-    }
-
-    if (isBulkActive) {
-        BulkAccessOffersScreenContent(
-            availableTasks = availableTasks,
-            submissions = submissions,
-            bulkDeviceCount = bulkDeviceCount,
-            isSubmitting = isSubmitting,
-            onAllocateBulkComments = onAllocateBulkComments,
-            onSubmitBulkTaskProofs = onSubmitBulkTaskProofs
-        )
-        return
     }
 
     var showSubmissionsSection by remember { mutableStateOf(false) }
@@ -1242,71 +1250,253 @@ internal fun OffersTabShellContent(
                         )
                     }
 
-                    // Action Button: Locked when Completed, or "Apply for Task" -> "Applied • Upload Proof >" / "Re-work & Submit Proof >"
-                    val buttonColors = when {
-                        isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
-                        isPendingReview -> listOf(Color(0xFFD97706), Color(0xFFF59E0B))
-                        isReworkRequired -> listOf(Color(0xFFE11D48), Color(0xFFF43F5E))
-                        isAppliedForUser -> listOf(Color(0xFF4F46E5), Color(0xFF7C3AED))
-                        else -> listOf(Color(0xFF5B21B6), Color(0xFF7C3AED), Color(0xFF9333EA))
-                    }
-                    val buttonText = when {
-                        isCompletedForUser -> "✓ Completed"
-                        isPendingReview -> "In Review • Submitted  >"
-                        isReworkRequired -> "Re-work & Submit Proof  >"
-                        isAppliedForUser -> "Applied • Upload Proof  >"
-                        else -> "Apply for Task  >"
+                    val taskMode = task.modeType.uppercase()
+                    val isBothMode = taskMode == "BOTH" && isBulkActive
+                    val activeTaskMode = modeChoiceMap[task.id] ?: if (taskMode == "BULK") "BULK" else "NORMAL"
+
+                    if (isBothMode) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(if (activeTaskMode == "NORMAL") Color.White else Color.Transparent)
+                                    .clickable { modeChoiceMap = modeChoiceMap + (task.id to "NORMAL") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Normal Mode",
+                                    fontSize = 11.5.sp,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (activeTaskMode == "NORMAL") Color(0xFF4F46E5) else Color(0xFF64748B)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(if (activeTaskMode == "BULK") Color(0xFF0F172A) else Color.Transparent)
+                                    .clickable { modeChoiceMap = modeChoiceMap + (task.id to "BULK") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "⚡ Bulk Mode",
+                                    fontSize = 11.5.sp,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (activeTaskMode == "BULK") Color(0xFF38BDF8) else Color(0xFF64748B)
+                                )
+                            }
+                        }
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(42.dp)
-                            .shadow(
-                                elevation = if (isCompletedForUser) 2.dp else 6.dp,
-                                shape = RoundedCornerShape(12.dp),
-                                spotColor = Color(0xFF6D28D9).copy(alpha = 0.25f)
-                            )
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Brush.horizontalGradient(colors = buttonColors))
-                            .clickable(enabled = !isCompletedForUser) {
-                                if (!isCompletedForUser) {
-                                    FirebaseEmailDispatchService.markTaskApplied(context, task.id)
-                                    appliedTasksRefreshTick += 1
-                                    activeTaskForProof = if (isSelectedTask) null else task
-                                }
-                            }
-                            .testTag("offer_view_details_${task.id}"),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    if (activeTaskMode == "BULK") {
+                        val maxAllowedCount = bulkDeviceCount.coerceAtLeast(1)
+                        val taskMinQty = task.bulkMinQuantity.coerceIn(1, maxAllowedCount)
+                        val taskMaxQty = minOf(task.bulkMaxQuantity, task.remainingQuantity, maxAllowedCount).coerceAtLeast(taskMinQty)
+                        val currentReqCount = requestedCountMap[task.id] ?: taskMinQty
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (!isSelectedTask && !isCompletedForUser) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White),
-                                    contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Select Quantity / Devices:",
+                                    fontSize = 12.sp,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF475569)
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = Color(0xFF4F46E5),
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    IconButton(
+                                        onClick = {
+                                            if (currentReqCount > taskMinQty) {
+                                                requestedCountMap = requestedCountMap + (task.id to currentReqCount - 1)
+                                            }
+                                        },
+                                        enabled = currentReqCount > taskMinQty
+                                    ) {
+                                        Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF0F172A)
+                                    ) {
+                                        Text(
+                                            text = "$currentReqCount Devices",
+                                            fontSize = 12.sp,
+                                            fontFamily = PoppinsFontFamily,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (currentReqCount < taskMaxQty) {
+                                                requestedCountMap = requestedCountMap + (task.id to currentReqCount + 1)
+                                            } else if (currentReqCount >= task.remainingQuantity) {
+                                                Toast.makeText(context, "Only ${task.remainingQuantity} remaining", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        enabled = currentReqCount < taskMaxQty
+                                    ) {
+                                        Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
-                            Text(
-                                text = buttonText,
-                                color = Color.White,
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.5.sp
-                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Min $taskMinQty • Max $taskMaxQty",
+                                    fontSize = 11.sp,
+                                    fontFamily = InterFontFamily,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "Total Reward: ₹${task.rewardInr * currentReqCount}",
+                                    fontSize = 13.sp,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF16A34A)
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (currentReqCount > task.remainingQuantity) {
+                                        Toast.makeText(context, "Only ${task.remainingQuantity} remaining", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    activeBulkTask = task
+                                    onAllocateBulkComments(task, currentReqCount)
+                                    val fallbackComments = listOf(
+                                        "Best app experience! Very fast, clean interface and super helpful features.",
+                                        "Awesome application, easy to navigate and very smooth performance.",
+                                        "Highly recommended app! Super clean UI and great reward system.",
+                                        "Really useful app with great design and responsive features. Loving it!"
+                                    )
+                                    activeAllocations = (1..currentReqCount).map { idx ->
+                                        val cText = task.commentsList.getOrNull(idx - 1)
+                                            ?: task.assignedComment.takeIf { it.isNotBlank() && idx == 1 }
+                                            ?: fallbackComments[(idx - 1) % fallbackComments.size]
+                                        com.taskgullak.app.data.model.BulkCommentAllocation(
+                                            id = "alloc_${task.id}_${idx}_${System.currentTimeMillis()}",
+                                            userId = "",
+                                            offerId = task.id,
+                                            commentText = cText,
+                                            deviceIndex = idx
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "⚡ Allocate $currentReqCount Device Comments (₹${task.rewardInr * currentReqCount})",
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontSize = 13.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    } else {
+                        // Action Button: Locked when Completed, or "Apply for Task" -> "Applied • Upload Proof >" / "Re-work & Submit Proof >"
+                        val buttonColors = when {
+                            isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
+                            isPendingReview -> listOf(Color(0xFFD97706), Color(0xFFF59E0B))
+                            isReworkRequired -> listOf(Color(0xFFE11D48), Color(0xFFF43F5E))
+                            isAppliedForUser -> listOf(Color(0xFF4F46E5), Color(0xFF7C3AED))
+                            else -> listOf(Color(0xFF5B21B6), Color(0xFF7C3AED), Color(0xFF9333EA))
+                        }
+                        val buttonText = when {
+                            isCompletedForUser -> "✓ Completed"
+                            isPendingReview -> "In Review • Submitted  >"
+                            isReworkRequired -> "Re-work & Submit Proof  >"
+                            isAppliedForUser -> "Applied • Upload Proof  >"
+                            else -> "Apply for Task  >"
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp)
+                                .shadow(
+                                    elevation = if (isCompletedForUser) 2.dp else 6.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    spotColor = Color(0xFF6D28D9).copy(alpha = 0.25f)
+                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Brush.horizontalGradient(colors = buttonColors))
+                                .clickable(enabled = !isCompletedForUser) {
+                                    if (!isCompletedForUser) {
+                                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                                        appliedTasksRefreshTick += 1
+                                        activeTaskForProof = if (isSelectedTask) null else task
+                                    }
+                                }
+                                .testTag("offer_view_details_${task.id}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (!isSelectedTask && !isCompletedForUser) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4F46E5),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = buttonText,
+                                    color = Color.White,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.5.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -1382,6 +1572,23 @@ internal fun OffersTabShellContent(
                             celebratedSubmittedTask = Pair(submittedTask, aiResult)
                         }
                     }
+                }
+            )
+        }
+
+        if (activeBulkTask != null && activeAllocations != null) {
+            BulkTaskExecutionModal(
+                task = activeBulkTask!!,
+                allocations = activeAllocations!!,
+                isSubmitting = isSubmitting,
+                onDismiss = {
+                    activeBulkTask = null
+                    activeAllocations = null
+                },
+                onSubmitBatch = { deviceScreenshots ->
+                    onSubmitBulkTaskProofs(activeBulkTask!!, activeAllocations!!, deviceScreenshots)
+                    activeBulkTask = null
+                    activeAllocations = null
                 }
             )
         }
@@ -2616,7 +2823,7 @@ private fun TaskSubmissionFormPanel(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(bottom = 12.dp),
+                .padding(bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
@@ -5861,7 +6068,11 @@ private fun BulkTaskExecutionModal(
                     enabled = !isSubmitting,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .navigationBarsPadding()
+                        .imePadding()
                 ) {
                     Text(
                         text = if (isSubmitting) "Submitting..." else "🚀 Submit All ${allocations.size} Device Proofs",

@@ -101,7 +101,10 @@ fun OfferDetailScreen(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Point 8: If the same app has multiple tasks, allow switching/skipping freely

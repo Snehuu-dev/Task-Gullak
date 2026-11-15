@@ -2411,7 +2411,7 @@ private fun TaskGullakBottomNavBar(
         modifier = modifier.height(88.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        val totalWidth = maxWidth
+        val totalWidth = this.maxWidth
         val tabWidth = totalWidth / tabs.size
         val orbSize = 48.dp
 

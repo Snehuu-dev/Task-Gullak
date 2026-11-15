@@ -35,11 +35,14 @@ RENDER.tasks = () => {
     const st = taskStatus(t), liability = pn * taskReward(t);
     const mType = (t.modeType || t.mode_type || (t.isBulk ? 'BULK' : 'NORMAL')).toUpperCase();
     const modeBadge = mType === 'BOTH' ? '<span class="pill info">BOTH (NORMAL + BULK)</span>' : mType === 'BULK' ? '<span class="pill brand">BULK ONLY</span>' : '<span class="pill mute">NORMAL ONLY</span>';
-    const totalQty = num(t.totalQuantity || t.total_quantity || 50);
+    const cmtCount = (t.comments || []).length;
+    const totalQty = num(t.totalQuantity || t.total_quantity || (cmtCount > 0 ? cmtCount : 50));
     const usedQty = num(t.usedQuantity || t.used_quantity || 0);
-    const remQty = Math.max(0, num(t.remainingQuantity || t.remaining_quantity || (totalQty - usedQty)));
-    const stockBadge = remQty === 0 ? '<span class="pill bad">STOCK EXHAUSTED (0 Left)</span>' : `<span class="pill ok">Stock: ${remQty}/${totalQty}</span>`;
-    const bulkMin = num(t.bulkMinQuantity || t.bulk_min_quantity || 1);
+    const remQty = Math.max(0, t.remainingQuantity != null ? num(t.remainingQuantity) : (t.remaining_quantity != null ? num(t.remaining_quantity) : (totalQty - usedQty)));
+    const stockBadge = remQty === 0
+      ? '<span class="pill bad">STOCK EXHAUSTED (0 Left)</span>'
+      : `<span class="pill ok">Stock: Total ${totalQty} • Used ${usedQty} • Left ${remQty}</span>`;
+    const bulkMin = num(t.bulkMinQuantity || t.bulk_min_quantity || 2);
     const bulkMax = num(t.bulkMaxQuantity || t.bulk_max_quantity || 5);
     const bulkLimitsTag = (mType === 'BULK' || mType === 'BOTH') ? `<span class="tag brand">Min ${bulkMin} • Max ${bulkMax}</span><span class="tag warn">Timer: Disabled</span>` : '';
 
@@ -47,7 +50,7 @@ RENDER.tasks = () => {
       <div class="row" style="align-items:flex-start;gap:12px"><img class="appico" src="${esc(taskIcon(t))}" alt="" loading="lazy">
         <div class="grow" style="min-width:0"><div class="row between wrap" style="gap:6px"><h4 class="b fs16 trunc">${esc(taskName(t))}</h4><div class="row gap6">${modeBadge}${TASK_PILL[st] || TASK_PILL.active}</div></div>
           <div class="row wrap gap6 fs12 mt4 tmeta"><span class="brand-t xb">${inr(taskReward(t))}</span><span class="mchip rate">${ic('star', 12)}${esc(String(t.appRating || t.rating || '—'))}</span><span class="mchip">${ic('download', 12)}${esc(String(t.appDownloads || t.downloads || '—'))}</span><span class="mchip">${ic('clock', 12)}${mType === 'BULK' ? 'No Timer' : (num(t.durationMinutes) || 15) + 'm'}</span>${stockBadge}</div>
-          <div class="row wrap gap6 mt8"><span class="tag mono">ID ${esc(t.id.slice(0, 8))}</span>${bulkLimitsTag}<span class="tag tgi">${ic('file', 11)}${(t.comments || []).length} comments</span><span class="tag tgi">${ic('ban', 11)}${(t.blockedUserIds || []).length} blocked</span><span class="tag tgi" title="Users who already submitted — this task is hidden from them">${ic('check', 11)}${(t.submittedUserIds || []).length} submitted</span><span class="tag">${fmtD(tsMs(t.createdAt))}</span></div></div></div>
+          <div class="row wrap gap6 mt8"><span class="tag mono">ID ${esc(t.id.slice(0, 8))}</span>${bulkLimitsTag}<span class="tag tgi">${ic('file', 11)}Total: ${totalQty} • Used: ${usedQty} • Remaining: ${remQty}</span><span class="tag tgi">${ic('ban', 11)}${(t.blockedUserIds || []).length} blocked</span><span class="tag tgi" title="Users who already submitted — this task is hidden from them">${ic('check', 11)}${(t.submittedUserIds || []).length} submitted</span><span class="tag">${fmtD(tsMs(t.createdAt))}</span></div></div></div>
       <div class="mini" style="grid-template-columns:repeat(4,1fr)"><div><b>${subs.length}</b>Submitted</div><div><b>${subs.filter(x => x.screenshotBase64).length}</b>Screenshots</div><div><b>${pn}</b>Pending</div><div><b>${ap}</b>Approved</div></div>
       <div class="row between wrap fs12"><span class="muted">${rj} rejected</span><span class="b">Pending reward liability: <span class="brand-t">${inr(liability)}</span></span></div>
       <div class="row wrap" style="border-top:1px solid var(--line);padding-top:12px;gap:6px">
