@@ -4719,22 +4719,21 @@ internal fun ProfileTabShellContent(
                color = Color(0xFFF1F5F9),
                modifier = Modifier.padding(horizontal = 16.dp)
            )
-           val bulkSubtitle = when (bulkStatus) {
-               "pending" -> "Request Pending Admin Review"
-               "approved" -> "Bulk Mod Active (Device Limit: $bulkDeviceCount)"
-               "banned" -> "Bulk Mod Banned"
+           val isBulkUserActive = bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
+           val bulkSubtitle = when {
+               bulkStatus.equals("pending", ignoreCase = true) -> "Request Pending Admin Review"
+               isBulkUserActive -> "Bulk Mod Active (Limit: $bulkDeviceCount Devices) • Tap to Manage Access"
+               bulkStatus.equals("banned", ignoreCase = true) -> "Bulk Mod Banned"
                else -> "Apply to handle comments in bulk across multiple devices"
            }
            ProfileSettingRow(
                icon = Icons.Outlined.GroupWork,
                iconTint = Color(0xFF7B3FE4),
                iconBg = Color(0xFFF3E8FF),
-               title = if (bulkStatus == "approved") "Bulk Mod Active" else "Apply for Bulk Mod",
+               title = if (isBulkUserActive) "Bulk Mod Active ⚡" else "Apply for Bulk Mod",
                subtitle = bulkSubtitle,
                onClick = {
-                   if (bulkStatus == "none" || bulkStatus == "rejected" || bulkStatus == "pending") {
-                       showBulkModSheet = true
-                   }
+                   showBulkModSheet = true
                },
                testTag = "profile_apply_bulk_mod_row"
            )

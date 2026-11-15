@@ -303,9 +303,23 @@ fun SeamlessWebAdminScreen(
                                       setTimeout(tryAutoUnlock, 1800);
                                     }
 
-                                    // Ensure Bulk Access (Pending, Successful, Rejected) always renders even if remote bulk-access.js had duplicate const AVC
-                                    function ensureBulkAccessRendered() {
-                                      if (typeof RENDER === 'undefined' || typeof S === 'undefined') return false;
+                                    // Auto-close mobile sidebar drawer when clicking any nav item
+                                    if (!window.__tgDrawerAutoCloseHooked) {
+                                      window.__tgDrawerAutoCloseHooked = true;
+                                      document.addEventListener('click', function(e) {
+                                        var navItem = e.target.closest('a, button, .nav-item, .sidebar-item, [data-act], [data-view]');
+                                        if (navItem && !navItem.classList.contains('menu-toggle') && !navItem.closest('.menu-toggle')) {
+                                          var sidebar = document.querySelector('.sidebar, .drawer, #sidebar, .nav-drawer, aside, .sidebar-drawer');
+                                          if (sidebar && (sidebar.classList.contains('open') || sidebar.classList.contains('active') || sidebar.classList.contains('show'))) {
+                                            sidebar.classList.remove('open', 'active', 'show');
+                                          }
+                                        }
+                                      });
+
+                                      var styleEl = document.createElement('style');
+                                      styleEl.innerHTML = '#bk-tabs { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; margin: 12px 0 !important; padding: 6px 0 !important; border-bottom: 2px solid rgba(255,255,255,0.1) !important; z-index: 10 !important; } #bk-tabs .tab { padding: 8px 14px !important; font-weight: bold !important; font-size: 12px !important; border-radius: 8px !important; background: rgba(255,255,255,0.08) !important; color: #94a3b8 !important; border: 1px solid rgba(255,255,255,0.15) !important; cursor: pointer !important; } #bk-tabs .tab.on { background: #0EA5E9 !important; color: #ffffff !important; border-color: #0EA5E9 !important; box-shadow: 0 4px 12px rgba(14,165,233,0.3) !important; }';
+                                      document.head.appendChild(styleEl);
+                                    }
                                       if (typeof RENDER.bulk !== 'function') {
                                         window.bulkRows = function() {
                                           const m = new Map();
