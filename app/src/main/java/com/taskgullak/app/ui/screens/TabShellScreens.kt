@@ -567,7 +567,7 @@ internal fun OffersTabShellContent(
     var selectedPeriodIndex by remember { mutableIntStateOf(0) }
     val periods = remember { listOf("Today", "7 Days", "30 Days") }
 
-    val nowMs = System.currentTimeMillis()
+    val nowMs = remember { System.currentTimeMillis() }
     val todayStartMs = remember(nowMs) {
         val cal = java.util.Calendar.getInstance()
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -1163,11 +1163,13 @@ internal fun OffersTabShellContent(
                             val timerProgress = (liveRemainingSeconds.toFloat() / totalDurationSecs).coerceIn(0f, 1f)
                             val isTimerRunning = liveRemainingSeconds < rawTotalDuration && liveRemainingSeconds > 0L
 
-                            AppTimerPill(
-                                displayTime = timerDisplay,
-                                isOn = isTimerRunning,
-                                progress = timerProgress
-                            )
+                            if (task.timerEnabled && !isBulkActive && !task.isBulk && !task.modeType.equals("BULK", ignoreCase = true)) {
+                                AppTimerPill(
+                                    displayTime = timerDisplay,
+                                    isOn = isTimerRunning,
+                                    progress = timerProgress
+                                )
+                            }
 
                             // 2. Golden Ticket Price Card (PRICE ₹25)
                             GoldenTicketPriceCard(
@@ -1520,25 +1522,14 @@ internal fun OffersTabShellContent(
                 onConfirm = { selectedDeviceCount ->
                     val task = promptBulkTask!!
                     promptBulkTask = null
-                    activeBulkTask = task
-                    onAllocateBulkComments(task, selectedDeviceCount)
-                    val fallbackComments = listOf(
-                        "Best app experience! Very fast, clean interface and super helpful features.",
-                        "Awesome application, easy to navigate and very smooth performance.",
-                        "Highly recommended app! Super clean UI and great reward system.",
-                        "Really useful app with great design and responsive features. Loving it!"
-                    )
-                    activeAllocations = (1..selectedDeviceCount).map { idx ->
-                        val cText = task.commentsList.getOrNull(idx - 1)
-                            ?: task.assignedComment.takeIf { it.isNotBlank() && idx == 1 }
-                            ?: fallbackComments[(idx - 1) % fallbackComments.size]
-                        com.taskgullak.app.data.model.BulkCommentAllocation(
-                            id = "alloc_${task.id}_${idx}_${System.currentTimeMillis()}",
-                            userId = "",
-                            offerId = task.id,
-                            commentText = cText,
-                            deviceIndex = idx
-                        )
+
+                    if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
+                        Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                    } else {
+                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                        requestedCountMap = requestedCountMap.toMutableMap().apply { put(task.id, selectedDeviceCount) }
+                        appliedTasksRefreshTick += 1
+                        activeTaskForProof = task
                     }
                 }
             )
@@ -2267,11 +2258,13 @@ private fun TaskDetailsFullScreenModal(
                             val timerProgress = (liveRemainingSeconds.toFloat() / totalDurationSecs).coerceIn(0f, 1f)
                             val isTimerRunning = liveRemainingSeconds < rawTotalDuration && liveRemainingSeconds > 0L
 
-                            AppTimerPill(
-                                displayTime = timerDisplay,
-                                isOn = isTimerRunning,
-                                progress = timerProgress
-                            )
+                            if (task.timerEnabled && !task.isBulk && !task.modeType.equals("BULK", ignoreCase = true)) {
+                                AppTimerPill(
+                                    displayTime = timerDisplay,
+                                    isOn = isTimerRunning,
+                                    progress = timerProgress
+                                )
+                            }
 
                             GoldenTicketPriceCard(
                                 rewardInr = task.rewardInr
@@ -5584,8 +5577,9 @@ private fun rememberTaskTimerAndComment(
        )
    }
 
-   LaunchedEffect(timerStartedAtMs, durationTotalSeconds, task.id) {
-       if (timerStartedAtMs > 0L) {
+   LaunchedEffect(timerStartedAtMs, durationTotalSeconds, task.id, task.timerEnabled, task.isBulk, task.modeType) {
+       val isTimerDisabled = !task.timerEnabled || task.isBulk || task.modeType.equals("BULK", ignoreCase = true)
+       if (!isTimerDisabled && timerStartedAtMs > 0L) {
            while (true) {
                val elapsed = (System.currentTimeMillis() - timerStartedAtMs) / 1000L
                val rem = (durationTotalSeconds - elapsed).coerceAtLeast(0L)

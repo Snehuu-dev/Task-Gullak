@@ -629,13 +629,15 @@ RENDER.bulk = () => {
 
     const tabBox = $('#bk-tabs');
     if (tabBox) {
+      const bulkSubCount = (S.subs || []).filter(s => s && (s.isBulk || String(s.category || '').toLowerCase().includes('bulk'))).length;
       setHTML(
         tabBox,
         [
           ['pending', 'Pending Requests'],
           ['active', `Active Bulk Users (${by('active').length})`],
           ['rejected', 'Rejected'],
-          ['appeals', `Appeals (${S.bulkAppeals.filter(a => a.status === 'pending').length})`]
+          ['appeals', `Appeals (${S.bulkAppeals.filter(a => a.status === 'pending').length})`],
+          ['submissions', `Bulk Submissions (${bulkSubCount})`]
         ]
           .map(
             ([k, l]) =>
@@ -709,6 +711,34 @@ RENDER.bulk = () => {
       }).join('') || `<div class="card">${emptyHTML('bulk', 'No appeals or limit change requests submitted yet.')}</div>`;
 
       setHTML(listBox, appealsHTML);
+      return;
+    }
+
+    if (f === 'submissions') {
+      const bulkSubs = (S.subs || []).filter(s => s && (s.isBulk || String(s.category || '').toLowerCase().includes('bulk') || (S.tasks || []).some(t => t.id === s.taskId && (t.isBulk || (t.modeType || '').toUpperCase() === 'BULK'))));
+      const subsHTML = bulkSubs.map(sb => {
+        const id = esc(sb.id);
+        const st = String(sb.status || 'pending').toLowerCase();
+        const pill = st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending Review</span>';
+        const img = sb.screenshotBase64 || sb.referenceScreenshotUrl || '';
+        const proofImgHTML = img ? `<div class="mt8"><img src="${esc(img)}" style="max-height:120px;border-radius:8px;border:1px solid var(--line);cursor:pointer" onclick="window.open('${esc(img)}','_blank')"></div>` : '';
+        const act = st === 'pending' ? `<button class="btn okfill sm" data-act="apApprove" data-id="${id}">Approve & Credit ₹${num(sb.rewardAmount)}</button><button class="btn bad sm" data-act="apReject" data-id="${id}">Reject</button>` : '';
+
+        return `<div class="card">
+          <div class="row between wrap" style="gap:6px">
+            <div>
+              <div class="b fs14">${esc(sb.userName || sb.userEmail || sb.userId)}</div>
+              <div class="fs12 muted">Task: <b>${esc(sb.taskTitle || sb.matchedTaskName || 'Bulk Task')}</b> • Reward: <b>₹${num(sb.rewardAmount)}</b></div>
+            </div>
+            ${pill}
+          </div>
+          ${sb.proofText ? `<div class="fs12 mt8" style="background:var(--soft);padding:8px 12px;border-radius:8px">Proof Note: ${esc(sb.proofText)}</div>` : ''}
+          ${proofImgHTML}
+          <div class="row gap6 mt8" style="justify-content:flex-end">${act}</div>
+        </div>`;
+      }).join('') || `<div class="card">${emptyHTML('submissions', 'No bulk task submissions found.')}</div>`;
+
+      setHTML(listBox, subsHTML);
       return;
     }
 
