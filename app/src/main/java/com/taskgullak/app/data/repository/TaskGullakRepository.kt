@@ -1824,6 +1824,44 @@ class TaskGullakRepository(
             ?: auth.currentUser?.email
             ?: ""
 
+        // 1. Always update user document directly (User ALWAYS has permission to write to their own document)
+        val userUpdateRes = runCatching {
+            userRef.set(
+                mapOf(
+                    "pendingRequestedDeviceCount" to requestedDeviceCount,
+                    "pendingRequestType" to requestType,
+                    "bulkRejectReason" to reason,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            ).await()
+        }
+
+        // 2. Always write to support_tickets (User ALWAYS has permission to submit tickets)
+        val ticketRef = db.collection("support_tickets").document("appeal_${uid}_${System.currentTimeMillis()}")
+        val ticketRes = runCatching {
+            ticketRef.set(
+                mapOf(
+                    "id" to ticketRef.id,
+                    "ticketId" to ticketRef.id,
+                    "userId" to uid,
+                    "userName" to userName,
+                    "userEmail" to userEmail,
+                    "walletIdCode" to "TG-${uid.take(8).uppercase()}",
+                    "message" to "🔥 [BULK MODE APPEAL — $requestType — $requestedDeviceCount Devices]\nReason: $reason",
+                    "status" to "pending",
+                    "type" to "bulk_application",
+                    "requestType" to requestType,
+                    "deviceCount" to requestedDeviceCount,
+                    "requestedDeviceCount" to requestedDeviceCount,
+                    "reason" to reason,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+        }
+
+        // 3. Try writing to bulk_task_appeals
         val appealRef = db.collection("bulk_task_appeals").document()
         val payload = mapOf(
             "id" to appealRef.id,
@@ -1844,10 +1882,9 @@ class TaskGullakRepository(
             "createdAt" to FieldValue.serverTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp()
         )
+        runCatching { appealRef.set(payload).await() }
 
-        val setRes = runCatching { appealRef.set(payload).await() }
-
-        // Also write to bulk_mod_requests as a fallback for the admin panel
+        // 4. Try writing to bulk_mod_requests
         runCatching {
             val modRef = db.collection("bulk_mod_requests").document(appealRef.id)
             modRef.set(
@@ -1867,10 +1904,12 @@ class TaskGullakRepository(
             ).await()
         }
 
-        return if (setRes.isSuccess) {
-            Result.success(appealRef.id)
+        return if (ticketRes.isSuccess || userUpdateRes.isSuccess) {
+            Result.success(ticketRef.id)
         } else {
-            setRes.exceptionOrNull()?.let { Result.failure(it) } ?: Result.success(appealRef.id)
+            ticketRes.exceptionOrNull()?.let { Result.failure(it) }
+                ?: userUpdateRes.exceptionOrNull()?.let { Result.failure(it) }
+                ?: Result.success(ticketRef.id)
         }
     }
 

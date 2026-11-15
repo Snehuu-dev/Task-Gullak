@@ -589,7 +589,21 @@ RENDER.bulk = () => {
     if (!listBox) return;
 
     if (f === 'appeals') {
-      const appealsList = S.bulkAppeals;
+      const rawAppeals = Array.isArray(S.bulkAppeals) ? S.bulkAppeals : [];
+      const ticketAppeals = (S.tickets || []).filter(t => t && (t.type === 'bulk_application' || (t.id && String(t.id).startsWith('appeal_')) || (t.message && String(t.message).includes('BULK MODE APPEAL')))).map(t => ({
+        id: t.id,
+        userId: t.userId,
+        userName: t.userName,
+        userEmail: t.userEmail,
+        requestType: t.requestType || 'increase_limit',
+        requestedDeviceCount: t.deviceCount || t.requestedDeviceCount || 2,
+        reason: t.reason || t.message || '',
+        status: t.status === 'open' ? 'pending' : (t.status === 'resolved' || t.status === 'closed' ? 'approved' : t.status),
+        createdAt: t.createdAt || t.updatedAt
+      }));
+      const appealsMap = new Map();
+      [...rawAppeals, ...ticketAppeals].forEach(ap => { if (ap && ap.id) appealsMap.set(ap.id, ap); });
+      const appealsList = [...appealsMap.values()].sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
       const appealsHTML = appealsList.map(ap => {
         const id = esc(ap.id);
         const st = String(ap.status || 'pending').toLowerCase();
