@@ -267,6 +267,84 @@ ACT.bkRevoke = async el => {
   }
 };
 
+ACT.bkSetLimit = async el => {
+  const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
+  const currentLimit = r && r.user ? (r.user.bulkDeviceCount || 2) : 2;
+  const v = await ask({
+    title: `Set Device Limit for ${r ? r.name : 'User'}`,
+    body: `Current Device Limit: <b>${currentLimit} Devices</b>.<br>Enter new device limit (higher to increase, lower to decrease):`,
+    ok: 'Update Device Limit',
+    fields: [
+      { id: 'limit', label: 'New Device Limit', type: 'number', required: true, value: String(currentLimit) }
+    ]
+  });
+  if (!v) return;
+  const newLimit = Math.max(1, parseInt(v.limit, 10) || 1);
+  try {
+    await bkSet(
+      uid,
+      { bulkDeviceCount: newLimit, bulkApprovedLimit: newLimit },
+      {},
+      [],
+      'Device Limit Updated! 📱',
+      `Your Bulk Mode device limit has been updated to ${newLimit} devices by Admin.`,
+      'info'
+    );
+    toast(`Device limit updated to ${newLimit} for ${r ? r.name : 'user'}`, 'ok');
+  } catch (e) {
+    toast('Failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+ACT.bkApproveLimitAppeal = async el => {
+  const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
+  if (!ap) return;
+  const newLimit = ap.requestedDeviceCount || 1;
+  try {
+    await bkSet(
+      ap.userId,
+      { bulkDeviceCount: newLimit, bulkApprovedLimit: newLimit },
+      {},
+      [],
+      'Device Limit Approved! 📱',
+      `Your request to set device limit to ${newLimit} devices has been approved by Admin.`,
+      'reward'
+    );
+    await updateDoc(doc(db, 'bulk_task_appeals', id), {
+      status: 'approved',
+      reviewedBy: S.admin,
+      updatedAt: serverTimestamp()
+    });
+    toast(`Approved device limit of ${newLimit} devices for user!`, 'ok');
+  } catch (e) {
+    toast('Action failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+ACT.bkApproveExitAppeal = async el => {
+  const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
+  if (!ap) return;
+  try {
+    await bkSet(
+      ap.userId,
+      { bulkMode: false, bulkStatus: 'none', bulkRejectReason: 'User requested exit' },
+      { status: 'revoked', reviewedBy: S.admin, updatedAt: serverTimestamp() },
+      ['pending', 'approved', 'active'],
+      'Bulk Mode Turned Off',
+      'Your request to exit Bulk Mode has been approved. Your account is now in Normal Mode.',
+      'info'
+    );
+    await updateDoc(doc(db, 'bulk_task_appeals', id), {
+      status: 'approved',
+      reviewedBy: S.admin,
+      updatedAt: serverTimestamp()
+    });
+    toast('Exit Bulk Mode request approved. User returned to Normal Mode!', 'ok');
+  } catch (e) {
+    toast('Action failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
 /** Task 2: Multi-Select & Selection Handlers */
 ACT.bkSelOne = el => {
   if (!S.bkSel) S.bkSel = new Set();
@@ -454,7 +532,7 @@ ACT.bkApproveAppeal = async el => {
 
 ACT.bkRejectAppeal = async el => {
   const id = el.dataset.id;
-  const reason = await rejectDialog('Reject Bulk Price Appeal?', '<p class="fs12 muted">The appeal will be marked rejected.</p>');
+  const reason = await rejectDialog('Reject Bulk Request / Appeal?', '<p class="fs12 muted">The request will be marked rejected.</p>');
   if (!reason) return;
   try {
     await updateDoc(doc(db, 'bulk_task_appeals', id), {
@@ -463,7 +541,7 @@ ACT.bkRejectAppeal = async el => {
       reviewedBy: S.admin,
       updatedAt: serverTimestamp()
     });
-    toast('Appeal rejected', 'ok');
+    toast('Request rejected', 'ok');
   } catch (e) {
     toast('Action failed: ' + (e.code || e.message), 'bad');
   }
@@ -494,8 +572,8 @@ RENDER.bulk = () => {
       setHTML(
         tabBox,
         [
-          ['pending', 'Pending'],
-          ['active', 'Successful'],
+          ['pending', 'Pending Requests'],
+          ['active', `Active Bulk Users (${by('active').length})`],
           ['rejected', 'Rejected'],
           ['appeals', `Appeals (${S.bulkAppeals.filter(a => a.status === 'pending').length})`]
         ]
@@ -515,26 +593,46 @@ RENDER.bulk = () => {
       const appealsHTML = appealsList.map(ap => {
         const id = esc(ap.id);
         const st = String(ap.status || 'pending').toLowerCase();
+        const reqType = ap.requestType || 'price_increase';
         const pill = st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending Appeal</span>';
-        const act = st === 'pending'
-          ? `<button class="btn okfill sm" data-act="bkApproveAppeal" data-id="${id}">Approve Custom Reward</button><button class="btn bad sm" data-act="bkRejectAppeal" data-id="${id}">Reject</button>`
-          : '';
+
+        let titleText = 'Price Increase Appeal';
+        let detailText = `Requested Devices: <b>${ap.requestedDeviceCount || 1}</b> • Requested Reward: <b>₹${ap.requestedRewardInr || 0}</b>`;
+        let act = '';
+
+        if (reqType === 'increase_limit' || reqType === 'decrease_limit') {
+          titleText = `Device Limit ${reqType === 'increase_limit' ? 'Increase' : 'Decrease'} Request`;
+          detailText = `Requested Device Limit: <b>${ap.requestedDeviceCount || 1} Devices</b>`;
+          if (st === 'pending') {
+            act = `<button class="btn okfill sm" data-act="bkApproveLimitAppeal" data-id="${id}">Approve Device Limit (${ap.requestedDeviceCount})</button><button class="btn bad sm" data-act="bkRejectAppeal" data-id="${id}">Reject</button>`;
+          }
+        } else if (reqType === 'exit_bulk_mode') {
+          titleText = `Exit Bulk Mode Request`;
+          detailText = `User requested to turn off Bulk Mode and revert account to Normal Mode.`;
+          if (st === 'pending') {
+            act = `<button class="btn bad sm" data-act="bkApproveExitAppeal" data-id="${id}">Approve & Turn Off Bulk Mode</button><button class="btn ghost sm" data-act="bkRejectAppeal" data-id="${id}">Reject</button>`;
+          }
+        } else {
+          if (st === 'pending') {
+            act = `<button class="btn okfill sm" data-act="bkApproveAppeal" data-id="${id}">Approve Custom Reward</button><button class="btn bad sm" data-act="bkRejectAppeal" data-id="${id}">Reject</button>`;
+          }
+        }
 
         return `<div class="card">
           <div class="row between wrap" style="gap:6px">
             <div>
               <div class="b fs14">${esc(ap.userName || ap.userEmail || ap.userId)}</div>
-              <div class="fs12 muted">${esc(ap.userEmail)} • Task: <b>${esc(ap.taskTitle)}</b></div>
+              <div class="fs12 muted">${esc(ap.userEmail)} • <b>${titleText}</b></div>
             </div>
             ${pill}
           </div>
           <div class="fs12 mt8" style="background:rgba(14,165,233,0.06);padding:8px 12px;border-radius:8px">
-            Requested Devices: <b>${ap.requestedDeviceCount || 1}</b> • Requested Reward: <b>₹${ap.requestedRewardInr || 0}</b><br>
-            Note/Reason: ${esc(ap.reason || 'No reason provided')}
+            ${detailText}<br>
+            Reason: ${esc(ap.reason || 'No reason provided')}
           </div>
           <div class="row gap6 mt8" style="justify-content:flex-end">${act}</div>
         </div>`;
-      }).join('') || `<div class="card">${emptyHTML('bulk', 'No price increase appeals submitted yet.')}</div>`;
+      }).join('') || `<div class="card">${emptyHTML('bulk', 'No appeals or limit change requests submitted yet.')}</div>`;
 
       setHTML(listBox, appealsHTML);
       return;
@@ -543,7 +641,7 @@ RENDER.bulk = () => {
     const list = by(f);
     const pill = {
       pending: '<span class="pill warn">Pending</span>',
-      active: '<span class="pill ok">Successful</span>',
+      active: '<span class="pill ok">Bulk Active</span>',
       rejected: '<span class="pill bad">Rejected</span>'
     };
 
@@ -556,7 +654,7 @@ RENDER.bulk = () => {
         <div class="fs20 xb" style="color:#F59E0B;margin-top:4px">${by('pending').length}</div>
       </div>
       <div class="card" style="cursor:pointer;border:${f === 'active' ? '2px solid #16A34A' : '1px solid var(--line)'}" data-act="bkTab" data-k="active">
-        <div class="fs12 muted b">Successful (Approved)</div>
+        <div class="fs12 muted b">Active Bulk Users</div>
         <div class="fs20 xb" style="color:#16A34A;margin-top:4px">${by('active').length}</div>
       </div>
       <div class="card" style="cursor:pointer;border:${f === 'rejected' ? '2px solid #E11D48' : '1px solid var(--line)'}" data-act="bkTab" data-k="rejected">
@@ -606,12 +704,12 @@ RENDER.bulk = () => {
             uid = esc(r.uid),
             isSel = S.bkSel.has(r.uid);
           const reqData = (q && q.requestData) || {};
-          const reqCount = reqData.requestedCount || reqData.deviceCount || 2;
+          const userDeviceCount = r.user ? (r.user.bulkDeviceCount || reqData.deviceCount || 2) : (reqData.deviceCount || 2);
           const act =
             f === 'pending'
               ? `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
               : f === 'active'
-              ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
+              ? `<button class="btn okfill sm" style="background:#0284C7" data-act="bkSetLimit" data-uid="${uid}">Set Limit (${userDeviceCount})</button><button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
               : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
 
           const safeInitial = esc(String((r.name || r.email || r.uid || 'U').trim())[0].toUpperCase());
@@ -626,7 +724,8 @@ RENDER.bulk = () => {
                 ${pill[r.status]}
               </div>
               <div class="fs12 muted trunc">${esc(r.email)}</div>
-              ${q ? `<div class="fs12 muted" style="margin-top:2px">Requested ${fmtDT(tsMs(q.createdAt || q.requestedAt))} • Tier: <b>${esc(reqData.tier || 'Standard')} (${reqCount} devices)</b></div>` : ''}
+              <div class="fs12 brand-t b" style="margin-top:4px">Approved Device Limit: ${userDeviceCount} Devices</div>
+              ${q ? `<div class="fs12 muted" style="margin-top:2px">Requested ${fmtDT(tsMs(q.createdAt || q.requestedAt))} • Tier: <b>${esc(reqData.tier || 'Standard')}</b></div>` : ''}
               ${q && (q.note || q.reason) ? `<div class="fs12" style="margin-top:6px;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px">Note: ${esc(q.note || q.reason)}</div>` : ''}
               ${f === 'rejected' && q && q.adminNote ? `<div class="fs12 bad-t" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}
             </div>
@@ -640,7 +739,7 @@ RENDER.bulk = () => {
         f === 'pending'
           ? 'No pending requests waiting.'
           : f === 'active'
-          ? 'No successful (approved) bulk access users yet.'
+          ? 'No active bulk access users yet.'
           : 'No rejected requests.'
       )}</div>`;
 

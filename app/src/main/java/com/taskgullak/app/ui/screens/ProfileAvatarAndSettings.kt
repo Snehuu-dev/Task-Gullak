@@ -1915,9 +1915,13 @@ fun BulkModApplyModalBottomSheet(
     currentBulkStatus: String,
     currentDeviceCount: Int,
     onSubmitRequest: (reason: String, deviceCount: Int) -> Unit,
+    onSubmitModeChangeRequest: ((requestType: String, count: Int, reason: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isAlreadyActive = currentBulkStatus.equals("approved", ignoreCase = true) || currentBulkStatus.equals("active", ignoreCase = true)
+
+    var requestTab by remember { mutableStateOf(0) }
     var reasonText by remember { mutableStateOf("") }
     var deviceCountText by remember { mutableStateOf(if (currentDeviceCount > 0) currentDeviceCount.toString() else "2") }
     var guidelineAccepted by remember { mutableStateOf(false) }
@@ -1943,7 +1947,7 @@ fun BulkModApplyModalBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Apply for Bulk Mod",
+                    text = if (isAlreadyActive) "Manage Bulk Mode Access" else "Apply for Bulk Mod",
                     color = Color(0xFF17142E),
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.ExtraBold,
@@ -1966,121 +1970,288 @@ fun BulkModApplyModalBottomSheet(
                 }
             }
 
-            Text(
-                text = "Why do you need Bulk Mod status?",
-                color = Color(0xFF475569),
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
-            OutlinedTextField(
-                value = reasonText,
-                onValueChange = { reasonText = it; errorMsg = null },
-                placeholder = { Text("Explain why you need bulk comment access...") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp)
-            )
+            if (isAlreadyActive) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF0F172A),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "🔥 BULK MODE ACTIVE",
+                            color = Color(0xFF38BDF8),
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "Approved Device Limit: $currentDeviceCount Devices",
+                            color = Color.White,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.5.sp
+                        )
+                    }
+                }
 
-            Text(
-                text = "How many devices do you operate? (min 1)",
-                color = Color(0xFF475569),
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
-            OutlinedTextField(
-                value = deviceCountText,
-                onValueChange = { deviceCountText = it.filter { c -> c.isDigit() }; errorMsg = null },
-                modifier = Modifier.fillMaxWidth()
-            )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (requestTab == 0) Color.White else Color.Transparent)
+                            .clickable { requestTab = 0; errorMsg = null },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Change Device Limit",
+                            fontSize = 11.5.sp,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = if (requestTab == 0) Color(0xFF0284C7) else Color(0xFF64748B)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (requestTab == 1) Color(0xFFFEF2F2) else Color.Transparent)
+                            .clickable { requestTab = 1; errorMsg = null },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Exit Bulk Mode",
+                            fontSize = 11.5.sp,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = if (requestTab == 1) Color(0xFFDC2626) else Color(0xFF64748B)
+                        )
+                    }
+                }
 
-            // Strict Guideline Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFFEF2F2))
-                    .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (requestTab == 0) {
                     Text(
-                        text = "STRICT BULK MOD GUIDELINES",
-                        color = Color(0xFF991B1B),
+                        text = "Requested New Device Limit:",
+                        color = Color(0xFF475569),
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
+                        fontSize = 12.sp
                     )
+                    OutlinedTextField(
+                        value = deviceCountText,
+                        onValueChange = { deviceCountText = it.filter { c -> c.isDigit() }; errorMsg = null },
+                        placeholder = { Text("e.g. 5 or 10 devices") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Text(
-                        text = "• Work only on specified devices.\n• Cannot hold more comments than approved device limit.\n• Extra comments must be returned immediately.\n• Misuse/duplicates lead to immediate ban.",
-                        color = Color(0xFF7F1D1D),
-                        fontFamily = InterFontFamily,
-                        fontSize = 10.5.sp,
-                        lineHeight = 14.5.sp
+                        text = "Reason for Device Limit Change:",
+                        color = Color(0xFF475569),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    OutlinedTextField(
+                        value = reasonText,
+                        onValueChange = { reasonText = it; errorMsg = null },
+                        placeholder = { Text("Explain why you need more or fewer devices...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Reason for Exiting Bulk Mode:",
+                        color = Color(0xFF475569),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    OutlinedTextField(
+                        value = reasonText,
+                        onValueChange = { reasonText = it; errorMsg = null },
+                        placeholder = { Text("Explain why you want to revert to Normal Mode...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(90.dp)
                     )
                 }
-            }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Checkbox(
-                    checked = guidelineAccepted,
-                    onCheckedChange = { guidelineAccepted = it }
-                )
-                Text(
-                    text = "I have read and agree to all strict guidelines.",
-                    color = Color(0xFF334155),
-                    fontFamily = InterFontFamily,
-                    fontSize = 11.5.sp
-                )
-            }
+                if (errorMsg != null) {
+                    Text(
+                        text = errorMsg!!,
+                        color = Color(0xFFDC2626),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
 
-            if (errorMsg != null) {
+                Button(
+                    onClick = {
+                        val cleanReason = reasonText.trim()
+                        val newCount = deviceCountText.toIntOrNull() ?: 0
+                        if (cleanReason.isBlank()) {
+                            errorMsg = "Please provide a reason."
+                            return@Button
+                        }
+                        if (requestTab == 0 && newCount < 1) {
+                            errorMsg = "Please enter a valid requested device count."
+                            return@Button
+                        }
+                        isSubmitting = true
+                        if (requestTab == 0) {
+                            val reqType = if (newCount > currentDeviceCount) "increase_limit" else "decrease_limit"
+                            onSubmitModeChangeRequest?.invoke(reqType, newCount, cleanReason)
+                        } else {
+                            onSubmitModeChangeRequest?.invoke("exit_bulk_mode", currentDeviceCount, cleanReason)
+                        }
+                        onDismiss()
+                    },
+                    enabled = !isSubmitting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (requestTab == 1) Color(0xFFDC2626) else Color(0xFF0284C7)
+                    )
+                ) {
+                    Text(
+                        text = if (isSubmitting) "Submitting..." else if (requestTab == 0) "Submit Device Limit Appeal" else "Submit Exit Request",
+                        color = Color.White,
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            } else {
                 Text(
-                    text = errorMsg!!,
-                    color = Color(0xFFDC2626),
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Button(
-                onClick = {
-                    val cleanReason = reasonText.trim()
-                    val count = deviceCountText.toIntOrNull() ?: 0
-                    if (cleanReason.isBlank()) {
-                        errorMsg = "Please explain why you need Bulk Mod status."
-                        return@Button
-                    }
-                    if (count < 1) {
-                        errorMsg = "Please enter a valid device count (at least 1)."
-                        return@Button
-                    }
-                    if (!guidelineAccepted) {
-                        errorMsg = "You must agree to the strict guidelines."
-                        return@Button
-                    }
-                    isSubmitting = true
-                    onSubmitRequest(cleanReason, count)
-                    onDismiss()
-                },
-                enabled = !isSubmitting,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B3FE4))
-            ) {
-                Text(
-                    text = if (isSubmitting) "Submitting..." else "Submit Bulk Mod Application",
-                    color = Color.White,
+                    text = "Why do you need Bulk Mod status?",
+                    color = Color(0xFF475569),
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
+                OutlinedTextField(
+                    value = reasonText,
+                    onValueChange = { reasonText = it; errorMsg = null },
+                    placeholder = { Text("Explain why you need bulk comment access...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp)
+                )
+
+                Text(
+                    text = "How many devices do you operate? (min 1)",
+                    color = Color(0xFF475569),
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+                OutlinedTextField(
+                    value = deviceCountText,
+                    onValueChange = { deviceCountText = it.filter { c -> c.isDigit() }; errorMsg = null },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEF2F2))
+                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "STRICT BULK MOD GUIDELINES",
+                            color = Color(0xFF991B1B),
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "• Work only on specified devices.\n• Cannot hold more comments than approved device limit.\n• Extra comments must be returned immediately.\n• Misuse/duplicates lead to immediate ban.",
+                            color = Color(0xFF7F1D1D),
+                            fontFamily = InterFontFamily,
+                            fontSize = 10.5.sp,
+                            lineHeight = 14.5.sp
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = guidelineAccepted,
+                        onCheckedChange = { guidelineAccepted = it }
+                    )
+                    Text(
+                        text = "I have read and agree to all strict guidelines.",
+                        color = Color(0xFF334155),
+                        fontFamily = InterFontFamily,
+                        fontSize = 11.5.sp
+                    )
+                }
+
+                if (errorMsg != null) {
+                    Text(
+                        text = errorMsg!!,
+                        color = Color(0xFFDC2626),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val cleanReason = reasonText.trim()
+                        val count = deviceCountText.toIntOrNull() ?: 0
+                        if (cleanReason.isBlank()) {
+                            errorMsg = "Please explain why you need Bulk Mod status."
+                            return@Button
+                        }
+                        if (count < 1) {
+                            errorMsg = "Please enter a valid device count (at least 1)."
+                            return@Button
+                        }
+                        if (!guidelineAccepted) {
+                            errorMsg = "You must agree to the strict guidelines."
+                            return@Button
+                        }
+                        isSubmitting = true
+                        onSubmitRequest(cleanReason, count)
+                        onDismiss()
+                    },
+                    enabled = !isSubmitting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B3FE4))
+                ) {
+                    Text(
+                        text = if (isSubmitting) "Submitting..." else "Submit Bulk Mod Application",
+                        color = Color.White,
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
     }

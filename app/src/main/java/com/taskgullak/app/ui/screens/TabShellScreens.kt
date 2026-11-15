@@ -4182,6 +4182,7 @@ internal fun ProfileTabShellContent(
    supportBotMessages: List<SupportBotMessage> = emptyList(),
    onSubmitSupportTicket: (String, (Boolean) -> Unit) -> Unit = { _, cb -> cb(true) },
    onSubmitBulkModRequest: (String, Int) -> Unit = { _, _ -> },
+   onSubmitBulkModeChangeRequest: (String, Int, String) -> Unit = { _, _, _ -> },
    onSendSupportBotMessage: (String) -> Unit = {},
    onConfirmSupportBotAction: (String, String) -> Unit = { _, _ -> },
    onSelectAvatar: (String) -> Unit = {},
@@ -4275,6 +4276,7 @@ internal fun ProfileTabShellContent(
            currentBulkStatus = bulkStatus,
            currentDeviceCount = bulkDeviceCount,
            onSubmitRequest = onSubmitBulkModRequest,
+           onSubmitModeChangeRequest = onSubmitBulkModeChangeRequest,
            onDismiss = { showBulkModSheet = false }
        )
    }

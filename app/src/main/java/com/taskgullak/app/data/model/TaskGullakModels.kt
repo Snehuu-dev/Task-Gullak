@@ -535,6 +535,7 @@ data class BulkTaskAppeal(
     val userEmail: String = "",
     val taskId: String = "",
     val taskTitle: String = "",
+    val requestType: String = "price_increase", // price_increase, increase_limit, decrease_limit, exit_bulk_mode
     val requestedDeviceCount: Int = 1,
     val requestedRewardInr: Long = 0L,
     val reason: String = "",

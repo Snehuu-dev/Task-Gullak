@@ -1788,8 +1788,52 @@ class TaskGullakRepository(
             "userEmail" to userEmail,
             "taskId" to taskId,
             "taskTitle" to taskTitle,
+            "requestType" to "price_increase",
             "requestedDeviceCount" to requestedDeviceCount,
             "requestedRewardInr" to requestedRewardInr,
+            "reason" to reason,
+            "status" to "pending",
+            "createdAt" to FieldValue.serverTimestamp(),
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+
+        return try {
+            appealRef.set(payload).await()
+            Result.success(appealRef.id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun submitBulkModeChangeRequest(
+        requestType: String, // "increase_limit", "decrease_limit", "exit_bulk_mode"
+        requestedDeviceCount: Int,
+        reason: String,
+        explicitUserId: String? = null
+    ): Result<String> {
+        val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
+        if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
+
+        val userRef = db.collection("users").document(uid)
+        val userSnap = userRef.get().await()
+        val userName = userSnap.getString("fullName") ?: userSnap.getString("username") ?: ""
+        val userEmail = userSnap.getString("email") ?: ""
+
+        val appealRef = db.collection("bulk_task_appeals").document()
+        val payload = mapOf(
+            "id" to appealRef.id,
+            "userId" to uid,
+            "userName" to userName,
+            "userEmail" to userEmail,
+            "taskId" to "bulk_management",
+            "taskTitle" to when (requestType) {
+                "exit_bulk_mode" -> "Exit Bulk Mode Request"
+                "decrease_limit" -> "Decrease Device Limit Request"
+                else -> "Increase Device Limit Request"
+            },
+            "requestType" to requestType,
+            "requestedDeviceCount" to requestedDeviceCount,
+            "requestedRewardInr" to 0L,
             "reason" to reason,
             "status" to "pending",
             "createdAt" to FieldValue.serverTimestamp(),

@@ -1266,6 +1266,23 @@ fun HomeScreen(
                                     }
                                 }
                             },
+                            onSubmitBulkModeChangeRequest = { reqType: String, count: Int, reason: String ->
+                                val firestoreDb = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                val repo = com.taskgullak.app.data.repository.TaskGullakRepository(firestoreDb, context)
+                                val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                scope.launch {
+                                    val res = repo.submitBulkModeChangeRequest(reqType, count, reason)
+                                    if (res.isSuccess) {
+                                        val msg = when (reqType) {
+                                            "exit_bulk_mode" -> "✅ Bulk Mode Exit Request Submitted to Admin!"
+                                            else -> "✅ Device Limit Change Request Submitted to Admin!"
+                                        }
+                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "❌ Request submission failed.", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
                             onSendSupportBotMessage = { text: String -> viewModel?.sendSupportBotMessage(text) },
                             onConfirmSupportBotAction = { actionType: String, actionData: String ->
                                 viewModel?.executeSupportBotAction(actionType, actionData, context)
