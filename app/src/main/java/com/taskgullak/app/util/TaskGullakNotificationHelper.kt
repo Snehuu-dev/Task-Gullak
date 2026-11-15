@@ -360,6 +360,23 @@ object TaskGullakNotificationHelper {
         ) ?: setOf("all_users", "task_gullak_broadcasts", "new_tasks")
     }
 
+    fun updateTopicSubscriptionsForUserMode(context: Context, isBulkActive: Boolean) {
+        try {
+            val messaging = com.google.firebase.messaging.FirebaseMessaging.getInstance()
+            if (isBulkActive) {
+                messaging.subscribeToTopic("bulk_users")
+                messaging.unsubscribeFromTopic("normal_users")
+            } else {
+                messaging.subscribeToTopic("normal_users")
+                messaging.unsubscribeFromTopic("bulk_users")
+            }
+            messaging.subscribeToTopic("all_users")
+            messaging.subscribeToTopic("task_gullak_broadcasts")
+            messaging.subscribeToTopic("new_tasks")
+        } catch (_: Exception) {
+        }
+    }
+
     fun ensureNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager =

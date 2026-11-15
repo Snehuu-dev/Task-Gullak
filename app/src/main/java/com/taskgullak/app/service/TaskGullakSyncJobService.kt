@@ -93,7 +93,14 @@ class TaskGullakSyncJobService : JobService() {
                                 )
                             }
                         }?.map { it.toAvailableTask() }.orEmpty()
-                        TaskGullakNotificationHelper.processTasksSnapshot(ctx, activeTasks)
+                        val isBulkActive = if (profileTask.isSuccessful) {
+                            val snap = profileTask.result
+                            val bulkMode = snap?.getBoolean("bulkMode") ?: false
+                            val bulkStatus = snap?.getString("bulkStatus").orEmpty()
+                            bulkMode || bulkStatus.equals("approved", true) || bulkStatus.equals("active", true)
+                        } else false
+
+                        TaskGullakNotificationHelper.processTasksSnapshot(ctx, activeTasks, isBulkActive)
                     }
 
                     if (submissionsTask.isSuccessful) {

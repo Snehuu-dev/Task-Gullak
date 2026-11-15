@@ -27,6 +27,7 @@ class TaskGullakBackgroundSyncService : Service() {
 
     private val activeListeners = mutableListOf<ListenerRegistration>()
     private var attachedUserId: String? = null
+    private var isBulkActiveState = false
 
     override fun onCreate() {
         super.onCreate()
@@ -134,7 +135,7 @@ class TaskGullakBackgroundSyncService : Service() {
                         )
                     }
                 }.map { it.toAvailableTask() }
-                TaskGullakNotificationHelper.processTasksSnapshot(ctx, tasks)
+                TaskGullakNotificationHelper.processTasksSnapshot(ctx, tasks, isBulkActiveState)
             }
         activeListeners.add(tasksReg)
 
@@ -164,6 +165,8 @@ class TaskGullakBackgroundSyncService : Service() {
                 } catch (_: Exception) {
                     null
                 } ?: return@addSnapshotListener
+                isBulkActiveState = profile.isBulkActive
+                TaskGullakNotificationHelper.updateTopicSubscriptionsForUserMode(ctx, profile.isBulkActive)
                 TaskGullakNotificationHelper.processUserProfileSnapshot(ctx, profile)
             }
         activeListeners.add(profileReg)
