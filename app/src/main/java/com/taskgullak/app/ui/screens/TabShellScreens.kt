@@ -1515,24 +1515,32 @@ internal fun OffersTabShellContent(
         }
 
         if (promptBulkTask != null) {
-            BulkDevicePickerPromptModal(
-                task = promptBulkTask!!,
-                maxAllowedLimit = bulkDeviceCount.coerceAtLeast(1),
-                onDismiss = { promptBulkTask = null },
-                onConfirm = { selectedDeviceCount ->
-                    val task = promptBulkTask!!
-                    promptBulkTask = null
+            val dailyDone = userProfile?.getEffectiveDailyCompletedCount() ?: 0L
+            if (dailyDone >= 5L) {
+                promptBulkTask = null
+                Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+            } else {
+                val dailyRem = (5L - dailyDone).coerceAtLeast(0L).toInt()
+                val effectiveMaxLimit = minOf(bulkDeviceCount.coerceAtLeast(1), dailyRem).coerceAtLeast(1)
+                BulkDevicePickerPromptModal(
+                    task = promptBulkTask!!,
+                    maxAllowedLimit = effectiveMaxLimit,
+                    onDismiss = { promptBulkTask = null },
+                    onConfirm = { selectedDeviceCount ->
+                        val task = promptBulkTask!!
+                        promptBulkTask = null
 
-                    if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
-                        Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
-                    } else {
-                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
-                        requestedCountMap = requestedCountMap.toMutableMap().apply { put(task.id, selectedDeviceCount) }
-                        appliedTasksRefreshTick += 1
-                        activeTaskForProof = task
+                        if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
+                            Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                        } else {
+                            FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                            requestedCountMap = requestedCountMap.toMutableMap().apply { put(task.id, selectedDeviceCount) }
+                            appliedTasksRefreshTick += 1
+                            activeTaskForProof = task
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
