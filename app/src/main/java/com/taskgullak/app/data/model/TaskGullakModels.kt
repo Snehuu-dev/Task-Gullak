@@ -45,6 +45,9 @@ data class UserProfile(
     val bulkStatus: String = "none", // none | pending | approved | active | rejected | banned
     val bulkDeviceCount: Int = 0,
     val bulkApprovedLimit: Int = 0,
+    val dailyTasksCompletedCount: Long = 0L,
+    val lastTaskCompletedDate: String = "",
+    @ServerTimestamp val lastTaskCompletedTimestamp: Timestamp? = null,
     val dismissedNotificationIds: List<String> = emptyList(),
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
@@ -54,6 +57,19 @@ data class UserProfile(
 
     val normalizedBulkStatus: String
         get() = if (isBulkActive) "approved" else bulkStatus.lowercase()
+
+    fun getEffectiveDailyCompletedCount(nowMillis: Long = System.currentTimeMillis()): Long {
+        val lastTs = lastTaskCompletedTimestamp?.toDate()?.time ?: 0L
+        val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+        if (lastTs > 0L && (nowMillis - lastTs) >= twentyFourHoursMs) {
+            return 0L
+        }
+        return dailyTasksCompletedCount.coerceAtLeast(0L)
+    }
+
+    fun canCompleteTaskToday(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        return getEffectiveDailyCompletedCount(nowMillis) < 5L
+    }
 }
 
 @IgnoreExtraProperties
@@ -510,6 +526,23 @@ data class TaskCommentItem(
         "updatedAtMillis" to updatedAtMillis
     )
 }
+
+@IgnoreExtraProperties
+data class BulkTaskAppeal(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val userEmail: String = "",
+    val taskId: String = "",
+    val taskTitle: String = "",
+    val requestedDeviceCount: Int = 1,
+    val requestedRewardInr: Long = 0L,
+    val reason: String = "",
+    val status: String = "pending", // pending, approved, rejected
+    val adminNote: String = "",
+    @ServerTimestamp val createdAt: Timestamp? = null,
+    @ServerTimestamp val updatedAt: Timestamp? = null
+)
 
 @IgnoreExtraProperties
 data class UserOfferTask(

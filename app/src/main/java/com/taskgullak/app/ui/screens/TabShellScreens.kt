@@ -1577,7 +1577,7 @@ internal fun OffersTabShellContent(
         }
 
         if (activeBulkTask != null && activeAllocations != null) {
-            BulkTaskExecutionModal(
+            BulkTaskSequentialExecutionModal(
                 task = activeBulkTask!!,
                 allocations = activeAllocations!!,
                 isSubmitting = isSubmitting,
@@ -1585,7 +1585,7 @@ internal fun OffersTabShellContent(
                     activeBulkTask = null
                     activeAllocations = null
                 },
-                onSubmitBatch = { deviceScreenshots ->
+                onSubmitBatch = { deviceScreenshots: Map<Int, String> ->
                     onSubmitBulkTaskProofs(activeBulkTask!!, activeAllocations!!, deviceScreenshots)
                     activeBulkTask = null
                     activeAllocations = null
@@ -5894,7 +5894,7 @@ private fun BulkAccessOffersScreenContent(
         }
 
         if (activeBulkTask != null && activeAllocations != null) {
-            BulkTaskExecutionModal(
+            BulkTaskSequentialExecutionModal(
                 task = activeBulkTask!!,
                 allocations = activeAllocations!!,
                 isSubmitting = isSubmitting,
@@ -5902,7 +5902,7 @@ private fun BulkAccessOffersScreenContent(
                     activeBulkTask = null
                     activeAllocations = null
                 },
-                onSubmitBatch = { deviceScreenshots ->
+                onSubmitBatch = { deviceScreenshots: Map<Int, String> ->
                     onSubmitBulkTaskProofs(activeBulkTask!!, activeAllocations!!, deviceScreenshots)
                     activeBulkTask = null
                     activeAllocations = null
@@ -5913,7 +5913,7 @@ private fun BulkAccessOffersScreenContent(
 }
 
 @Composable
-private fun BulkTaskExecutionModal(
+private fun BulkTaskSequentialExecutionModal(
     task: AvailableTask,
     allocations: List<com.taskgullak.app.data.model.BulkCommentAllocation>,
     isSubmitting: Boolean,
@@ -5922,20 +5922,25 @@ private fun BulkTaskExecutionModal(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-    var copiedIndex by remember { mutableStateOf<Int?>(null) }
-    var screenshotsMap by remember { mutableStateOf(mapOf<Int, String>()) }
 
-    var activePickerDeviceIndex by remember { mutableStateOf<Int?>(null) }
+    var currentDeviceIdx by remember { mutableIntStateOf(1) }
+    val totalDevices = allocations.size
+    val currentAlloc = allocations.firstOrNull { it.deviceIndex == currentDeviceIdx } ?: allocations.firstOrNull()
+
+    var deviceScreenshots by remember { mutableStateOf(mapOf<Int, String>()) }
+    var currentScreenshotBase64 by remember(currentDeviceIdx) { mutableStateOf(deviceScreenshots[currentDeviceIdx].orEmpty()) }
+    var commentCopied by remember(currentDeviceIdx) { mutableStateOf(false) }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        val idx = activePickerDeviceIndex
-        if (uri != null && idx != null) {
+        if (uri != null) {
             val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
             scope.launch {
                 val base64 = com.taskgullak.app.util.TaskGullakNotificationHelper.compressUriToBase64DataUrl(context, uri)
                 if (base64 != null) {
-                    screenshotsMap = screenshotsMap + (idx to base64)
+                    currentScreenshotBase64 = base64
+                    deviceScreenshots = deviceScreenshots + (currentDeviceIdx to base64)
                 }
             }
         }
@@ -5961,110 +5966,136 @@ private fun BulkTaskExecutionModal(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Bulk Execution (${allocations.size} Devices)",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF0F172A)
-                    )
+                    Column {
+                        Text(
+                            text = "Bulk Execution • Device #$currentDeviceIdx of $totalDevices",
+                            fontSize = 17.sp,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "App: ${task.appName.ifBlank { task.title }} • Total Reward: ₹${task.rewardInr * totalDevices}",
+                            fontSize = 12.sp,
+                            color = Color(0xFF0284C7)
+                        )
+                    }
                     IconButton(onClick = onDismiss) {
                         Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close")
                     }
                 }
 
-                Text(
-                    text = "App: ${task.appName.ifBlank { task.title }} • Total Reward: ₹${task.rewardInr * allocations.size}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF0284C7)
+                LinearProgressIndicator(
+                    progress = { currentDeviceIdx.toFloat() / totalDevices.toFloat() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(999.dp)),
+                    color = Color(0xFF0284C7),
+                    trackColor = Color(0xFFE2E8F0)
                 )
 
-                allocations.forEach { alloc ->
-                    val idx = alloc.deviceIndex
+                if (currentAlloc != null) {
                     Card(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "📱 Device #$idx",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = "Reward: ₹${task.rewardInr}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16A34A)
-                                )
-                            }
+                            Text(
+                                text = "📱 Device #$currentDeviceIdx Comment (Reserved)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
 
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = Color(0xFFF8FAFC),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     Text(
-                                        text = alloc.commentText,
-                                        fontSize = 12.5.sp,
-                                        color = Color(0xFF1E293B),
-                                        fontFamily = InterFontFamily
+                                        text = "\"${currentAlloc.commentText}\"",
+                                        fontSize = 13.sp,
+                                        fontFamily = InterFontFamily,
+                                        color = Color(0xFF1E293B)
                                     )
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
                                         TextButton(
                                             onClick = {
-                                                clipboardManager.setText(AnnotatedString(alloc.commentText))
-                                                copiedIndex = idx
-                                                android.widget.Toast.makeText(context, "Comment #${idx} Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                                clipboardManager.setText(AnnotatedString(currentAlloc.commentText))
+                                                commentCopied = true
+                                                Toast.makeText(
+                                                    context,
+                                                    "Comment #${currentDeviceIdx} Copied!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         ) {
-                                            Text(if (copiedIndex == idx) "✓ Copied" else "Copy Comment #$idx", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Text(
+                                                if (commentCopied) "✓ Copied" else "Copy Comment #$currentDeviceIdx",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
                                         }
                                     }
                                 }
                             }
 
-                            val currentShot = screenshotsMap[idx].orEmpty()
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Button(
-                                    onClick = {
-                                        activePickerDeviceIndex = idx
-                                        photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = if (currentShot.isNotBlank()) Color(0xFF16A34A) else Color(0xFF475569)),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Text(
-                                        text = if (currentShot.isNotBlank()) "✓ Proof Uploaded (#$idx)" else "Upload Proof (#$idx)",
-                                        fontSize = 12.sp
+                            Button(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )
-                                }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (currentScreenshotBase64.isNotBlank()) Color(
+                                        0xFF16A34A
+                                    ) else Color(0xFF475569)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (currentScreenshotBase64.isNotBlank()) "✓ Proof Uploaded (#$currentDeviceIdx)" else "Upload Proof (#$currentDeviceIdx)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = { onSubmitBatch(screenshotsMap) },
+                    onClick = {
+                        if (currentScreenshotBase64.isBlank()) {
+                            Toast.makeText(
+                                context,
+                                "Upload proof screenshot for Device #$currentDeviceIdx before proceeding.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@Button
+                        }
+                        if (currentDeviceIdx < totalDevices) {
+                            currentDeviceIdx += 1
+                        } else {
+                            onSubmitBatch(deviceScreenshots)
+                        }
+                    },
                     enabled = !isSubmitting,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
                     shape = RoundedCornerShape(14.dp),
@@ -6075,8 +6106,8 @@ private fun BulkTaskExecutionModal(
                         .imePadding()
                 ) {
                     Text(
-                        text = if (isSubmitting) "Submitting..." else "🚀 Submit All ${allocations.size} Device Proofs",
-                        fontSize = 15.sp,
+                        text = if (currentDeviceIdx < totalDevices) "Next Device (#${currentDeviceIdx + 1}) →" else if (isSubmitting) "Submitting..." else "🚀 Finish & Submit All $totalDevices Proofs",
+                        fontSize = 14.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )

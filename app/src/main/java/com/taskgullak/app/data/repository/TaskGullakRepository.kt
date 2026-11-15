@@ -107,6 +107,13 @@ class TaskGullakRepository(
                     val bulkStatusStr = snapshot.getString("bulkStatus").orEmpty()
                     val normalizedBulk = if (bulkModeFlag || bulkStatusStr.equals("approved", true) || bulkStatusStr.equals("active", true)) "approved" else bulkStatusStr.lowercase()
 
+                    val rawDailyCount = snapshot.getLong("dailyTasksCompletedCount") ?: 0L
+                    val lastCompletedTs = snapshot.getTimestamp("lastTaskCompletedTimestamp")
+                    val nowMs = System.currentTimeMillis()
+                    val lastTsMs = lastCompletedTs?.toDate()?.time ?: 0L
+                    val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+                    val effectiveDaily = if (lastTsMs > 0L && (nowMs - lastTsMs) >= twentyFourHoursMs) 0L else rawDailyCount
+
                     model?.copy(
                         isBanned = bannedFlag,
                         isDeleted = deletedFlag || statusVal.equals("deleted", ignoreCase = true),
@@ -115,7 +122,9 @@ class TaskGullakRepository(
                         upiId = upiIdVal.ifBlank { model.upiId },
                         maintenanceLocked = maintLocked,
                         bulkMode = bulkModeFlag || normalizedBulk == "approved",
-                        bulkStatus = normalizedBulk
+                        bulkStatus = normalizedBulk,
+                        dailyTasksCompletedCount = effectiveDaily,
+                        lastTaskCompletedTimestamp = if (effectiveDaily == 0L && rawDailyCount > 0L) null else lastCompletedTs
                     )
                 } else {
                     null
@@ -1128,6 +1137,19 @@ class TaskGullakRepository(
                 val currentBalance = userSnap.getLong("walletBalance") ?: 0L
                 val currentCompleted = userSnap.getLong("completedTasksCount") ?: 0L
                 val currentPending = userSnap.getLong("pendingRewards") ?: 0L
+                val rawDailyCount = userSnap.getLong("dailyTasksCompletedCount") ?: 0L
+                val lastCompletedTs = userSnap.getTimestamp("lastTaskCompletedTimestamp")
+                val nowMs = System.currentTimeMillis()
+                val lastTsMs = lastCompletedTs?.toDate()?.time ?: 0L
+                val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+                val currentEffectiveDaily = if (lastTsMs > 0L && (nowMs - lastTsMs) >= twentyFourHoursMs) 0L else rawDailyCount
+                val newDailyCount = currentEffectiveDaily + 1L
+
+                val dailyFields = mapOf(
+                    "dailyTasksCompletedCount" to newDailyCount,
+                    "lastTaskCompletedTimestamp" to FieldValue.serverTimestamp()
+                )
+
                 val updates = when {
                     aiVerification != null && effectiveStatus == "approved" && effectiveRewardAmount > 0L -> {
                         mapOf(
@@ -1135,7 +1157,7 @@ class TaskGullakRepository(
                             "completedTasksCount" to (currentCompleted + 1L),
                             "lastCompletedTaskReward" to effectiveRewardAmount,
                             "updatedAt" to FieldValue.serverTimestamp()
-                        )
+                        ) + dailyFields
                     }
                     aiVerification != null && effectiveStatus == "rejected" -> {
                         mapOf(
@@ -1148,14 +1170,14 @@ class TaskGullakRepository(
                             "completedTasksCount" to (currentCompleted + 1L),
                             "lastCompletedTaskReward" to rewardAmount,
                             "updatedAt" to FieldValue.serverTimestamp()
-                        )
+                        ) + dailyFields
                     }
                     else -> {
                         mapOf(
                             "pendingRewards" to (currentPending + rewardAmount),
                             "lastCompletedTaskReward" to rewardAmount,
                             "updatedAt" to FieldValue.serverTimestamp()
-                        )
+                        ) + dailyFields
                     }
                 }
                 userRef.update(updates).await()
@@ -1560,6 +1582,20 @@ class TaskGullakRepository(
     ): Result<List<BulkCommentAllocation>> {
         val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
         if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
+
+        val userRef = db.collection("users").document(uid)
+        val userSnap = userRef.get().await()
+        if (userSnap.exists()) {
+            val rawDailyCount = userSnap.getLong("dailyTasksCompletedCount") ?: 0L
+            val lastCompletedTs = userSnap.getTimestamp("lastTaskCompletedTimestamp")
+            val nowMs = System.currentTimeMillis()
+            val lastTsMs = lastCompletedTs?.toDate()?.time ?: 0L
+            val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+            val effectiveDaily = if (lastTsMs > 0L && (nowMs - lastTsMs) >= twentyFourHoursMs) 0L else rawDailyCount
+            if (effectiveDaily >= 5L) {
+                return Result.failure(IllegalStateException("Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!"))
+            }
+        }
         
         if (count < task.bulkMinQuantity) {
             return Result.failure(IllegalArgumentException("Minimum ${task.bulkMinQuantity} devices/items required for this bulk order."))
@@ -1704,7 +1740,65 @@ class TaskGullakRepository(
 
         return try {
             batch.commit().await()
+            runCatching {
+                val userRef = db.collection("users").document(uid)
+                val userSnap = userRef.get().await()
+                if (userSnap.exists()) {
+                    val rawDailyCount = userSnap.getLong("dailyTasksCompletedCount") ?: 0L
+                    val lastCompletedTs = userSnap.getTimestamp("lastTaskCompletedTimestamp")
+                    val nowMs = System.currentTimeMillis()
+                    val lastTsMs = lastCompletedTs?.toDate()?.time ?: 0L
+                    val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+                    val currentEffectiveDaily = if (lastTsMs > 0L && (nowMs - lastTsMs) >= twentyFourHoursMs) 0L else rawDailyCount
+                    userRef.update(
+                        mapOf(
+                            "dailyTasksCompletedCount" to (currentEffectiveDaily + 1L),
+                            "lastTaskCompletedTimestamp" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+                }
+            }
             Result.success(submittedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun submitBulkTaskAppeal(
+        taskId: String,
+        taskTitle: String,
+        requestedDeviceCount: Int,
+        requestedRewardInr: Long,
+        reason: String,
+        explicitUserId: String? = null
+    ): Result<String> {
+        val uid = runCatching { requireUserId(explicitUserId) }.getOrDefault(explicitUserId.orEmpty())
+        if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
+
+        val userRef = db.collection("users").document(uid)
+        val userSnap = userRef.get().await()
+        val userName = userSnap.getString("fullName") ?: userSnap.getString("username") ?: ""
+        val userEmail = userSnap.getString("email") ?: ""
+
+        val appealRef = db.collection("bulk_task_appeals").document()
+        val payload = mapOf(
+            "id" to appealRef.id,
+            "userId" to uid,
+            "userName" to userName,
+            "userEmail" to userEmail,
+            "taskId" to taskId,
+            "taskTitle" to taskTitle,
+            "requestedDeviceCount" to requestedDeviceCount,
+            "requestedRewardInr" to requestedRewardInr,
+            "reason" to reason,
+            "status" to "pending",
+            "createdAt" to FieldValue.serverTimestamp(),
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+
+        return try {
+            appealRef.set(payload).await()
+            Result.success(appealRef.id)
         } catch (e: Exception) {
             Result.failure(e)
         }

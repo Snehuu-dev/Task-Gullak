@@ -31,6 +31,19 @@ class TaskCommentClaimRepository(
         val expiresMs = nowMs + claimDurationMs
 
         firestore.runTransaction { tx ->
+            val userRef = firestore.collection("users").document(userId)
+            val userSnap = tx.get(userRef)
+            if (userSnap.exists()) {
+                val rawDailyCount = userSnap.getLong("dailyTasksCompletedCount") ?: 0L
+                val lastCompletedTs = userSnap.getTimestamp("lastTaskCompletedTimestamp")
+                val lastTsMs = lastCompletedTs?.toDate()?.time ?: 0L
+                val twentyFourHoursMs = 24L * 60L * 60L * 1000L
+                val currentEffectiveDaily = if (lastTsMs > 0L && (nowMs - lastTsMs) >= twentyFourHoursMs) 0L else rawDailyCount
+                if (currentEffectiveDaily >= 5L) {
+                    throw IllegalStateException("Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!")
+                }
+            }
+
             val snap = tx.get(taskRef)
             if (!snap.exists() || snap.getBoolean("active") == false) {
                 throw IllegalStateException("This task is no longer available.")

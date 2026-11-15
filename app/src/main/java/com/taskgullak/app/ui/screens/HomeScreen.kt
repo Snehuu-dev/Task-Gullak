@@ -75,9 +75,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -353,6 +355,23 @@ fun HomeScreen(
     }
 
     var previousBulkStatus by remember(profile?.userId) { mutableStateOf(profile?.normalizedBulkStatus ?: "none") }
+    var previousDailyCount by remember(profile?.userId) { mutableLongStateOf(profile?.getEffectiveDailyCompletedCount() ?: 0L) }
+
+    LaunchedEffect(profile?.getEffectiveDailyCompletedCount()) {
+        val currentProfile = profile ?: return@LaunchedEffect
+        val newDaily = currentProfile.getEffectiveDailyCompletedCount()
+        val oldDaily = previousDailyCount
+
+        if (oldDaily >= 5L && newDaily == 0L) {
+            TaskGullakNotificationHelper.showSystemNotification(
+                context = context,
+                uniqueKey = "daily_unlock_${currentProfile.userId}_${System.currentTimeMillis()}",
+                title = "Tasks Unlocked! 🔓",
+                message = "You can now complete up to 5 tasks today."
+            )
+        }
+        previousDailyCount = newDaily
+    }
 
     LaunchedEffect(profile?.normalizedBulkStatus) {
         val currentProfile = profile ?: return@LaunchedEffect
