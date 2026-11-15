@@ -296,34 +296,84 @@ ACT.bkSetLimit = async el => {
   }
 };
 
+const getAppeal = id => {
+  const rawAppeals = Array.isArray(S.bulkAppeals) ? S.bulkAppeals : [];
+  let found = rawAppeals.find(x => x && x.id === id);
+  if (found) return found;
+
+  const ticketAppeals = (S.tickets || []).map(t => ({
+    id: t.id,
+    userId: t.userId,
+    userName: t.userName || t.userEmail || t.userId,
+    userEmail: t.userEmail || '',
+    requestType: t.requestType || 'increase_limit',
+    requestedDeviceCount: t.deviceCount || t.requestedDeviceCount || 2,
+    reason: t.reason || t.message || '',
+    status: t.status === 'open' ? 'pending' : (t.status === 'resolved' || t.status === 'closed' ? 'approved' : t.status)
+  }));
+  found = ticketAppeals.find(x => x && x.id === id);
+  if (found) return found;
+
+  const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+  found = modReqList.find(q => q && q.id === id);
+  if (found) {
+    return {
+      id: found.id,
+      userId: found.userId,
+      userName: found.userName || found.userEmail || found.userId,
+      userEmail: found.userEmail || '',
+      requestType: found.requestType || 'increase_limit',
+      requestedDeviceCount: found.deviceCount || found.approvedLimit || 2,
+      reason: found.reason || found.note || '',
+      status: found.status || 'pending'
+    };
+  }
+
+  const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
+  found = reqList.find(q => q && q.id === id);
+  if (found) {
+    return {
+      id: found.id,
+      userId: found.userId || found.uid,
+      userName: found.userName || found.userEmail || '',
+      userEmail: found.userEmail || '',
+      requestType: 'increase_limit',
+      requestedDeviceCount: found.deviceCount || 2,
+      reason: found.note || found.reason || '',
+      status: found.status || 'pending'
+    };
+  }
+
+  return null;
+};
+
 ACT.bkApproveLimitAppeal = async el => {
-  const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
-  if (!ap) return;
+  const id = el.dataset.id, ap = getAppeal(id);
+  if (!ap) { toast('Appeal record not found', 'bad'); return; }
   const newLimit = ap.requestedDeviceCount || 1;
   try {
     await bkSet(
       ap.userId,
-      { bulkDeviceCount: newLimit, bulkApprovedLimit: newLimit },
+      { bulkDeviceCount: newLimit, bulkApprovedLimit: newLimit, bulkMode: true, bulkStatus: 'approved' },
       {},
       [],
       'Device Limit Approved! 📱',
       `Your request to set device limit to ${newLimit} devices has been approved by Admin.`,
       'reward'
     );
-    await updateDoc(doc(db, 'bulk_task_appeals', id), {
-      status: 'approved',
-      reviewedBy: S.admin,
-      updatedAt: serverTimestamp()
-    });
+    try { await updateDoc(doc(db, 'bulk_task_appeals', id), { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'support_tickets', id), { status: 'closed', resolvedAt: serverTimestamp(), resolvedBy: S.admin }); } catch (_) {}
+    try { await updateDoc(doc(db, 'bulk_mod_requests', id), { status: 'approved', approvedLimit: newLimit, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
     toast(`Approved device limit of ${newLimit} devices for user!`, 'ok');
+    renderAll(true);
   } catch (e) {
     toast('Action failed: ' + (e.code || e.message), 'bad');
   }
 };
 
 ACT.bkApproveExitAppeal = async el => {
-  const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
-  if (!ap) return;
+  const id = el.dataset.id, ap = getAppeal(id);
+  if (!ap) { toast('Appeal record not found', 'bad'); return; }
   try {
     await bkSet(
       ap.userId,
@@ -334,12 +384,11 @@ ACT.bkApproveExitAppeal = async el => {
       'Your request to exit Bulk Mode has been approved. Your account is now in Normal Mode.',
       'info'
     );
-    await updateDoc(doc(db, 'bulk_task_appeals', id), {
-      status: 'approved',
-      reviewedBy: S.admin,
-      updatedAt: serverTimestamp()
-    });
+    try { await updateDoc(doc(db, 'bulk_task_appeals', id), { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'support_tickets', id), { status: 'closed', resolvedAt: serverTimestamp(), resolvedBy: S.admin }); } catch (_) {}
+    try { await updateDoc(doc(db, 'bulk_mod_requests', id), { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
     toast('Exit Bulk Mode request approved. User returned to Normal Mode!', 'ok');
+    renderAll(true);
   } catch (e) {
     toast('Action failed: ' + (e.code || e.message), 'bad');
   }
@@ -488,8 +537,8 @@ ACT.bkBulkReject = async () => {
 };
 
 ACT.bkApproveAppeal = async el => {
-  const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
-  if (!ap) return;
+  const id = el.dataset.id, ap = getAppeal(id);
+  if (!ap) { toast('Appeal record not found', 'bad'); return; }
   const v = await ask({
     title: `Approve Price Appeal for ${ap.userName || ap.userId}?`,
     body: `Requested Device Count: <b>${ap.requestedDeviceCount || 1}</b> • Requested Reward: <b>₹${ap.requestedRewardInr || 0}</b>.<br>Reason: ${esc(ap.reason || 'No reason specified')}`,
@@ -517,33 +566,44 @@ ACT.bkApproveAppeal = async el => {
       });
     });
 
-    await updateDoc(doc(db, 'bulk_task_appeals', id), {
-      status: 'approved',
-      approvedRewardInr: creditAmt,
-      reviewedBy: S.admin,
-      updatedAt: serverTimestamp()
-    });
-
+    try { await updateDoc(doc(db, 'bulk_task_appeals', id), { status: 'approved', approvedRewardInr: creditAmt, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'support_tickets', id), { status: 'closed', resolvedAt: serverTimestamp(), resolvedBy: S.admin }); } catch (_) {}
     toast(`Appeal approved & ₹${creditAmt} credited to wallet!`, 'ok');
+    renderAll(true);
   } catch (e) {
     toast('Action failed: ' + (e.code || e.message), 'bad');
   }
 };
 
 ACT.bkRejectAppeal = async el => {
-  const id = el.dataset.id;
+  const id = el.dataset.id, ap = getAppeal(id);
   const reason = await rejectDialog('Reject Bulk Request / Appeal?', '<p class="fs12 muted">The request will be marked rejected.</p>');
   if (!reason) return;
   try {
-    await updateDoc(doc(db, 'bulk_task_appeals', id), {
-      status: 'rejected',
-      adminNote: reason,
-      reviewedBy: S.admin,
-      updatedAt: serverTimestamp()
-    });
+    try { await updateDoc(doc(db, 'bulk_task_appeals', id), { status: 'rejected', adminNote: reason, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'support_tickets', id), { status: 'closed', adminReply: reason, resolvedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'bulk_mod_requests', id), { status: 'rejected', adminNote: reason, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
     toast('Request rejected', 'ok');
+    renderAll(true);
   } catch (e) {
     toast('Action failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+ACT.bkDeleteAppeal = async el => {
+  const id = el.dataset.id;
+  if (!id) return;
+  const ok = await confirmBox('Delete Appeal Record?', 'Are you sure you want to delete this appeal record permanently?', { ok: 'Delete', cancel: 'Cancel' });
+  if (!ok) return;
+  try {
+    try { await deleteDoc(doc(db, 'bulk_task_appeals', id)); } catch (_) {}
+    try { await deleteDoc(doc(db, 'support_tickets', id)); } catch (_) {}
+    try { await deleteDoc(doc(db, 'bulk_mod_requests', id)); } catch (_) {}
+    try { await deleteDoc(doc(db, 'bulkRequests', id)); } catch (_) {}
+    toast('Appeal record deleted successfully!', 'ok');
+    renderAll(true);
+  } catch (e) {
+    toast('Error deleting appeal: ' + (e.code || e.message), 'bad');
   }
 };
 
@@ -644,7 +704,7 @@ RENDER.bulk = () => {
             ${detailText}<br>
             Reason: ${esc(ap.reason || 'No reason provided')}
           </div>
-          <div class="row gap6 mt8" style="justify-content:flex-end">${act}</div>
+          <div class="row gap6 mt8" style="justify-content:flex-end">${act}<button class="btn bad sm" data-act="bkDeleteAppeal" data-id="${id}" title="Delete Appeal Record"><i data-ic="trash" data-s="14"></i>Delete</button></div>
         </div>`;
       }).join('') || `<div class="card">${emptyHTML('bulk', 'No appeals or limit change requests submitted yet.')}</div>`;
 
