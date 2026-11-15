@@ -2098,6 +2098,47 @@ fun BulkModApplyModalBottomSheet(
                     )
                 }
 
+                var showSuccessPopup by remember { mutableStateOf(false) }
+                var successPopupMessage by remember { mutableStateOf("") }
+
+                if (showSuccessPopup) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = {
+                            showSuccessPopup = false
+                            onDismiss()
+                        },
+                        title = {
+                            Text(
+                                text = "Request Submitted! 🚀",
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color(0xFF0F172A)
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = successPopupMessage,
+                                fontSize = 13.sp,
+                                fontFamily = InterFontFamily,
+                                color = Color(0xFF334155)
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showSuccessPopup = false
+                                    onDismiss()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                }
+
                 Button(
                     onClick = {
                         val cleanReason = reasonText.trim()
@@ -2114,10 +2155,12 @@ fun BulkModApplyModalBottomSheet(
                         if (requestTab == 0) {
                             val reqType = if (newCount > currentDeviceCount) "increase_limit" else "decrease_limit"
                             onSubmitModeChangeRequest?.invoke(reqType, newCount, cleanReason)
+                            successPopupMessage = "Your device limit appeal for $newCount devices has been sent to Admin for review!"
                         } else {
                             onSubmitModeChangeRequest?.invoke("exit_bulk_mode", currentDeviceCount, cleanReason)
+                            successPopupMessage = "Your request to exit Bulk Mode has been sent to Admin for review!"
                         }
-                        onDismiss()
+                        showSuccessPopup = true
                     },
                     enabled = !isSubmitting,
                     modifier = Modifier

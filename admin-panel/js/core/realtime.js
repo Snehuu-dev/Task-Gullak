@@ -41,6 +41,7 @@ function startListeners() {
   listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
   listen('bulkRequests', collection(db, 'bulkRequests'), snap => { S.bulkReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
   listen('bulk_mod_requests', collection(db, 'bulk_mod_requests'), snap => { S.bulkModReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt || y.requestedAt) - tsMs(x.createdAt || x.requestedAt)); renderAll(); });
+  listen('bulk_task_appeals', collection(db, 'bulk_task_appeals'), snap => { S.bulkAppeals = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt) - tsMs(x.createdAt)); renderAll(); });
   listen('supportTickets', collection(db, 'support_tickets'), snap => { S.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); renderAll(); });
   listen('adminLogs', query(collection(db, 'adminLogs'), orderBy('createdMs', 'desc'), limit(300)), snap => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
   listen('adminMeta', collection(db, 'adminMeta'), snap => { S.meta = {}; snap.docs.forEach(d => { S.meta[d.id] = d.data(); }); });
