@@ -463,7 +463,14 @@ body,#login-screen{background:var(--page)!important}
           <button data-act="go" data-v="approvals" data-range="custom"><i data-ic="calendar" data-s="15"></i>Date Wise</button>
         </div>
       </div>
-      <button class="nav-i" data-act="go" data-v="bulk" data-nav="bulk"><i data-ic="users"></i><span>Bulk Access</span><span class="bdg hide-bdg" id="bdg-bulk">0</span></button>
+      <div class="nav-g" data-g="bulk">
+        <button class="nav-i" data-act="navGroup" data-v="bulk" data-nav="bulk"><i data-ic="users"></i><span>Bulk Management</span><span class="bdg hide-bdg" id="bdg-bulk">0</span><i class="chev" data-ic="chev-down" data-s="14"></i></button>
+        <div class="nav-sub">
+          <button data-act="go" data-v="bulk" data-tab="pending"><i data-ic="clock" data-s="15"></i>Pending Requests</button>
+          <button data-act="go" data-v="bulk" data-tab="active"><i data-ic="check" data-s="15"></i>Active Bulk Users</button>
+          <button data-act="go" data-v="bulk" data-tab="appeals"><i data-ic="message" data-s="15"></i>Appeals</button>
+        </div>
+      </div>
       <button class="nav-i" data-act="go" data-v="users" data-nav="users"><i data-ic="users"></i><span>Users &amp; Wallet</span></button>
       <button class="nav-i" data-act="go" data-v="withdrawals" data-nav="withdrawals"><i data-ic="bank"></i><span>Withdrawal Management</span><span class="bdg" id="bdg-wd">0</span></button>
       <button class="nav-i" data-act="go" data-v="referrals" data-nav="referrals"><i data-ic="gift"></i><span>Referral Management</span></button>
