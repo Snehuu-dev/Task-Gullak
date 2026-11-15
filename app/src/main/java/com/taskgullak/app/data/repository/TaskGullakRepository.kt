@@ -1815,9 +1815,14 @@ class TaskGullakRepository(
         if (uid.isBlank()) return Result.failure(IllegalStateException("User not logged in"))
 
         val userRef = db.collection("users").document(uid)
-        val userSnap = userRef.get().await()
-        val userName = userSnap.getString("fullName") ?: userSnap.getString("username") ?: ""
-        val userEmail = userSnap.getString("email") ?: ""
+        val userSnap = runCatching { userRef.get().await() }.getOrNull()
+        val userName = userSnap?.getString("fullName")
+            ?: userSnap?.getString("username")
+            ?: auth.currentUser?.displayName
+            ?: "Gullak User"
+        val userEmail = userSnap?.getString("email")
+            ?: auth.currentUser?.email
+            ?: ""
 
         val appealRef = db.collection("bulk_task_appeals").document()
         val payload = mapOf(
@@ -1840,11 +1845,32 @@ class TaskGullakRepository(
             "updatedAt" to FieldValue.serverTimestamp()
         )
 
-        return try {
-            appealRef.set(payload).await()
+        val setRes = runCatching { appealRef.set(payload).await() }
+
+        // Also write to bulk_mod_requests as a fallback for the admin panel
+        runCatching {
+            val modRef = db.collection("bulk_mod_requests").document(appealRef.id)
+            modRef.set(
+                mapOf(
+                    "id" to modRef.id,
+                    "userId" to uid,
+                    "userName" to userName,
+                    "userEmail" to userEmail,
+                    "reason" to reason,
+                    "deviceCount" to requestedDeviceCount,
+                    "approvedLimit" to requestedDeviceCount,
+                    "status" to "pending",
+                    "adminNote" to "",
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+        }
+
+        return if (setRes.isSuccess) {
             Result.success(appealRef.id)
-        } catch (e: Exception) {
-            Result.failure(e)
+        } else {
+            setRes.exceptionOrNull()?.let { Result.failure(it) } ?: Result.success(appealRef.id)
         }
     }
 

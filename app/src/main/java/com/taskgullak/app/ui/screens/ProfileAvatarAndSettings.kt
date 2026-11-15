@@ -1915,7 +1915,7 @@ fun BulkModApplyModalBottomSheet(
     currentBulkStatus: String,
     currentDeviceCount: Int,
     onSubmitRequest: (reason: String, deviceCount: Int) -> Unit,
-    onSubmitModeChangeRequest: ((requestType: String, count: Int, reason: String) -> Unit)? = null,
+    onSubmitModeChangeRequest: ((requestType: String, count: Int, reason: String, onResult: (Boolean, String) -> Unit) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -2152,15 +2152,24 @@ fun BulkModApplyModalBottomSheet(
                             return@Button
                         }
                         isSubmitting = true
-                        if (requestTab == 0) {
-                            val reqType = if (newCount > currentDeviceCount) "increase_limit" else "decrease_limit"
-                            onSubmitModeChangeRequest?.invoke(reqType, newCount, cleanReason)
-                            successPopupMessage = "Your device limit appeal for $newCount devices has been sent to Admin for review!"
+                        val targetCount = if (requestTab == 0) newCount else currentDeviceCount
+                        val reqType = if (requestTab == 0) (if (newCount > currentDeviceCount) "increase_limit" else "decrease_limit") else "exit_bulk_mode"
+
+                        if (onSubmitModeChangeRequest != null) {
+                            onSubmitModeChangeRequest.invoke(reqType, targetCount, cleanReason) { success, msg ->
+                                isSubmitting = false
+                                if (success) {
+                                    successPopupMessage = msg
+                                    showSuccessPopup = true
+                                } else {
+                                    errorMsg = msg
+                                }
+                            }
                         } else {
-                            onSubmitModeChangeRequest?.invoke("exit_bulk_mode", currentDeviceCount, cleanReason)
-                            successPopupMessage = "Your request to exit Bulk Mode has been sent to Admin for review!"
+                            isSubmitting = false
+                            successPopupMessage = if (requestTab == 0) "Your device limit appeal for $newCount devices has been sent to Admin for review!" else "Your request to exit Bulk Mode has been sent to Admin for review!"
+                            showSuccessPopup = true
                         }
-                        showSuccessPopup = true
                     },
                     enabled = !isSubmitting,
                     modifier = Modifier

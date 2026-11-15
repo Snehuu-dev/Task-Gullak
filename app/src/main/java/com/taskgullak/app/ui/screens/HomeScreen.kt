@@ -1266,7 +1266,7 @@ fun HomeScreen(
                                     }
                                 }
                             },
-                            onSubmitBulkModeChangeRequest = { reqType: String, count: Int, reason: String ->
+                            onSubmitBulkModeChangeRequest = { reqType: String, count: Int, reason: String, onResult: (Boolean, String) -> Unit ->
                                 val firestoreDb = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                                 val repo = com.taskgullak.app.data.repository.TaskGullakRepository(firestoreDb, context)
                                 val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
@@ -1274,12 +1274,13 @@ fun HomeScreen(
                                     val res = repo.submitBulkModeChangeRequest(reqType, count, reason)
                                     if (res.isSuccess) {
                                         val msg = when (reqType) {
-                                            "exit_bulk_mode" -> "✅ Bulk Mode Exit Request Submitted to Admin!"
-                                            else -> "✅ Device Limit Change Request Submitted to Admin!"
+                                            "exit_bulk_mode" -> "Your request to exit Bulk Mode has been sent to Admin for review!"
+                                            else -> "Your device limit appeal for $count devices has been sent to Admin for review!"
                                         }
-                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                        onResult(true, msg)
                                     } else {
-                                        android.widget.Toast.makeText(context, "❌ Request submission failed.", android.widget.Toast.LENGTH_SHORT).show()
+                                        val err = res.exceptionOrNull()?.message ?: "Request submission failed. Please check network connection."
+                                        onResult(false, err)
                                     }
                                 }
                             },
