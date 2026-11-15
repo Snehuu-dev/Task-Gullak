@@ -491,7 +491,7 @@ object TaskGullakNotificationHelper {
     }
 
     @Synchronized
-    fun processTasksSnapshot(context: Context, tasksList: List<AvailableTask>) {
+    fun processTasksSnapshot(context: Context, tasksList: List<AvailableTask>, isUserBulkActive: Boolean = false) {
         val sessionStart = getSessionStartTimestamp(context)
         if (!isBaselineInitialized(context, "tasks")) {
             tasksList.forEach { task ->
@@ -500,14 +500,28 @@ object TaskGullakNotificationHelper {
             setBaselineInitialized(context, "tasks")
         } else {
             tasksList.forEach { task ->
-                val uniqueKey = "task_${task.id}"
-                if (!isEventAlreadySeen(context, uniqueKey)) {
-                    showSystemNotification(
-                        context = context,
-                        uniqueKey = uniqueKey,
-                        title = "New Project Added: ${task.title}",
-                        message = "Earn ₹${task.rewardInr} by completing '${task.title}'. Open Offers to start!"
-                    )
+                val mode = task.modeType.uppercase()
+                val isForNormal = mode == "NORMAL"
+                val isForBulk = mode == "BULK"
+                val isForBoth = mode == "BOTH"
+
+                val shouldNotifyThisUser = when {
+                    isForBoth -> true
+                    isForBulk -> isUserBulkActive
+                    isForNormal -> !isUserBulkActive
+                    else -> true
+                }
+
+                if (shouldNotifyThisUser) {
+                    val uniqueKey = "task_${task.id}"
+                    if (!isEventAlreadySeen(context, uniqueKey)) {
+                        showSystemNotification(
+                            context = context,
+                            uniqueKey = uniqueKey,
+                            title = "New Project Added: ${task.title}",
+                            message = "Earn ₹${task.rewardInr} by completing '${task.title}'. Open Offers to start!"
+                        )
+                    }
                 }
             }
         }

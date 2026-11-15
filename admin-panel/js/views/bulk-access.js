@@ -590,6 +590,47 @@ ACT.bkRejectAppeal = async el => {
   }
 };
 
+ACT.bkApproveSub = async el => {
+  const id = el.dataset.id;
+  const sb = (S.subs || []).find(s => s && s.id === id);
+  if (!sb) { toast('Submission record not found', 'bad'); return; }
+  const defaultAmt = sb.rewardAmount || 10;
+  const v = await ask({
+    title: `Approve Bulk Submission for ${sb.userName || sb.userEmail || 'User'}?`,
+    body: `Task: <b>${esc(sb.taskTitle || sb.matchedTaskName || 'Bulk Task')}</b> • Default Reward: <b>₹${defaultAmt}</b>`,
+    ok: 'Approve & Credit Wallet',
+    fields: [
+      { id: 'rewardInr', label: 'Custom Payout Amount (₹)', type: 'number', required: true, value: String(defaultAmt) }
+    ]
+  });
+  if (!v) return;
+  const creditAmt = Math.max(1, parseInt(v.rewardInr, 10) || defaultAmt);
+
+  try {
+    const userRef = doc(db, 'users', sb.userId);
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error('User record not found');
+      const bal = num(snap.data().walletBalance);
+      tx.update(userRef, { walletBalance: bal + creditAmt, updatedAt: serverTimestamp() });
+      tx.set(doc(collection(db, 'users', sb.userId, 'transactions')), {
+        userId: sb.userId,
+        amount: creditAmt,
+        type: 'admin_credit',
+        note: `Approved Bulk Task Submission: ${sb.taskTitle || 'Task'} (+₹${creditAmt})`,
+        createdAt: serverTimestamp()
+      });
+    });
+
+    try { await updateDoc(doc(db, 'submissions', id), { status: 'approved', rewardAmount: creditAmt, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await updateDoc(doc(db, 'users', sb.userId, 'submissions', id), { status: 'approved', rewardAmount: creditAmt, reviewedBy: S.admin, updatedAt: serverTimestamp() }); } catch (_) {}
+    toast(`Approved & credited ₹${creditAmt} to user's wallet!`, 'ok');
+    renderAll(true);
+  } catch (e) {
+    toast('Action failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
 ACT.bkDeleteAppeal = async el => {
   const id = el.dataset.id;
   if (!id) return;
@@ -722,7 +763,7 @@ RENDER.bulk = () => {
         const pill = st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending Review</span>';
         const img = sb.screenshotBase64 || sb.referenceScreenshotUrl || '';
         const proofImgHTML = img ? `<div class="mt8"><img src="${esc(img)}" style="max-height:120px;border-radius:8px;border:1px solid var(--line);cursor:pointer" onclick="window.open('${esc(img)}','_blank')"></div>` : '';
-        const act = st === 'pending' ? `<button class="btn okfill sm" data-act="apApprove" data-id="${id}">Approve & Credit ₹${num(sb.rewardAmount)}</button><button class="btn bad sm" data-act="apReject" data-id="${id}">Reject</button>` : '';
+        const act = st === 'pending' ? `<button class="btn okfill sm" data-act="bkApproveSub" data-id="${id}">Approve & Credit Custom Amount (Default ₹${num(sb.rewardAmount)})</button><button class="btn bad sm" data-act="apReject" data-id="${id}">Reject</button>` : '';
 
         return `<div class="card">
           <div class="row between wrap" style="gap:6px">
