@@ -553,6 +553,7 @@ internal fun OffersTabShellContent(
     approvedCount: Int,
     rejectedCount: Int,
     walletBalance: Long,
+    userProfile: com.taskgullak.app.data.model.UserProfile? = null,
     bulkStatus: String = "none",
     bulkDeviceCount: Int = 0,
     isSubmitting: Boolean = false,
@@ -648,6 +649,7 @@ internal fun OffersTabShellContent(
     }
 
     var activeBulkTask by remember { mutableStateOf<AvailableTask?>(null) }
+    var promptBulkTask by remember { mutableStateOf<AvailableTask?>(null) }
     var activeAllocations by remember { mutableStateOf<List<com.taskgullak.app.data.model.BulkCommentAllocation>?>(null) }
     var requestedCountMap by remember { mutableStateOf(mapOf<String, Int>()) }
     var modeChoiceMap by remember { mutableStateOf(mapOf<String, String>()) }
@@ -660,11 +662,10 @@ internal fun OffersTabShellContent(
 
             if (isExhaustedOrClosed || isStockExhausted) return@filter false
 
-            when (mode) {
-                "NORMAL" -> true
-                "BULK" -> isBulkActive
-                "BOTH" -> true
-                else -> true
+            if (isBulkActive) {
+                mode == "BULK" || mode == "BOTH"
+            } else {
+                mode == "NORMAL" || mode == "BOTH"
             }
         }
     }
@@ -718,7 +719,7 @@ internal fun OffersTabShellContent(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Offers",
+                    text = if (isBulkActive) "Bulk Offers" else "Offers",
                     color = Color(0xFF17142E),
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.ExtraBold,
@@ -726,9 +727,10 @@ internal fun OffersTabShellContent(
                     letterSpacing = (-0.6).sp
                 )
                 Text(
-                    text = "${filteredTasks.size} offer available",
-                    color = Color(0xFF6F6E8A),
+                    text = if (isBulkActive) "🔥 Bulk Access Active • Max Device Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices" else "${filteredTasks.size} offer available",
+                    color = if (isBulkActive) Color(0xFF0284C7) else Color(0xFF6F6E8A),
                     fontFamily = InterFontFamily,
+                    fontWeight = if (isBulkActive) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 11.5.sp
                 )
             }
@@ -1250,188 +1252,48 @@ internal fun OffersTabShellContent(
                         )
                     }
 
-                    val taskMode = task.modeType.uppercase()
-                    val isBothMode = taskMode == "BOTH" && isBulkActive
-                    val activeTaskMode = modeChoiceMap[task.id] ?: if (taskMode == "BULK") "BULK" else "NORMAL"
+                    if (isBulkActive) {
+                        // Bulk Mode Action Button on Task Card
+                        val bulkBtnColors = when {
+                            isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
+                            else -> listOf(Color(0xFF0284C7), Color(0xFF0EA5E9), Color(0xFF38BDF8))
+                        }
+                        val bulkBtnText = if (isCompletedForUser) "✓ Completed" else "Apply in Bulk Mode ⚡"
 
-                    if (isBothMode) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(42.dp)
+                                .shadow(
+                                    elevation = if (isCompletedForUser) 2.dp else 6.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    spotColor = Color(0xFF0284C7).copy(alpha = 0.25f)
+                                )
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(30.dp)
-                                    .clip(RoundedCornerShape(9.dp))
-                                    .background(if (activeTaskMode == "NORMAL") Color.White else Color.Transparent)
-                                    .clickable { modeChoiceMap = modeChoiceMap + (task.id to "NORMAL") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Normal Mode",
-                                    fontSize = 11.5.sp,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (activeTaskMode == "NORMAL") Color(0xFF4F46E5) else Color(0xFF64748B)
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(30.dp)
-                                    .clip(RoundedCornerShape(9.dp))
-                                    .background(if (activeTaskMode == "BULK") Color(0xFF0F172A) else Color.Transparent)
-                                    .clickable { modeChoiceMap = modeChoiceMap + (task.id to "BULK") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "⚡ Bulk Mode",
-                                    fontSize = 11.5.sp,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (activeTaskMode == "BULK") Color(0xFF38BDF8) else Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-
-                    if (activeTaskMode == "BULK") {
-                        val maxAllowedCount = bulkDeviceCount.coerceAtLeast(1)
-                        val taskMinQty = task.bulkMinQuantity.coerceIn(1, maxAllowedCount)
-                        val taskMaxQty = minOf(task.bulkMaxQuantity, task.remainingQuantity, maxAllowedCount).coerceAtLeast(taskMinQty)
-                        val currentReqCount = requestedCountMap[task.id] ?: taskMinQty
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFF8FAFC))
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Select Quantity / Devices:",
-                                    fontSize = 12.sp,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF475569)
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            if (currentReqCount > taskMinQty) {
-                                                requestedCountMap = requestedCountMap + (task.id to currentReqCount - 1)
-                                            }
-                                        },
-                                        enabled = currentReqCount > taskMinQty
-                                    ) {
-                                        Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF0F172A)
-                                    ) {
-                                        Text(
-                                            text = "$currentReqCount Devices",
-                                            fontSize = 12.sp,
-                                            fontFamily = PoppinsFontFamily,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            if (currentReqCount < taskMaxQty) {
-                                                requestedCountMap = requestedCountMap + (task.id to currentReqCount + 1)
-                                            } else if (currentReqCount >= task.remainingQuantity) {
-                                                Toast.makeText(context, "Only ${task.remainingQuantity} remaining", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        enabled = currentReqCount < taskMaxQty
-                                    ) {
-                                        Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                .background(Brush.horizontalGradient(colors = bulkBtnColors))
+                                .clickable(enabled = !isCompletedForUser) {
+                                    if (!isCompletedForUser) {
+                                        if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
+                                            Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            promptBulkTask = task
+                                        }
                                     }
                                 }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Min $taskMinQty • Max $taskMaxQty",
-                                    fontSize = 11.sp,
-                                    fontFamily = InterFontFamily,
-                                    color = Color(0xFF64748B)
-                                )
-                                Text(
-                                    text = "Total Reward: ₹${task.rewardInr * currentReqCount}",
-                                    fontSize = 13.sp,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF16A34A)
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (currentReqCount > task.remainingQuantity) {
-                                        Toast.makeText(context, "Only ${task.remainingQuantity} remaining", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    activeBulkTask = task
-                                    onAllocateBulkComments(task, currentReqCount)
-                                    val fallbackComments = listOf(
-                                        "Best app experience! Very fast, clean interface and super helpful features.",
-                                        "Awesome application, easy to navigate and very smooth performance.",
-                                        "Highly recommended app! Super clean UI and great reward system.",
-                                        "Really useful app with great design and responsive features. Loving it!"
-                                    )
-                                    activeAllocations = (1..currentReqCount).map { idx ->
-                                        val cText = task.commentsList.getOrNull(idx - 1)
-                                            ?: task.assignedComment.takeIf { it.isNotBlank() && idx == 1 }
-                                            ?: fallbackComments[(idx - 1) % fallbackComments.size]
-                                        com.taskgullak.app.data.model.BulkCommentAllocation(
-                                            id = "alloc_${task.id}_${idx}_${System.currentTimeMillis()}",
-                                            userId = "",
-                                            offerId = task.id,
-                                            commentText = cText,
-                                            deviceIndex = idx
-                                        )
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "⚡ Allocate $currentReqCount Device Comments (₹${task.rewardInr * currentReqCount})",
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontSize = 13.sp,
-                                    color = Color.White
-                                )
-                            }
+                                .testTag("offer_bulk_apply_${task.id}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = bulkBtnText,
+                                color = Color.White,
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp
+                            )
                         }
                     } else {
-                        // Action Button: Locked when Completed, or "Apply for Task" -> "Applied • Upload Proof >" / "Re-work & Submit Proof >"
+                        // Normal Mode Action Button
                         val buttonColors = when {
                             isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
                             isPendingReview -> listOf(Color(0xFFD97706), Color(0xFFF59E0B))
@@ -1460,9 +1322,13 @@ internal fun OffersTabShellContent(
                                 .background(Brush.horizontalGradient(colors = buttonColors))
                                 .clickable(enabled = !isCompletedForUser) {
                                     if (!isCompletedForUser) {
-                                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
-                                        appliedTasksRefreshTick += 1
-                                        activeTaskForProof = if (isSelectedTask) null else task
+                                        if (userProfile?.getEffectiveDailyCompletedCount() ?: 0L >= 5L) {
+                                            Toast.makeText(context, "Daily Limit Reached (Max 5 tasks per day). Please try again tomorrow!", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                                            appliedTasksRefreshTick += 1
+                                            activeTaskForProof = if (isSelectedTask) null else task
+                                        }
                                     }
                                 }
                                 .testTag("offer_view_details_${task.id}"),
@@ -1589,6 +1455,38 @@ internal fun OffersTabShellContent(
                     onSubmitBulkTaskProofs(activeBulkTask!!, activeAllocations!!, deviceScreenshots)
                     activeBulkTask = null
                     activeAllocations = null
+                }
+            )
+        }
+
+        if (promptBulkTask != null) {
+            BulkDevicePickerPromptModal(
+                task = promptBulkTask!!,
+                maxAllowedLimit = bulkDeviceCount.coerceAtLeast(1),
+                onDismiss = { promptBulkTask = null },
+                onConfirm = { selectedDeviceCount ->
+                    val task = promptBulkTask!!
+                    promptBulkTask = null
+                    activeBulkTask = task
+                    onAllocateBulkComments(task, selectedDeviceCount)
+                    val fallbackComments = listOf(
+                        "Best app experience! Very fast, clean interface and super helpful features.",
+                        "Awesome application, easy to navigate and very smooth performance.",
+                        "Highly recommended app! Super clean UI and great reward system.",
+                        "Really useful app with great design and responsive features. Loving it!"
+                    )
+                    activeAllocations = (1..selectedDeviceCount).map { idx ->
+                        val cText = task.commentsList.getOrNull(idx - 1)
+                            ?: task.assignedComment.takeIf { it.isNotBlank() && idx == 1 }
+                            ?: fallbackComments[(idx - 1) % fallbackComments.size]
+                        com.taskgullak.app.data.model.BulkCommentAllocation(
+                            id = "alloc_${task.id}_${idx}_${System.currentTimeMillis()}",
+                            userId = "",
+                            offerId = task.id,
+                            commentText = cText,
+                            deviceIndex = idx
+                        )
+                    }
                 }
             )
         }
@@ -6115,5 +6013,106 @@ private fun BulkTaskSequentialExecutionModal(
             }
         }
     }
+}
+
+@Composable
+private fun BulkDevicePickerPromptModal(
+    task: AvailableTask,
+    maxAllowedLimit: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (selectedDeviceCount: Int) -> Unit
+) {
+    val context = LocalContext.current
+    val minQty = task.bulkMinQuantity.coerceIn(1, maxAllowedLimit)
+    val maxQty = minOf(task.bulkMaxQuantity, task.remainingQuantity, maxAllowedLimit).coerceAtLeast(minQty)
+    var selectedQty by remember(task.id) { mutableIntStateOf(minQty) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Apply in Bulk Mode ⚡",
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF0F172A)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "App: ${task.appName.ifBlank { task.title }}",
+                    fontSize = 13.sp,
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+                Text(
+                    text = "Choose the number of devices you will use for this task (Approved Limit: $maxAllowedLimit devices):",
+                    fontSize = 12.sp,
+                    fontFamily = InterFontFamily,
+                    color = Color(0xFF475569)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { if (selectedQty > minQty) selectedQty -= 1 },
+                        enabled = selectedQty > minQty
+                    ) { Text("-", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF0F172A)
+                    ) {
+                        Text(
+                            text = "$selectedQty Devices",
+                            fontSize = 14.sp,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            if (selectedQty < maxQty) {
+                                selectedQty += 1
+                            } else {
+                                Toast.makeText(context, "Max allowed limit is $maxQty devices.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = selectedQty < maxQty
+                    ) { Text("+", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                }
+
+                Text(
+                    text = "Total Reward: ₹${task.rewardInr * selectedQty}",
+                    fontSize = 13.5.sp,
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF16A34A)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedQty) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Done & Reserve Comments", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontSize = 12.5.sp)
+            }
+        }
+    )
 }
 

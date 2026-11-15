@@ -439,22 +439,100 @@ fun SeamlessWebAdminScreen(
                                             toast('Bulk mode turned off & user notified', 'ok');
                                           } catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
                                         };
+                                        ACT.bkApproveAppeal = async el => {
+                                          const id = el.dataset.id, ap = (S.bulkAppeals || []).find(x => x.id === id);
+                                          if (!ap) return;
+                                          const v = await ask({
+                                            title: 'Approve Price Appeal for ' + (ap.userName || ap.userId) + '?',
+                                            body: 'Requested Devices: <b>' + (ap.requestedDeviceCount || 1) + '</b> • Requested Reward: <b>₹' + (ap.requestedRewardInr || 0) + '</b><br>Reason: ' + esc(ap.reason || 'No reason specified'),
+                                            ok: 'Approve & Credit Wallet',
+                                            fields: [{ id: 'rewardInr', label: 'Custom Payout Amount (₹)', type: 'number', required: true, value: String(ap.requestedRewardInr || 50) }]
+                                          });
+                                          if (!v) return;
+                                          const creditAmt = Math.max(1, parseInt(v.rewardInr, 10) || 0);
+                                          try {
+                                            const userRef = doc(db, 'users', ap.userId);
+                                            await runTransaction(db, async tx => {
+                                              const snap = await tx.get(userRef);
+                                              if (!snap.exists()) throw new Error('User record not found');
+                                              const bal = num(snap.data().walletBalance);
+                                              tx.update(userRef, { walletBalance: bal + creditAmt, updatedAt: serverTimestamp() });
+                                              tx.set(doc(collection(db, 'users', ap.userId, 'transactions')), {
+                                                userId: ap.userId,
+                                                amount: creditAmt,
+                                                type: 'admin_credit',
+                                                note: 'Approved Bulk Price Appeal: ' + (ap.taskTitle || 'Task'),
+                                                createdAt: serverTimestamp()
+                                              });
+                                            });
+                                            await updateDoc(doc(db, 'bulk_task_appeals', id), {
+                                              status: 'approved',
+                                              approvedRewardInr: creditAmt,
+                                              reviewedBy: S.admin,
+                                              updatedAt: serverTimestamp()
+                                            });
+                                            toast('Appeal approved & ₹' + creditAmt + ' credited to wallet!', 'ok');
+                                          } catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
+                                        };
+                                        ACT.bkRejectAppeal = async el => {
+                                          const id = el.dataset.id;
+                                          const reason = await rejectDialog('Reject Bulk Price Appeal?', '<p class="fs12 muted">The appeal will be marked rejected.</p>');
+                                          if (!reason) return;
+                                          try {
+                                            await updateDoc(doc(db, 'bulk_task_appeals', id), {
+                                              status: 'rejected',
+                                              adminNote: reason,
+                                              reviewedBy: S.admin,
+                                              updatedAt: serverTimestamp()
+                                            });
+                                            toast('Appeal rejected', 'ok');
+                                          } catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
+                                        };
+                                        if (!window.__tgAppealsListening) {
+                                          window.__tgAppealsListening = true;
+                                          try {
+                                            listen('bulk_task_appeals', collection(db, 'bulk_task_appeals'), snap => {
+                                              S.bulkAppeals = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt) - tsMs(x.createdAt));
+                                              renderAll();
+                                            });
+                                          } catch (_) {}
+                                        }
                                         RENDER.bulk = () => {
                                           const rows = window.bulkRows();
                                           const f = S.bkTab || 'pending';
                                           const by = k => rows.filter(r => r && r.status === k);
                                           const tabBox = document.getElementById('bk-tabs');
                                           if (tabBox) {
+                                            const pendingAppealsCount = (S.bulkAppeals || []).filter(a => a.status === 'pending').length;
                                             tabBox.innerHTML = [
                                               ['pending', 'Pending'],
                                               ['active', 'Successful'],
-                                              ['rejected', 'Rejected']
+                                              ['rejected', 'Rejected'],
+                                              ['appeals', 'Appeals (' + pendingAppealsCount + ')']
                                             ].map(([k, l]) =>
-                                              '<button class="tab ' + (f === k ? 'on' : '') + '" data-act="bkTab" data-k="' + k + '">' + l + ' <span class="fs11">' + by(k).length + '</span></button>'
+                                              '<button class="tab ' + (f === k ? 'on' : '') + '" data-act="bkTab" data-k="' + k + '">' + l + '</button>'
                                             ).join('');
                                           }
                                           const listBox = document.getElementById('bk-list');
                                           if (!listBox) return;
+
+                                          if (f === 'appeals') {
+                                            const appealsList = S.bulkAppeals || [];
+                                            const appealsHTML = appealsList.map(ap => {
+                                              const id = esc(ap.id);
+                                              const st = String(ap.status || 'pending').toLowerCase();
+                                              const pill = st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending Appeal</span>';
+                                              const act = st === 'pending'
+                                                ? '<button class="btn okfill sm" data-act="bkApproveAppeal" data-id="' + id + '">Approve Custom Reward</button><button class="btn bad sm" data-act="bkRejectAppeal" data-id="' + id + '">Reject</button>'
+                                                : '';
+
+                                              return '<div class="card"><div class="row between wrap" style="gap:6px"><div><div class="b fs14">' + esc(ap.userName || ap.userEmail || ap.userId) + '</div><div class="fs12 muted">' + esc(ap.userEmail) + ' • Task: <b>' + esc(ap.taskTitle) + '</b></div></div>' + pill + '</div><div class="fs12 mt8" style="background:rgba(14,165,233,0.06);padding:8px 12px;border-radius:8px">Requested Devices: <b>' + (ap.requestedDeviceCount || 1) + '</b> • Requested Reward: <b>₹' + (ap.requestedRewardInr || 0) + '</b><br>Reason: ' + esc(ap.reason || 'No reason provided') + '</div><div class="row gap6 mt8" style="justify-content:flex-end">' + act + '</div></div>';
+                                            }).join('') || ('<div class="card">' + emptyHTML('bulk', 'No price increase appeals submitted yet.') + '</div>');
+
+                                            setHTML(listBox, appealsHTML);
+                                            return;
+                                          }
+
                                           const list = by(f);
                                           const pill = {
                                             pending: '<span class="pill warn">Pending</span>',
