@@ -3,8 +3,6 @@
    BULK ACCESS MANAGEMENT & ADMIN APPROVAL DASHBOARD
    ============================================================ */
 
-const AVC = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
-const avc = s => AVC[[...String(s || 'User')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
 const safeCanon = id => (typeof canon === 'function' ? canon(id) : id);
 
 const findUser = uid => {
@@ -31,6 +29,7 @@ function bulkRows() {
 
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
   const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+  const ticketList = Array.isArray(S.tickets) ? S.tickets : [];
   const userList = Array.isArray(S.users) ? S.users : [];
 
   const resolveReqUid = q => {
@@ -41,7 +40,7 @@ function bulkRows() {
       const match = userList.find(u => u && String(u.email || '').trim().toLowerCase() === em);
       if (match) uid = match.id;
     }
-    if (!uid && q.id && !String(q.id).startsWith('mod_') && !String(q.id).startsWith('user_')) {
+    if (!uid && q.id && !String(q.id).startsWith('mod_') && !String(q.id).startsWith('user_') && !String(q.id).startsWith('bulk_')) {
       const match = userList.find(u => u && u.id === q.id);
       if (match) uid = match.id;
     }
@@ -71,6 +70,25 @@ function bulkRows() {
         status: q.status || 'pending',
         createdAt: q.createdAt || q.updatedAt,
         requestData: { deviceCount: q.deviceCount || q.approvedLimit || 2, tier: 'Standard' }
+      };
+    }
+  });
+
+  ticketList.forEach(t => {
+    if (!t || (!String(t.id || '').startsWith('bulk_') && String(t.category || '').toLowerCase() !== 'bulk')) return;
+    const uid = t.userId || (String(t.id).startsWith('bulk_') ? String(t.id).replace('bulk_', '') : '');
+    if (!uid) return;
+    const r = row(uid);
+    if (!r.req) {
+      r.req = {
+        id: t.id,
+        userId: uid,
+        userName: t.userName || t.userEmail || '',
+        userEmail: t.userEmail || '',
+        note: t.message || '',
+        status: t.status === 'open' ? 'pending' : (t.status === 'closed' ? 'approved' : t.status),
+        createdAt: t.createdAt || t.updatedAt,
+        requestData: { deviceCount: 2, tier: 'Standard' }
       };
     }
   });
@@ -106,17 +124,16 @@ function bulkRows() {
       const uStatus = String((u && u.bulkStatus) || '').toLowerCase();
       const qStatus = String((q && q.status) || '').toLowerCase();
 
-      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved';
-      const isPending = !isApproved && (qStatus === 'pending' || uStatus === 'pending' || uStatus === 'requested');
-      const isRejected = !isApproved && !isPending && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
+      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved' || qStatus === 'active';
+      const isRejected = !isApproved && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
+      const isPending = !isApproved && !isRejected;
 
-      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
+      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'pending';
       return r;
     })
-    .filter(r => r.status !== 'other')
     .sort((a, b) => {
-      const ta = tsMs(a.req && (a.req.createdAt || a.req.requestedAt || a.req.updatedAt)) || 0;
-      const tb = tsMs(b.req && (b.req.createdAt || b.req.requestedAt || b.req.updatedAt)) || 0;
+      const ta = tsMs(a.req && (a.req.createdAt || a.req.requestedAt || a.req.updatedAt)) || (a.user && tsMs(a.user.updatedAt)) || 0;
+      const tb = tsMs(b.req && (b.req.createdAt || b.req.requestedAt || b.req.updatedAt)) || (b.user && tsMs(b.user.updatedAt)) || 0;
       return tb - ta;
     });
 }
@@ -125,23 +142,53 @@ const bkIds = uid => {
   return getUserIds(uid);
 };
 
-/** Single-Item Updates */
-async function bkSet(uid, userPatch, reqPatch, statuses) {
+/** Single-Item Updates + Instant User Notification Push */
+async function bkSet(uid, userPatch, reqPatch, statuses, notifTitle, notifMessage, notifType = 'info') {
   const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
   const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
+  const allTargetUids = bkIds(uid);
 
-  await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
+  await Promise.all(allTargetUids.map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
 
   const reqs = reqList.filter(q => q && safeCanon(q.userId || q.uid) === safeCanon(uid) && statuses.includes(q.status));
-  await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
+  await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch).catch(() => {})));
 
   const modReqs = modReqList.filter(q => q && safeCanon(q.userId || q.uid) === safeCanon(uid) && statuses.includes(q.status));
-  await Promise.all(modReqs.map(q => updateDoc(doc(db, 'bulk_mod_requests', q.id), reqPatch)));
+  await Promise.all(modReqs.map(q => updateDoc(doc(db, 'bulk_mod_requests', q.id), reqPatch).catch(() => {})));
 
   try {
     const tRef = doc(db, 'support_tickets', `bulk_${uid}`);
     await updateDoc(tRef, { status: userPatch.bulkMode ? 'closed' : 'rejected', updatedAt: serverTimestamp() });
   } catch (_) {}
+
+  // Push real-time notification to User App (/users/{uid}/notifications, /broadcasts, and /notifications)
+  if (notifTitle && notifMessage) {
+    const nowMs = Date.now();
+    for (const targetUid of allTargetUids) {
+      const bRef = doc(collection(db, 'broadcasts'));
+      const payload = {
+        id: bRef.id,
+        title: notifTitle,
+        message: notifMessage,
+        body: notifMessage,
+        description: notifMessage,
+        type: notifType,
+        targetUserId: targetUid,
+        userId: targetUid,
+        active: true,
+        isActive: true,
+        read: false,
+        isRead: false,
+        timestamp: nowMs,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        sentBy: S.admin || 'admin'
+      };
+      try { await setDoc(bRef, payload); } catch (_) {}
+      try { await setDoc(doc(db, 'notifications', bRef.id), payload); } catch (_) {}
+      try { await setDoc(doc(db, 'users', targetUid, 'notifications', bRef.id), payload); } catch (_) {}
+    }
+  }
 }
 
 ACT.bkTab = el => {
@@ -155,12 +202,15 @@ ACT.bkApprove = async el => {
   try {
     await bkSet(
       uid,
-      { bulkMode: true, bulkStatus: 'active', bulkApprovedAt: serverTimestamp(), bulkApprovedBy: S.admin, bulkRejectReason: '' },
+      { bulkMode: true, bulkStatus: 'approved', bulkApprovedAt: serverTimestamp(), bulkApprovedBy: S.admin, bulkRejectReason: '' },
       { status: 'approved', approvedAt: serverTimestamp(), reviewedBy: S.admin, updatedAt: serverTimestamp() },
-      ['pending', 'approved']
+      ['pending', 'approved', 'rejected', 'revoked'],
+      'Bulk Mode Activated! 🚀',
+      'Congratulations! Your Bulk Mode access request has been approved by Admin. You can now select multiple devices/comments at once in the Offers tab.',
+      'reward'
     );
     logAction('bulk_access_on', uid, { name: r && r.name });
-    toast(`Bulk mode is active for ${r ? r.name : 'user'}`, 'ok');
+    toast(`Bulk mode activated & notification sent to ${r ? r.name : 'user'}`, 'ok');
   } catch (e) {
     toast('Failed: ' + (e.code || e.message), 'bad');
   }
@@ -178,10 +228,13 @@ ACT.bkReject = async el => {
       uid,
       { bulkMode: false, bulkStatus: 'rejected', bulkRejectReason: reason },
       { status: 'rejected', adminNote: reason, reviewedBy: S.admin, updatedAt: serverTimestamp() },
-      ['pending']
+      ['pending', 'approved', 'active'],
+      'Bulk Mode Request Rejected',
+      `Your Bulk Mode access request was not approved. Reason: ${reason}`,
+      'alert'
     );
     logAction('bulk_access_reject', uid, { name: r && r.name, reason });
-    toast('Rejected. Bulk mode is hidden for this user', 'ok');
+    toast('Rejected & notification sent to user', 'ok');
   } catch (e) {
     toast('Failed: ' + (e.code || e.message), 'bad');
   }
@@ -202,10 +255,13 @@ ACT.bkRevoke = async el => {
       uid,
       { bulkMode: false, bulkStatus: 'revoked' },
       { status: 'revoked', reviewedBy: S.admin, updatedAt: serverTimestamp() },
-      ['pending', 'approved']
+      ['pending', 'approved', 'active'],
+      'Bulk Mode Turned Off',
+      'Your Bulk Mode access has been turned off by Admin. Your account is now in Normal Mode.',
+      'warning'
     );
     logAction('bulk_access_off', uid, { name: r && r.name });
-    toast('Bulk mode turned off', 'ok');
+    toast('Bulk mode turned off & user notified', 'ok');
   } catch (e) {
     toast('Failed: ' + (e.code || e.message), 'bad');
   }
@@ -263,59 +319,29 @@ ACT.bkBulkApprove = async () => {
   renderAll();
 
   try {
-    const chunkSize = 200;
     let approvedCount = 0;
-    const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
-    const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
-
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const batch = writeBatch(db);
-
-      chunk.forEach(r => {
-        const uids = bkIds(r.uid);
-        uids.forEach(id => {
-          batch.set(
-            doc(db, 'users', id),
-            {
-              bulkMode: true,
-              bulkStatus: 'active',
-              bulkApprovedAt: serverTimestamp(),
-              bulkApprovedBy: S.admin,
-              bulkRejectReason: ''
-            },
-            { merge: true }
-          );
-        });
-
-        const reqs = reqList.filter(
-          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && ['pending', 'approved'].includes(q.status)
-        );
-        reqs.forEach(q => {
-          batch.update(doc(db, 'bulkRequests', q.id), {
-            status: 'approved',
-            approvedAt: serverTimestamp(),
-            reviewedBy: S.admin,
-            updatedAt: serverTimestamp()
-          });
-        });
-
-        const modReqs = modReqList.filter(
-          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && ['pending', 'approved'].includes(q.status)
-        );
-        modReqs.forEach(q => {
-          batch.update(doc(db, 'bulk_mod_requests', q.id), {
-            status: 'approved',
-            approvedAt: serverTimestamp(),
-            reviewedBy: S.admin,
-            updatedAt: serverTimestamp()
-          });
-        });
-
-        approvedCount++;
-      });
-
-      await batch.commit();
+    for (const r of rows) {
+      await bkSet(
+        r.uid,
+        {
+          bulkMode: true,
+          bulkStatus: 'approved',
+          bulkApprovedAt: serverTimestamp(),
+          bulkApprovedBy: S.admin,
+          bulkRejectReason: ''
+        },
+        {
+          status: 'approved',
+          approvedAt: serverTimestamp(),
+          reviewedBy: S.admin,
+          updatedAt: serverTimestamp()
+        },
+        ['pending', 'approved', 'rejected', 'revoked'],
+        'Bulk Mode Activated! 🚀',
+        'Congratulations! Your Bulk Mode access request has been approved by Admin. You can now select multiple devices/comments at once in the Offers tab.',
+        'reward'
+      );
+      approvedCount++;
     }
 
     logAction('bulk_access_batch_approve', 'batch', { count: approvedCount });
@@ -348,57 +374,27 @@ ACT.bkBulkReject = async () => {
   renderAll();
 
   try {
-    const chunkSize = 200;
     let rejectedCount = 0;
-    const reqList = Array.isArray(S.bulkReq) ? S.bulkReq : [];
-    const modReqList = Array.isArray(S.bulkModReq) ? S.bulkModReq : [];
-
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const batch = writeBatch(db);
-
-      chunk.forEach(r => {
-        const uids = bkIds(r.uid);
-        uids.forEach(id => {
-          batch.set(
-            doc(db, 'users', id),
-            {
-              bulkMode: false,
-              bulkStatus: 'rejected',
-              bulkRejectReason: reason
-            },
-            { merge: true }
-          );
-        });
-
-        const reqs = reqList.filter(
-          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && q.status === 'pending'
-        );
-        reqs.forEach(q => {
-          batch.update(doc(db, 'bulkRequests', q.id), {
-            status: 'rejected',
-            adminNote: reason,
-            reviewedBy: S.admin,
-            updatedAt: serverTimestamp()
-          });
-        });
-
-        const modReqs = modReqList.filter(
-          q => q && safeCanon(q.userId || q.uid) === safeCanon(r.uid) && q.status === 'pending'
-        );
-        modReqs.forEach(q => {
-          batch.update(doc(db, 'bulk_mod_requests', q.id), {
-            status: 'rejected',
-            adminNote: reason,
-            reviewedBy: S.admin,
-            updatedAt: serverTimestamp()
-          });
-        });
-
-        rejectedCount++;
-      });
-
-      await batch.commit();
+    for (const r of rows) {
+      await bkSet(
+        r.uid,
+        {
+          bulkMode: false,
+          bulkStatus: 'rejected',
+          bulkRejectReason: reason
+        },
+        {
+          status: 'rejected',
+          adminNote: reason,
+          reviewedBy: S.admin,
+          updatedAt: serverTimestamp()
+        },
+        ['pending', 'approved', 'active'],
+        'Bulk Mode Request Rejected',
+        `Your Bulk Mode access request was not approved. Reason: ${reason}`,
+        'alert'
+      );
+      rejectedCount++;
     }
 
     logAction('bulk_access_batch_reject', 'batch', { count: rejectedCount, reason });
@@ -436,7 +432,11 @@ RENDER.bulk = () => {
     if (tabBox) {
       setHTML(
         tabBox,
-        [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']]
+        [
+          ['pending', 'Pending'],
+          ['active', 'Successful'],
+          ['rejected', 'Rejected']
+        ]
           .map(
             ([k, l]) =>
               `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`
@@ -451,12 +451,18 @@ RENDER.bulk = () => {
     const list = by(f);
     const pill = {
       pending: '<span class="pill warn">Pending</span>',
-      active: '<span class="pill ok">Active</span>',
-      rejected: '<span class="pill bad">Not allowed</span>'
+      active: '<span class="pill ok">Successful</span>',
+      rejected: '<span class="pill bad">Rejected</span>'
     };
 
     const allSelected = list.length > 0 && list.every(r => S.bkSel.has(r.uid));
     const selCount = S.bkSel.size;
+
+    const summaryCardsHTML = `<div class="g3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+      <div class="card" style="cursor:pointer;border:${f === 'pending' ? '2px solid #F59E0B' : '1px solid var(--line)'}" data-act="bkTab" data-k="pending"><div class="fs12 muted b">Pending</div><div class="fs20 xb" style="color:#F59E0B;margin-top:4px">${by('pending').length}</div></div>
+      <div class="card" style="cursor:pointer;border:${f === 'active' ? '2px solid #16A34A' : '1px solid var(--line)'}" data-act="bkTab" data-k="active"><div class="fs12 muted b">Successful</div><div class="fs20 xb" style="color:#16A34A;margin-top:4px">${by('active').length}</div></div>
+      <div class="card" style="cursor:pointer;border:${f === 'rejected' ? '2px solid #E11D48' : '1px solid var(--line)'}" data-act="bkTab" data-k="rejected"><div class="fs12 muted b">Rejected</div><div class="fs20 xb" style="color:#E11D48;margin-top:4px">${by('rejected').length}</div></div>
+    </div>`;
 
     const headerHTML =
       list.length > 0
@@ -530,10 +536,14 @@ RENDER.bulk = () => {
         .join('') ||
       `<div class="card">${emptyHTML(
         'bulk',
-        f === 'pending' ? 'No pending requests waiting.' : f === 'active' ? 'No user has Bulk mode active yet.' : 'No rejected requests.'
+        f === 'pending'
+          ? 'No pending requests waiting.'
+          : f === 'active'
+          ? 'No successful (approved) bulk access users yet.'
+          : 'No rejected requests.'
       )}</div>`;
 
-    setHTML(listBox, headerHTML + bulkActionBarHTML + listHTML);
+    setHTML(listBox, summaryCardsHTML + headerHTML + bulkActionBarHTML + listHTML);
   } catch (e) {
     console.error('RENDER.bulk error:', e);
   }
