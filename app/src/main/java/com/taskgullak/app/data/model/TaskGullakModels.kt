@@ -181,9 +181,18 @@ data class AdminTask(
     val comments: List<String> = emptyList(),
     @get:PropertyName("isBulk") @set:PropertyName("isBulk")
     var isBulk: Boolean = false,
-    val modeType: String = "NORMAL", // NORMAL, BULK, BOTH
-    val bulkMinQuantity: Int = 1,
-    val bulkMaxQuantity: Int = 5,
+    @get:PropertyName("modeType") @set:PropertyName("modeType")
+    var modeType: String = "NORMAL", // NORMAL, BULK, BOTH
+    @get:PropertyName("mode_type") @set:PropertyName("mode_type")
+    var mode_type: String? = null,
+    @get:PropertyName("bulkMinQuantity") @set:PropertyName("bulkMinQuantity")
+    var bulkMinQuantity: Int = 1,
+    @get:PropertyName("bulk_min_quantity") @set:PropertyName("bulk_min_quantity")
+    var bulk_min_quantity: Int? = null,
+    @get:PropertyName("bulkMaxQuantity") @set:PropertyName("bulkMaxQuantity")
+    var bulkMaxQuantity: Int = 5,
+    @get:PropertyName("bulk_max_quantity") @set:PropertyName("bulk_max_quantity")
+    var bulk_max_quantity: Int? = null,
     val totalQuantity: Int = 50,
     val usedQuantity: Int = 0,
     val remainingQuantity: Int = 50,
@@ -277,6 +286,12 @@ data class AdminTask(
             .replace("Downloads", "Installs", ignoreCase = true)
             .let { if (it.contains("Installs", ignoreCase = true)) it else "$it Installs" }
 
+        val effectiveModeType = (mode_type ?: modeType).let {
+            if (it.isNotBlank()) it.uppercase() else if (isBulk) "BULK" else "NORMAL"
+        }
+        val effectiveBulkMin = bulk_min_quantity ?: bulkMinQuantity
+        val effectiveBulkMax = bulk_max_quantity ?: bulkMaxQuantity
+
         return AvailableTask(
             id = id.ifBlank { "task_${resolvedAppName.lowercase().replace(Regex("[^a-z0-9]+"), "_")}" },
             title = title.ifBlank { resolvedAppName },
@@ -302,15 +317,15 @@ data class AdminTask(
             completedCount = completedCount.toInt().coerceAtLeast(0),
             assignedComment = resolvedComment,
             commentsList = resolvedComments,
-            isBulk = isBulk || modeType.equals("BULK", ignoreCase = true) || modeType.equals("BOTH", ignoreCase = true) || category.contains("bulk", ignoreCase = true) || targetCount > 1L,
-            modeType = if (modeType.isNotBlank()) modeType.uppercase() else if (isBulk) "BULK" else "NORMAL",
-            bulkMinQuantity = bulkMinQuantity.coerceAtLeast(1),
-            bulkMaxQuantity = bulkMaxQuantity.coerceAtLeast(bulkMinQuantity),
+            isBulk = isBulk || effectiveModeType.equals("BULK", ignoreCase = true) || effectiveModeType.equals("BOTH", ignoreCase = true) || category.contains("bulk", ignoreCase = true) || targetCount > 1L,
+            modeType = effectiveModeType,
+            bulkMinQuantity = effectiveBulkMin.coerceAtLeast(1),
+            bulkMaxQuantity = effectiveBulkMax.coerceAtLeast(effectiveBulkMin),
             totalQuantity = totalQuantity.coerceAtLeast(1),
             usedQuantity = usedQuantity.coerceAtLeast(0),
             remainingQuantity = remainingQuantity.coerceAtLeast(0),
             status = status.ifBlank { "active" },
-            timerEnabled = if (modeType.equals("BULK", ignoreCase = true)) false else timerEnabled,
+            timerEnabled = if (effectiveModeType.equals("BULK", ignoreCase = true)) false else timerEnabled,
             totalCommentsCount = commentItems.size.coerceAtLeast(resolvedComments.size),
             availableCommentsCount = resolvedComments.size
         )
@@ -561,15 +576,33 @@ data class UserOfferTask(
     val active: Boolean = true,
     val blockedUserIds: List<String> = emptyList(),
     val commentItems: List<TaskCommentItem> = emptyList(),
-    val modeType: String = "NORMAL", // NORMAL, BULK, BOTH
-    val bulkMinQuantity: Int = 1,
-    val bulkMaxQuantity: Int = 5,
+    @get:PropertyName("modeType") @set:PropertyName("modeType")
+    var modeType: String = "NORMAL", // NORMAL, BULK, BOTH
+    @get:PropertyName("mode_type") @set:PropertyName("mode_type")
+    var mode_type: String? = null,
+    @get:PropertyName("bulkMinQuantity") @set:PropertyName("bulkMinQuantity")
+    var bulkMinQuantity: Int = 1,
+    @get:PropertyName("bulk_min_quantity") @set:PropertyName("bulk_min_quantity")
+    var bulk_min_quantity: Int? = null,
+    @get:PropertyName("bulkMaxQuantity") @set:PropertyName("bulkMaxQuantity")
+    var bulkMaxQuantity: Int = 5,
+    @get:PropertyName("bulk_max_quantity") @set:PropertyName("bulk_max_quantity")
+    var bulk_max_quantity: Int? = null,
     val totalQuantity: Int = 50,
     val usedQuantity: Int = 0,
     val remainingQuantity: Int = 50,
     val status: String = "active", // active, paused, archived, exhausted
     val timerEnabled: Boolean = true
 ) {
+    val effectiveModeType: String
+        get() = (mode_type ?: modeType).ifBlank { "NORMAL" }.uppercase()
+
+    val effectiveBulkMin: Int
+        get() = (bulk_min_quantity ?: bulkMinQuantity).coerceAtLeast(1)
+
+    val effectiveBulkMax: Int
+        get() = (bulk_max_quantity ?: bulkMaxQuantity).coerceAtLeast(effectiveBulkMin)
+
     /**
      * Point 5 & Point 8:
      * - Checks if the user is blocked specifically from this app/task (`blockedUserIds`).

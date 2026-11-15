@@ -1252,7 +1252,60 @@ internal fun OffersTabShellContent(
                         )
                     }
 
-                    if (isBulkActive) {
+                    val currentModeChoice = modeChoiceMap[task.id] ?: if (task.modeType.equals("BOTH", true) && isBulkActive) "BULK" else task.modeType.uppercase()
+                    
+                    if (isBulkActive && task.modeType.equals("BOTH", true)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(2.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (currentModeChoice == "NORMAL") Color.White else Color.Transparent)
+                                    .clickable {
+                                        modeChoiceMap = modeChoiceMap.toMutableMap().apply { put(task.id, "NORMAL") }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Normal Mode",
+                                    color = if (currentModeChoice == "NORMAL") Color(0xFF334155) else Color(0xFF94A3B8),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (currentModeChoice == "NORMAL") FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(2.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (currentModeChoice == "BULK") Color.White else Color.Transparent)
+                                    .clickable {
+                                        modeChoiceMap = modeChoiceMap.toMutableMap().apply { put(task.id, "BULK") }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Bulk Mode",
+                                    color = if (currentModeChoice == "BULK") Color(0xFF0284C7) else Color(0xFF94A3B8),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (currentModeChoice == "BULK") FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    if (isBulkActive && (currentModeChoice == "BULK" || task.modeType.equals("BULK", true))) {
                         // Bulk Mode Action Button on Task Card
                         val bulkBtnColors = when {
                             isCompletedForUser -> listOf(Color(0xFF15803D), Color(0xFF10B981))
