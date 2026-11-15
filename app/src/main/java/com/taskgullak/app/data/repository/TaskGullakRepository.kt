@@ -103,13 +103,19 @@ class TaskGullakRepository(
                     val avatarIdVal = snapshot.getString("avatarId").orEmpty()
                     val upiIdVal = snapshot.getString("upiId").orEmpty()
                     val maintLocked = snapshot.getBoolean("maintenanceLocked") ?: false
+                    val bulkModeFlag = snapshot.getBoolean("bulkMode") ?: false
+                    val bulkStatusStr = snapshot.getString("bulkStatus").orEmpty()
+                    val normalizedBulk = if (bulkModeFlag || bulkStatusStr.equals("approved", true) || bulkStatusStr.equals("active", true)) "approved" else bulkStatusStr.lowercase()
+
                     model?.copy(
                         isBanned = bannedFlag,
                         isDeleted = deletedFlag || statusVal.equals("deleted", ignoreCase = true),
                         accountStatus = statusVal.ifBlank { model.accountStatus },
                         avatarId = avatarIdVal.ifBlank { model.avatarId },
                         upiId = upiIdVal.ifBlank { model.upiId },
-                        maintenanceLocked = maintLocked
+                        maintenanceLocked = maintLocked,
+                        bulkMode = bulkModeFlag || normalizedBulk == "approved",
+                        bulkStatus = normalizedBulk
                     )
                 } else {
                     null

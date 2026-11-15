@@ -347,9 +347,36 @@ fun HomeScreen(
         TaskGullakNotificationHelper.processTransactionsSnapshot(context, list)
     }
 
-    LaunchedEffect(profile?.walletBalance, profile?.isBanned) {
+    LaunchedEffect(profile?.walletBalance, profile?.isBanned, profile?.bulkStatus, profile?.bulkMode) {
         val currentProfile = profile ?: return@LaunchedEffect
         TaskGullakNotificationHelper.processUserProfileSnapshot(context, currentProfile)
+    }
+
+    var previousBulkStatus by remember(profile?.userId) { mutableStateOf(profile?.normalizedBulkStatus ?: "none") }
+
+    LaunchedEffect(profile?.normalizedBulkStatus) {
+        val currentProfile = profile ?: return@LaunchedEffect
+        val newBulkStatus = currentProfile.normalizedBulkStatus
+        val oldBulkStatus = previousBulkStatus
+
+        if (oldBulkStatus != newBulkStatus) {
+            previousBulkStatus = newBulkStatus
+            if (newBulkStatus == "approved" && oldBulkStatus != "approved") {
+                TaskGullakNotificationHelper.showSystemNotification(
+                    context = context,
+                    uniqueKey = "bulk_approved_${currentProfile.userId}_${System.currentTimeMillis()}",
+                    title = "Bulk Mode Activated! 🚀",
+                    message = "Your Bulk Mode access is now active. You can select multiple devices/items in Offers."
+                )
+            } else if (newBulkStatus == "rejected" && oldBulkStatus != "rejected") {
+                TaskGullakNotificationHelper.showSystemNotification(
+                    context = context,
+                    uniqueKey = "bulk_rejected_${currentProfile.userId}_${System.currentTimeMillis()}",
+                    title = "Bulk Mode Request Rejected",
+                    message = "Your request for Bulk Mode access was not approved. You can continue using Normal Mode."
+                )
+            }
+        }
     }
 
     LaunchedEffect(profile?.userId, profile?.isDeleted, profile?.accountStatus, profile?.isBanned) {

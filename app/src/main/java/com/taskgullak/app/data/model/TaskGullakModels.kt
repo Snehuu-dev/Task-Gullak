@@ -41,13 +41,20 @@ data class UserProfile(
     val lastCompletedTaskReward: Long = 50L,
     val dailyStreakDays: Long = 1L,
     val lastStreakDate: String = "",
-    val bulkStatus: String = "none", // none | pending | approved | rejected | banned
+    val bulkMode: Boolean = false,
+    val bulkStatus: String = "none", // none | pending | approved | active | rejected | banned
     val bulkDeviceCount: Int = 0,
     val bulkApprovedLimit: Int = 0,
     val dismissedNotificationIds: List<String> = emptyList(),
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
-)
+) {
+    val isBulkActive: Boolean
+        get() = bulkMode || bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
+
+    val normalizedBulkStatus: String
+        get() = if (isBulkActive) "approved" else bulkStatus.lowercase()
+}
 
 @IgnoreExtraProperties
 data class MaintenanceConfig(

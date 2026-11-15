@@ -1909,8 +1909,11 @@ private fun TaskDetailsFullScreenModal(
                 modifier = Modifier
                     .fillMaxSize()
                     .systemBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Top Header Row: "< Back" Button (Matching Screenshot 2)
@@ -2609,7 +2612,11 @@ private fun TaskSubmissionFormPanel(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
@@ -5574,12 +5581,13 @@ private fun BulkAccessOffersScreenContent(
                                 shape = RoundedCornerShape(8.dp),
                                 color = Color(0xFFF1F5F9)
                             ) {
+                                val remBadge = if (task.remainingQuantity in 1..998) " • Stock: ${task.remainingQuantity}" else ""
                                 Text(
-                                    text = "Total: ₹${task.rewardInr * currentReqCount}",
-                                    fontSize = 13.sp,
+                                    text = "Total: ₹${task.rewardInr * currentReqCount}$remBadge",
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF0284C7),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                                 )
                             }
                         }

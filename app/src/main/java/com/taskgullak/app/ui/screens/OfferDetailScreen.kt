@@ -255,12 +255,14 @@ fun OfferDetailScreen(
                     }
                 }
 
-                // Animated Countdown Timer Pill (Matching Image 2)
-                AppTimerPill(
-                    displayTime = "$mm:$ss",
-                    isOn = isTimerRunning,
-                    modifier = Modifier.scale(timerScale)
-                )
+                // Animated Countdown Timer Pill (Only if timerEnabled & NOT Bulk mode)
+                if (task.timerEnabled && !task.modeType.equals("BULK", ignoreCase = true)) {
+                    AppTimerPill(
+                        displayTime = "$mm:$ss",
+                        isOn = isTimerRunning,
+                        modifier = Modifier.scale(timerScale)
+                    )
+                }
             }
         }
 
