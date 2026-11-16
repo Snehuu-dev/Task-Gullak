@@ -1610,7 +1610,31 @@ object FirebaseEmailDispatchService {
         candidateEmail: String,
         candidatePhoneE164: String = ""
     ): String? = withContext(Dispatchers.IO) {
-        // Temporarily allow multiple accounts per phone
+        val cleanCandidateEmail = candidateEmail.trim().lowercase()
+        if (cleanCandidateEmail.isBlank()) return@withContext null
+
+        val localOwnerEmail = getDeviceOwnerEmail(context).trim().lowercase()
+        if (localOwnerEmail.isNotBlank() && !localOwnerEmail.equals(cleanCandidateEmail, ignoreCase = true)) {
+            return@withContext "⚠️ Multiple account creation is restricted on this device. Device is bound to account ($localOwnerEmail)."
+        }
+
+        val deviceId = getDeviceHardwareId(context)
+        if (deviceId.isNotBlank()) {
+            val deviceDoc = runCatching {
+                val db = resolveFirestoreInstance(context)
+                db.collection("device_accounts").document(deviceId).get().await()
+            }.getOrNull()
+
+            if (deviceDoc != null && deviceDoc.exists()) {
+                val remoteOwnerEmail = deviceDoc.getString("ownerEmail").orEmpty().trim().lowercase()
+                if (remoteOwnerEmail.isNotBlank() && !remoteOwnerEmail.equals(cleanCandidateEmail, ignoreCase = true)) {
+                    val prefs = context.applicationContext.getSharedPreferences(PREFS_EMAIL_AUTH, Context.MODE_PRIVATE)
+                    prefs.edit().putString(KEY_DEVICE_OWNER_EMAIL, remoteOwnerEmail).apply()
+                    return@withContext "⚠️ Multiple account creation is restricted on this device. Device is bound to account ($remoteOwnerEmail)."
+                }
+            }
+        }
+
         return@withContext null
     }
 

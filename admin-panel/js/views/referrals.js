@@ -1,5 +1,82 @@
 'use strict';
 /* === REFERRAL MANAGEMENT VIEW === */
+const REF_FIRST_WD_BONUS = 5, REF_WD_COMM_PCT = 1, MIN_WITHDRAWAL = 100;
+const refEvId = (...p) => p.join('_').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+const refCommission = amt => Math.max(1, Math.round(num(amt) * REF_WD_COMM_PCT / 100));
+
+function refFindReferrerId(u, selfId) {
+  if (!u) return '';
+  let id = u.referredByUserId || '';
+  if (!id && u.referredByCode) {
+    const c = String(u.referredByCode).trim().toUpperCase();
+    id = ((S.users || []).find(x => x && x.referralCode && String(x.referralCode).trim().toUpperCase() === c) || {}).id || '';
+  }
+  return id && id !== selfId ? id : '';
+}
+
+async function refReadPlan(tx, w) {
+  if (!w.userId) return null;
+  const uref = doc(db, 'users', w.userId), us = await tx.get(uref);
+  if (!us.exists()) return null;
+  const u = us.data(), aid = refFindReferrerId(u, w.userId);
+  if (!aid) return null;
+  const aref = doc(db, 'users', aid), as = await tx.get(aref);
+  if (!as.exists()) return null;
+  const commRef = doc(db, 'users', aid, 'transactions', refEvId('comm_wd', aid, w.userId, w.id));
+  const commSnap = await tx.get(commRef);
+  return { uref, u, aref, a: as.data(), aid, commRef, commDone: commSnap.exists(), first: u.firstWithdrawalBonusClaimed !== true };
+}
+
+function refApplyPlan(tx, p, w) {
+  const comm = p.commDone ? 0 : refCommission(w.amount), bonus = p.first ? REF_FIRST_WD_BONUS : 0;
+  if (!comm && !bonus) return { comm: 0, bonus: 0 };
+  const who = w.userName || 'Friend', now = serverTimestamp();
+
+  const bUp = { updatedAt: now };
+  if (!p.u.referredByUserId) bUp.referredByUserId = p.aid;
+  if (bonus) {
+    bUp.firstWithdrawalBonusClaimed = true;
+    bUp.walletBalance = num(p.u.walletBalance) + bonus;
+    tx.set(doc(collection(db, 'users', w.userId, 'transactions')), {
+      userId: w.userId,
+      amount: bonus,
+      type: 'first_withdrawal_bonus',
+      note: 'Joining Bonus on First Withdrawal (+₹5)',
+      createdAt: now
+    });
+  }
+  tx.update(p.uref, bUp);
+
+  const aUp = {
+    walletBalance: num(p.a.walletBalance) + comm + bonus,
+    totalReferralBonusEarned: num(p.a.totalReferralBonusEarned) + bonus,
+    totalLifetimeCommissionEarned: num(p.a.totalLifetimeCommissionEarned) + comm,
+    updatedAt: now
+  };
+  tx.update(p.aref, aUp);
+
+  if (bonus) {
+    tx.set(doc(collection(db, 'users', p.aid, 'transactions')), {
+      userId: p.aid,
+      amount: bonus,
+      type: 'referral_bonus',
+      note: `Referral Joining Bonus for ${who} (+₹5)`,
+      createdAt: now
+    });
+  }
+  if (comm) {
+    tx.set(p.commRef, {
+      userId: p.aid,
+      referredUserId: w.userId,
+      amount: comm,
+      type: 'referral_commission',
+      note: `1% Lifetime Commission on ${who}'s payout (+₹${comm})`,
+      createdAt: now
+    });
+  }
+  return { comm, bonus };
+}
+
 ACT.fixReferralBalances = async () => {
   if (!await confirmBox('Sync missing referral rewards?', 'Scans all APPROVED withdrawals of referred users and credits what is missing: ₹5 + ₹5 on the 1st approved withdrawal and 1% commission on every approved withdrawal. Each reward has a fixed ID, so nothing can be credited twice.')) return;
   busy = true; renderAll();
