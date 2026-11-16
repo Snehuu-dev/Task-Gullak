@@ -326,7 +326,7 @@ data class AdminTask(
             completedCount = completedCount.toInt().coerceAtLeast(0),
             assignedComment = resolvedComment,
             commentsList = resolvedComments,
-            isBulk = isBulk || effectiveModeType.equals("BULK", ignoreCase = true) || effectiveModeType.equals("BOTH", ignoreCase = true) || category.contains("bulk", ignoreCase = true) || targetCount > 1L,
+            isBulk = isBulk || effectiveModeType.equals("BULK", ignoreCase = true),
             modeType = effectiveModeType,
             bulkMinQuantity = effectiveBulkMin.coerceAtLeast(1),
             bulkMaxQuantity = effectiveBulkMax.coerceAtLeast(effectiveBulkMin),

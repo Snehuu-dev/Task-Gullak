@@ -1220,8 +1220,8 @@ internal fun OffersTabShellContent(
                             val timerProgress = (liveRemainingSeconds.toFloat() / totalDurationSecs).coerceIn(0f, 1f)
                             val isTimerRunning = liveRemainingSeconds < rawTotalDuration && liveRemainingSeconds > 0L
 
-                            val isNormalModeSelected = currentModeChoice == "NORMAL" || (!task.isBulk && !task.modeType.equals("BULK", ignoreCase = true))
-                            if (task.timerEnabled && isNormalModeSelected) {
+                            val showTimerInNormalMode = currentModeChoice != "BULK" && !task.modeType.equals("BULK", ignoreCase = true)
+                            if (task.timerEnabled && showTimerInNormalMode) {
                                 AppTimerPill(
                                     displayTime = timerDisplay,
                                     isOn = isTimerRunning || liveRemainingSeconds > 0L,
