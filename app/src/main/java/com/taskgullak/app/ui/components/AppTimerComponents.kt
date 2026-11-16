@@ -309,41 +309,8 @@ fun AppTimerPill(
     isOn: Boolean = true,
     progress: Float = 1.0f
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "timer_pill_blink_transition")
-
-    val blinkAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1.00f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 550, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "timer_blink_alpha"
-    )
-
-    val currentBlink = if (isOn) blinkAlpha else 1.0f
-
     Box(
         modifier = modifier
-            .drawBehind {
-                if (isOn) {
-                    val cornerRadiusPx = 999.dp.toPx()
-                    val outerGlowColor = Color(0xFFD946EF).copy(alpha = currentBlink * 0.40f)
-                    drawRoundRect(
-                        color = outerGlowColor,
-                        topLeft = Offset(-5.dp.toPx(), -5.dp.toPx()),
-                        size = Size(size.width + 10.dp.toPx(), size.height + 10.dp.toPx()),
-                        cornerRadius = CornerRadius(cornerRadiusPx)
-                    )
-                    val innerGlowColor = Color(0xFFA855F7).copy(alpha = currentBlink * 0.55f)
-                    drawRoundRect(
-                        color = innerGlowColor,
-                        topLeft = Offset(-2.5.dp.toPx(), -2.5.dp.toPx()),
-                        size = Size(size.width + 5.dp.toPx(), size.height + 5.dp.toPx()),
-                        cornerRadius = CornerRadius(cornerRadiusPx)
-                    )
-                }
-            }
             .width(106.dp)
             .height(36.dp)
             .clip(RoundedCornerShape(999.dp))
@@ -353,18 +320,14 @@ fun AppTimerPill(
                 )
             )
             .border(
-                width = if (isOn) 1.8.dp else 1.5.dp,
-                brush = if (isOn) {
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFFE879F9).copy(alpha = currentBlink),
-                            Color(0xFFC084FC).copy(alpha = currentBlink),
-                            Color(0xFF8B5CF6).copy(alpha = currentBlink)
-                        )
+                width = 1.5.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color(0xFFE879F9),
+                        Color(0xFFC084FC),
+                        Color(0xFF8B5CF6)
                     )
-                } else {
-                    SolidColor(Color(0xFFE7D4F4))
-                },
+                ),
                 shape = RoundedCornerShape(999.dp)
             )
             .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -385,7 +348,7 @@ fun AppTimerPill(
             ) {
                 Text(
                     text = displayTime,
-                    color = Color(0xFF14134A).copy(alpha = if (isOn) (0.45f + currentBlink * 0.55f) else 1.0f),
+                    color = Color(0xFF14134A),
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 12.sp,
@@ -395,7 +358,7 @@ fun AppTimerPill(
                 )
                 Text(
                     text = "Minutes",
-                    color = Color(0xFF6E73A3).copy(alpha = if (isOn) (0.55f + currentBlink * 0.45f) else 1.0f),
+                    color = Color(0xFF6E73A3),
                     fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
