@@ -13,6 +13,7 @@ import com.taskgullak.app.data.model.MaintenanceConfig
 import com.taskgullak.app.data.model.ReferralCommissionEvent
 import com.taskgullak.app.data.model.SupportBotMessage
 import com.taskgullak.app.data.model.SupportTicket
+import com.taskgullak.app.data.model.TaskCommentItem
 import com.taskgullak.app.data.model.TaskSubmission
 import com.taskgullak.app.data.model.UserProfile
 import com.taskgullak.app.data.model.WalletTransaction
@@ -1121,20 +1122,74 @@ class TaskGullakRepository(
                 throw IllegalStateException("Failed to record task submission to Firestore.")
             }
 
-            // Increment completedCount on /tasks/{taskId} when approved so "Task Left" updates live
-            if (effectiveStatus == "approved" || effectiveStatus == "verified") {
-                runCatching {
-                    val taskDocRef = db.collection("tasks").document(taskId)
-                    val taskSnap = taskDocRef.get().await()
-                    if (taskSnap.exists()) {
-                        val currentTaskDone = taskSnap.getLong("completedCount") ?: 0L
-                        taskDocRef.update(
-                            mapOf(
-                                "completedCount" to (currentTaskDone + 1L),
-                                "updatedAt" to FieldValue.serverTimestamp()
+            // Update task completedCount, commentItems, and auto-pause when comments/stock are exhausted
+            runCatching {
+                val taskDocRef = db.collection("tasks").document(taskId)
+                val taskSnap = taskDocRef.get().await()
+                if (taskSnap.exists()) {
+                    val rawItems = (taskSnap.get("commentItems") as? List<*>)?.mapNotNull { item ->
+                        val map = item as? Map<*, *> ?: return@mapNotNull null
+                        TaskCommentItem(
+                            id = map["id"]?.toString().orEmpty(),
+                            appTitle = map["appTitle"]?.toString().orEmpty(),
+                            appId = map["appId"]?.toString().orEmpty(),
+                            taskId = taskId,
+                            commentText = map["commentText"]?.toString().orEmpty(),
+                            language = map["language"]?.toString().orEmpty().ifBlank { "English" },
+                            status = map["status"]?.toString().orEmpty().ifBlank { "available" },
+                            assignedUser = map["assignedUser"]?.toString().orEmpty(),
+                            claimedAtMillis = (map["claimedAtMillis"] as? Number)?.toLong() ?: 0L,
+                            claimExpiresAtMillis = (map["claimExpiresAtMillis"] as? Number)?.toLong() ?: 0L,
+                            submittedAtMillis = (map["submittedAtMillis"] as? Number)?.toLong() ?: 0L,
+                            updatedAtMillis = (map["updatedAtMillis"] as? Number)?.toLong() ?: 0L
+                        )
+                    }.orEmpty()
+
+                    var hasUpdatedComments = false
+                    val updatedItems = rawItems.map { item ->
+                        if (item.assignedUser == uid || item.commentText == proofText || (rawItems.size == 1 && item.status != "submitted")) {
+                            hasUpdatedComments = true
+                            item.copy(
+                                status = "submitted",
+                                submittedAtMillis = System.currentTimeMillis(),
+                                updatedAtMillis = System.currentTimeMillis()
                             )
-                        ).await()
+                        } else {
+                            item
+                        }
                     }
+
+                    val nowMs = System.currentTimeMillis()
+                    val remainingAvailable = updatedItems.count { it.isAvailableForPool(nowMs) }
+                    val currentTaskDone = taskSnap.getLong("completedCount") ?: 0L
+                    val totalQty = ((taskSnap.get("totalQuantity") as? Number) ?: (taskSnap.get("total_quantity") as? Number))?.toInt() ?: rawItems.size.coerceAtLeast(1)
+                    val usedQty = ((taskSnap.get("usedQuantity") as? Number) ?: (taskSnap.get("used_quantity") as? Number))?.toInt() ?: 0
+                    val newUsed = (usedQty + 1).coerceAtMost(totalQty)
+                    val newRem = (totalQty - newUsed).coerceAtLeast(0)
+
+                    val isExhaustedOrNoComments = newRem <= 0 || (rawItems.isNotEmpty() && remainingAvailable <= 0)
+                    val newStatus = if (isExhaustedOrNoComments) "paused" else (taskSnap.getString("status") ?: "active")
+                    val newActive = if (isExhaustedOrNoComments) false else (taskSnap.getBoolean("active") ?: true)
+
+                    val taskUpdates = mutableMapOf<String, Any>(
+                        "completedCount" to (currentTaskDone + 1L),
+                        "usedQuantity" to newUsed,
+                        "used_quantity" to newUsed,
+                        "remainingQuantity" to newRem,
+                        "remaining_quantity" to newRem,
+                        "status" to newStatus,
+                        "active" to newActive,
+                        "isActive" to newActive,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                    if (hasUpdatedComments) {
+                        taskUpdates["commentItems"] = updatedItems.map { it.toFirestoreMap() }
+                    }
+
+                    taskDocRef.update(taskUpdates).await()
+                    try {
+                        db.collection("offers").document(taskId).update(taskUpdates).await()
+                    } catch (_: Exception) {}
                 }
             }
 

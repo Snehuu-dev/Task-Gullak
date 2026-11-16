@@ -75,7 +75,27 @@ ACT.tkDay = el => { S.tasksUI.day = el.dataset.k; S.tasksUI.date = ''; S.tasksUI
 INP.tkDate = el => { S.tasksUI.date = el.value; S.tasksUI.day = el.value ? 'date' : 'today'; S.tasksUI.page = 1; renderAll(); };
 async function setTaskStatus(id, status) {
   const active = status === 'active';
+  const t = (S.tasks || []).find(x => x.id === id);
   const patch = { active, isActive: active, status, updatedAt: serverTimestamp(), updatedBy: S.admin };
+  if (active && t) {
+    patch.usedQuantity = 0;
+    patch.used_quantity = 0;
+    if (t.totalQuantity) {
+      patch.remainingQuantity = t.totalQuantity;
+      patch.remaining_quantity = t.totalQuantity;
+    }
+    if (Array.isArray(t.commentItems) && t.commentItems.length > 0) {
+      patch.commentItems = t.commentItems.map(x => ({
+        ...x,
+        status: 'available',
+        assignedUser: '',
+        claimedAtMillis: 0,
+        claimExpiresAtMillis: 0,
+        submittedAtMillis: 0,
+        updatedAtMillis: Date.now()
+      }));
+    }
+  }
   await updateDoc(doc(db, 'tasks', id), patch);
   try { await updateDoc(doc(db, 'offers', id), patch); } catch (_) { }
   logAction('task_status', id, { status });
