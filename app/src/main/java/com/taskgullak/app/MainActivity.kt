@@ -268,6 +268,7 @@ fun TaskGullakApp(initialOpenNotifications: Boolean = false) {
             TaskGullakNotificationHelper.recordUserLoginSession(context)
             FirebaseEmailDispatchService.syncAllKnownLocalAccountsToFirestore(context)
             TaskGullakBackgroundSyncService.startAndEnsureActive(context)
+            com.taskgullak.app.service.NotificationReceiver.scheduleAlarmManagerSync(context)
         } else {
             TaskGullakBackgroundSyncService.stopSyncWhenSignedOut(context)
         }

@@ -690,7 +690,7 @@ internal fun OffersTabShellContent(
         availableTasks.filter { task ->
             val mode = task.modeType.uppercase()
             val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted")
-            val isStockExhausted = task.remainingQuantity <= 0 && task.totalQuantity > 0
+            val isStockExhausted = (task.remainingQuantity <= 0 && task.totalQuantity > 0) || (task.totalCommentsCount > 0 && task.availableCommentsCount <= 0)
 
             if (isExhaustedOrClosed || isStockExhausted) return@filter false
 
@@ -5645,11 +5645,11 @@ private fun rememberTaskTimerAndComment(
    }
    val userSeed = remember(userId) { kotlin.math.abs(userId.hashCode()) }
 
-   var rotationOffset by remember(task.id) {
-       mutableIntStateOf(prefs.getInt("offset_${task.id}", 0))
+   var rotationOffset by remember(task.id, userId) {
+       mutableIntStateOf(prefs.getInt("offset_${userId}_${task.id}", 0))
    }
-   var timerStartedAtMs by remember(task.id) {
-       mutableLongStateOf(prefs.getLong("start_ms_${task.id}", 0L))
+   var timerStartedAtMs by remember(task.id, userId) {
+       mutableLongStateOf(prefs.getLong("start_ms_${userId}_${task.id}", 0L))
    }
 
    val allComments = remember(task.commentsList, task.assignedComment) {
@@ -5703,8 +5703,8 @@ private fun rememberTaskTimerAndComment(
                    rotationOffset = nextOffset
                    timerStartedAtMs = 0L
                    prefs.edit()
-                       .putInt("offset_${task.id}", nextOffset)
-                       .putLong("start_ms_${task.id}", 0L)
+                       .putInt("offset_${userId}_${task.id}", nextOffset)
+                       .putLong("start_ms_${userId}_${task.id}", 0L)
                        .apply()
                    Toast.makeText(context, "Timer expired! Assigned review comment updated.", Toast.LENGTH_LONG).show()
                    break
@@ -5716,12 +5716,12 @@ private fun rememberTaskTimerAndComment(
        }
    }
 
-   val startTimerOnCopy = remember(task.id, context, prefs) {
+   val startTimerOnCopy = remember(task.id, context, prefs, userId) {
        {
            if (timerStartedAtMs == 0L) {
                val now = System.currentTimeMillis()
                timerStartedAtMs = now
-               prefs.edit().putLong("start_ms_${task.id}", now).apply()
+               prefs.edit().putLong("start_ms_${userId}_${task.id}", now).apply()
            }
        }
    }

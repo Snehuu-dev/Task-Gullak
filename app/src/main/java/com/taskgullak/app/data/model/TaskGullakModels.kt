@@ -301,6 +301,30 @@ data class AdminTask(
         val effectiveBulkMin = bulk_min_quantity ?: bulkMinQuantity
         val effectiveBulkMax = bulk_max_quantity ?: bulkMaxQuantity
 
+        val parsedCommentItems = commentItems.mapNotNull { item ->
+            val map = item as? Map<*, *> ?: return@mapNotNull null
+            TaskCommentItem(
+                id = map["id"]?.toString().orEmpty(),
+                appTitle = map["appTitle"]?.toString().orEmpty().ifBlank { resolvedAppName },
+                appId = map["appId"]?.toString().orEmpty().ifBlank { appId },
+                taskId = id,
+                commentText = map["commentText"]?.toString().orEmpty(),
+                language = map["language"]?.toString().orEmpty().ifBlank { "English" },
+                status = map["status"]?.toString().orEmpty().ifBlank { "available" },
+                assignedUser = map["assignedUser"]?.toString().orEmpty(),
+                claimedAtMillis = (map["claimedAtMillis"] as? Number)?.toLong() ?: 0L,
+                claimExpiresAtMillis = (map["claimExpiresAtMillis"] as? Number)?.toLong() ?: 0L,
+                submittedAtMillis = (map["submittedAtMillis"] as? Number)?.toLong() ?: 0L,
+                updatedAtMillis = (map["updatedAtMillis"] as? Number)?.toLong() ?: 0L
+            )
+        }
+        val totalComments = parsedCommentItems.size.coerceAtLeast(resolvedComments.size)
+        val availableComments = if (parsedCommentItems.isNotEmpty()) {
+            parsedCommentItems.count { it.isAvailableForPool() }
+        } else {
+            resolvedComments.size
+        }
+
         return AvailableTask(
             id = id.ifBlank { "task_${resolvedAppName.lowercase().replace(Regex("[^a-z0-9]+"), "_")}" },
             title = title.ifBlank { resolvedAppName },
@@ -335,8 +359,8 @@ data class AdminTask(
             remainingQuantity = remainingQuantity.coerceAtLeast(0),
             status = status.ifBlank { "active" },
             timerEnabled = if (effectiveModeType.equals("BULK", ignoreCase = true)) false else timerEnabled,
-            totalCommentsCount = commentItems.size.coerceAtLeast(resolvedComments.size),
-            availableCommentsCount = resolvedComments.size
+            totalCommentsCount = totalComments,
+            availableCommentsCount = availableComments
         )
     }
 
