@@ -15,6 +15,7 @@ import com.taskgullak.app.util.TaskGullakNotificationHelper
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.launch
 
 /**
  * BroadcastReceiver and remote message handler that processes incoming Firebase Cloud Messaging (FCM)
@@ -26,6 +27,71 @@ class NotificationReceiver : BroadcastReceiver() {
         if (intent == null) return
 
         val action = intent.action.orEmpty()
+        if (action == ACTION_PULL_LIVE_UPDATES || action == Intent.ACTION_BOOT_COMPLETED) {
+            val pendingResult = goAsync()
+            val appContext = context.applicationContext
+            scheduleAlarmManagerSync(appContext)
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                        ?: com.taskgullak.app.data.remote.FirebaseEmailDispatchService.resolveActiveFirestoreUserId(appContext)
+                    if (!uid.isNullOrBlank()) {
+                        val databaseId = try { appContext.getString(R.string.firestore_database_id) } catch (_: Exception) { "(default)" }
+                        val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance(databaseId)
+
+                        val userSnap = runCatching { com.google.android.gms.tasks.Tasks.await(firestore.collection("users").document(uid).get()) }.getOrNull()
+                        val isBulkActive = userSnap?.let {
+                            val bulkMode = it.getBoolean("bulkMode") ?: false
+                            val bulkStatus = it.getString("bulkStatus").orEmpty()
+                            bulkMode || bulkStatus.equals("approved", true) || bulkStatus.equals("active", true)
+                        } ?: false
+
+                        val bSnap = runCatching { com.google.android.gms.tasks.Tasks.await(firestore.collection("broadcasts").get()) }.getOrNull()
+                        if (bSnap != null) {
+                            val broadcasts = bSnap.documents.mapNotNull { doc ->
+                                val data = doc.data ?: return@mapNotNull null
+                                val isActive = (data["active"] as? Boolean) ?: (data["isActive"] as? Boolean) ?: true
+                                if (!isActive) null
+                                else com.taskgullak.app.data.model.BroadcastNotification(
+                                    id = doc.id,
+                                    title = (data["title"] as? String) ?: "",
+                                    message = (data["message"] as? String) ?: (data["body"] as? String) ?: "",
+                                    type = (data["type"] as? String) ?: "broadcast",
+                                    targetUserId = (data["targetUserId"] as? String) ?: "all",
+                                    active = true,
+                                    createdAt = data["createdAt"] as? com.google.firebase.Timestamp
+                                )
+                            }
+                            TaskGullakNotificationHelper.processBroadcastsSnapshot(appContext, broadcasts)
+                        }
+
+                        val tSnap = runCatching { com.google.android.gms.tasks.Tasks.await(firestore.collection("tasks").get()) }.getOrNull()
+                        if (tSnap != null) {
+                            val activeTasks = tSnap.documents.mapNotNull { doc ->
+                                val data = doc.data ?: return@mapNotNull null
+                                val isActive = (data["active"] as? Boolean) ?: (data["isActive"] as? Boolean) ?: true
+                                val statusStr = doc.getString("status")?.lowercase().orEmpty()
+                                if (!isActive || statusStr == "inactive" || statusStr == "archived") null
+                                else com.taskgullak.app.data.model.AdminTask(
+                                    id = doc.id,
+                                    title = (data["title"] as? String) ?: (data["appName"] as? String) ?: "",
+                                    rewardInr = ((data["rewardInr"] as? Number) ?: (data["rewardAmount"] as? Number))?.toLong() ?: 0L,
+                                    active = true,
+                                    modeType = (data["modeType"] as? String) ?: (data["mode_type"] as? String) ?: "NORMAL",
+                                    status = statusStr.ifBlank { "active" }
+                                ).toAvailableTask()
+                            }
+                            TaskGullakNotificationHelper.processTasksSnapshot(appContext, activeTasks, isBulkActive)
+                        }
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    pendingResult.finish()
+                }
+            }
+            return
+        }
+
         if (action == ACTION_HANDLE_REMOTE_MESSAGE ||
             action == ACTION_C2DM_RECEIVE ||
             intent.extras != null
@@ -73,10 +139,42 @@ class NotificationReceiver : BroadcastReceiver() {
 
         const val ACTION_HANDLE_REMOTE_MESSAGE = "com.taskgullak.app.ACTION_HANDLE_REMOTE_MESSAGE"
         const val ACTION_C2DM_RECEIVE = "com.google.android.c2dm.intent.RECEIVE"
+        const val ACTION_PULL_LIVE_UPDATES = "com.taskgullak.app.ACTION_PULL_LIVE_UPDATES"
         const val EXTRA_TITLE = "extra_fcm_title"
         const val EXTRA_BODY = "extra_fcm_body"
         const val EXTRA_CATEGORY = "extra_fcm_category"
         const val EXTRA_MESSAGE_ID = "extra_fcm_message_id"
+
+        fun scheduleAlarmManagerSync(context: Context) {
+            try {
+                val appContext = context.applicationContext
+                val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as? android.app.AlarmManager ?: return
+                val intent = Intent(appContext, NotificationReceiver::class.java).apply {
+                    action = ACTION_PULL_LIVE_UPDATES
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    appContext,
+                    8801,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val triggerAt = android.os.SystemClock.elapsedRealtime() + (2 * 60 * 1000L) // 2 mins
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    alarmManager.setAndAllowWhileIdle(
+                        android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.set(
+                        android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                }
+            } catch (_: Exception) {
+            }
+        }
 
         /**
          * Processes a Firebase [RemoteMessage] (both notification and data payloads) and displays

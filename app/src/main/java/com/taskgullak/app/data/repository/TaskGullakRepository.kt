@@ -303,6 +303,13 @@ class TaskGullakRepository(
                     )
                 ).await()
 
+                // Also update commissionGeneratedForReferrer on referred user's doc
+                runCatching {
+                    db.collection("users").document(referredUserId).update(
+                        "commissionGeneratedForReferrer", FieldValue.increment(commissionAmount)
+                    ).await()
+                }
+
                 // 3. Log WalletTransaction under /users/{referrerUserId}/transactions
                 val txRef = referrerDocRef.collection("transactions").document()
                 val noteText = "${commissionRatePercent.roundToLong()}% Referral Commission: " +
@@ -1366,26 +1373,52 @@ class TaskGullakRepository(
             return kotlinx.coroutines.flow.flowOf(com.taskgullak.app.data.remote.ReferralSummaryState(referralCode = "", referralLink = ""))
         }
         val userFlow = db.collection("users").document(uid).snapshots()
-        val friendsFlow = db.collection("users").whereEqualTo("referredByUserId", uid).snapshots()
-        return combine(userFlow, friendsFlow) { userSnap, friendsSnap ->
+        val friendsByUidFlow = db.collection("users").whereEqualTo("referredByUserId", uid).snapshots()
+        val commsFlow = db.collection("users").document(uid).collection("transactions").whereEqualTo("type", "referral_commission").snapshots()
+
+        return combine(userFlow, friendsByUidFlow, commsFlow) { userSnap, friendsSnap, commsSnap ->
             val myCode = userSnap.getString("referralCode").orEmpty()
             val referredBy = userSnap.getString("referredByCode").orEmpty()
             val bonusEarned = (userSnap.getLong("totalReferralBonusEarned") ?: 0L).toDouble()
             val lifetimeEarned = (userSnap.getLong("totalLifetimeCommissionEarned") ?: userSnap.getLong("referralCommissionEarned") ?: 0L).toDouble()
             val link = "https://taskgullak.space/?ref=$myCode"
 
+            // Map total commission transactions by referred friend name/email/ID
+            val commsMap = mutableMapOf<String, Double>()
+            commsSnap.documents.forEach { doc ->
+                val amt = (doc.getLong("amount") ?: 0L).toDouble()
+                val note = doc.getString("note").orEmpty()
+                val referredId = doc.getString("referredUserId").orEmpty()
+                if (referredId.isNotBlank()) {
+                    commsMap[referredId] = (commsMap[referredId] ?: 0.0) + amt
+                } else if (note.contains(":")) {
+                    val namePart = note.substringAfter(":").substringBefore("completed").trim()
+                    if (namePart.isNotBlank()) {
+                        commsMap[namePart.lowercase()] = (commsMap[namePart.lowercase()] ?: 0.0) + amt
+                    }
+                }
+            }
+
             val friendsList = friendsSnap.documents.mapNotNull { fDoc ->
                 val fName = fDoc.getString("fullName").orEmpty().ifBlank { fDoc.getString("username").orEmpty().ifBlank { "Gullak Member" } }
                 val fEmail = fDoc.getString("email").orEmpty()
+                val fCode = fDoc.getString("referredByCode").orEmpty()
                 val fTasks = (fDoc.getLong("completedTasksCount") ?: 0L).toInt()
+
+                val commFromDoc = (fDoc.getDouble("commissionGeneratedForReferrer") ?: fDoc.getLong("commissionGeneratedForReferrer")?.toDouble()) ?: 0.0
+                val commFromTx = commsMap[fDoc.id] ?: commsMap[fName.lowercase()] ?: commsMap[fEmail.lowercase()] ?: 0.0
+                val commCalculated = (fTasks * 10.0 * 0.01) // 1% of task reward
+                val finalComm = maxOf(commFromDoc, commFromTx, commCalculated)
+
                 com.taskgullak.app.data.remote.ReferralFriendRecord(
                     name = fName,
                     email = fEmail,
-                    joinedAtLabel = "Joined Member",
+                    joinedAtLabel = if (fCode.isNotBlank()) "Joined via $fCode" else "Joined Member",
                     tasksCompleted = fTasks,
-                    lifetimeCommissionEarned = 0.0
+                    lifetimeCommissionEarned = finalComm
                 )
-            }
+            }.sortedByDescending { it.tasksCompleted }
+
             com.taskgullak.app.data.remote.ReferralSummaryState(
                 referralCode = myCode,
                 referralLink = link,
@@ -1394,7 +1427,7 @@ class TaskGullakRepository(
                 lifetimeCommissionPercent = 1,
                 totalReferredFriends = friendsList.size,
                 totalReferralBonusEarned = bonusEarned,
-                totalLifetimeCommissionEarned = lifetimeEarned,
+                totalLifetimeCommissionEarned = if (lifetimeEarned > 0.0) lifetimeEarned else friendsList.sumOf { it.lifetimeCommissionEarned },
                 referredByCode = referredBy,
                 referredFriends = friendsList
             )
