@@ -67,6 +67,12 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -1314,57 +1320,6 @@ internal fun OffersTabShellContent(
 
                     val currentModeChoice = modeChoiceMap[task.id] ?: if (task.modeType.equals("BOTH", true) && isBulkActive) "BULK" else task.modeType.uppercase()
                     
-                    if (isBulkActive && task.modeType.equals("BOTH", true)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .padding(2.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (currentModeChoice == "NORMAL") Color.White else Color.Transparent)
-                                    .clickable {
-                                        modeChoiceMap = modeChoiceMap.toMutableMap().apply { put(task.id, "NORMAL") }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Normal Mode",
-                                    color = if (currentModeChoice == "NORMAL") Color(0xFF334155) else Color(0xFF94A3B8),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (currentModeChoice == "NORMAL") FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .padding(2.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (currentModeChoice == "BULK") Color.White else Color.Transparent)
-                                    .clickable {
-                                        modeChoiceMap = modeChoiceMap.toMutableMap().apply { put(task.id, "BULK") }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Bulk Mode",
-                                    color = if (currentModeChoice == "BULK") Color(0xFF0284C7) else Color(0xFF94A3B8),
-                                    fontSize = 12.sp,
-                                    fontWeight = if (currentModeChoice == "BULK") FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
                     if (isBulkActive && (currentModeChoice == "BULK" || task.modeType.equals("BULK", true))) {
                         // Bulk Mode Action Button on Task Card
                         val isBulkDisabled = isCompletedForUser || isDailyLimitReached
@@ -1376,7 +1331,7 @@ internal fun OffersTabShellContent(
                         val bulkBtnText = when {
                             isCompletedForUser -> "✓ Completed"
                             isDailyLimitReached -> "🔒 Daily Limit Reached (${formatCountdownHms(dailyResetRemainingSecs)})"
-                            else -> "Apply in Bulk Mode ⚡"
+                            else -> "View details  >"
                         }
 
                         Row(
@@ -1393,7 +1348,12 @@ internal fun OffersTabShellContent(
                                 .then(if (isDailyLimitReached && !isCompletedForUser) Modifier.graphicsLayer(alpha = 0.5f) else Modifier)
                                 .clickable(enabled = !isBulkDisabled) {
                                     if (!isBulkDisabled) {
-                                        promptBulkTask = task
+                                        FirebaseEmailDispatchService.markTaskApplied(context, task.id)
+                                        appliedTasksRefreshTick += 1
+                                        scope.launch {
+                                            delay(100)
+                                            activeTaskForProof = task
+                                        }
                                     }
                                 }
                                 .testTag("offer_bulk_apply_${task.id}"),
@@ -6333,3 +6293,335 @@ private fun BulkDevicePickerPromptModal(
     }
 }
 
+
+
+@Composable
+private fun BulkTaskSubmissionFormPanel(
+    task: AvailableTask,
+    isSubmitting: Boolean,
+    bulkDeviceCount: Int,
+    activeAllocations: List<com.taskgullak.app.data.model.BulkCommentAllocation>?,
+    onAllocateBulkComments: (Int) -> Unit,
+    onSubmitBulkBatch: (Map<Int, String>) -> Unit,
+    onCancel: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    var selectedReserveCount by remember { mutableIntStateOf(1) }
+    var currentDeviceIdx by remember { mutableIntStateOf(1) }
+    var deviceScreenshots by remember { mutableStateOf(mapOf<Int, String>()) }
+    var currentScreenshotBase64 by remember(currentDeviceIdx, deviceScreenshots) { mutableStateOf(deviceScreenshots[currentDeviceIdx].orEmpty()) }
+    var commentCopied by remember(currentDeviceIdx) { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val base64 = TaskGullakNotificationHelper.compressUriToBase64DataUrl(context, uri)
+                if (base64 != null) {
+                    currentScreenshotBase64 = base64
+                    deviceScreenshots = deviceScreenshots + (currentDeviceIdx to base64)
+                }
+            }
+        }
+    }
+
+    val maxLimit = minOf(bulkDeviceCount, task.remainingQuantity, task.bulkMaxQuantity).coerceAtLeast(1)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // App Title Section
+        Text(
+            text = "Details",
+            color = Color(0xFF17142E),
+            fontFamily = PoppinsFontFamily,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 13.5.sp
+        )
+
+        // Dropdown or Tabs
+        if (activeAllocations == null || activeAllocations.isEmpty()) {
+            // Before reservation: Dropdown
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .border(1.dp, Color(0xFFDDD6FE), RoundedCornerShape(14.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Reserve Comments",
+                    color = Color(0xFF17142E),
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.5.sp
+                )
+
+                Box {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { dropdownExpanded = true }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "$selectedReserveCount Device${if (selectedReserveCount > 1) "s" else ""}",
+                                color = Color(0xFF1E293B),
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select",
+                                tint = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false },
+                        modifier = Modifier.fillMaxWidth(0.85f).background(Color.White)
+                    ) {
+                        for (i in 1..maxLimit) {
+                            DropdownMenuItem(
+                                text = { Text("$i Device${if (i > 1) "s" else ""}", fontFamily = InterFontFamily) },
+                                onClick = {
+                                    selectedReserveCount = i
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // After reservation: Tabs
+            val totalDevices = activeAllocations.size
+            val currentAlloc = activeAllocations.firstOrNull { it.deviceIndex == currentDeviceIdx } ?: activeAllocations.firstOrNull()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .border(1.dp, Color(0xFF0284C7), RoundedCornerShape(14.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Your Review Comments",
+                    color = Color(0xFF17142E),
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.5.sp
+                )
+
+                ScrollableTabRow(
+                    selectedTabIndex = currentDeviceIdx - 1,
+                    containerColor = Color.Transparent,
+                    contentColor = Color(0xFF0284C7),
+                    edgePadding = 0.dp,
+                    indicator = { tabPositions ->
+                        androidx.compose.material3.TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[currentDeviceIdx - 1]),
+                            color = Color(0xFF0284C7)
+                        )
+                    }
+                ) {
+                    activeAllocations.forEach { alloc ->
+                        Tab(
+                            selected = currentDeviceIdx == alloc.deviceIndex,
+                            onClick = { currentDeviceIdx = alloc.deviceIndex },
+                            text = {
+                                Text(
+                                    "Comment ${alloc.deviceIndex}",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = if (currentDeviceIdx == alloc.deviceIndex) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        )
+                    }
+                }
+
+                if (currentAlloc != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, if (commentCopied) Color(0xFF10B981) else Color(0xFFCBD5E1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(currentAlloc.commentText))
+                                commentCopied = true
+                                scope.launch {
+                                    delay(500L)
+                                    commentCopied = false
+                                }
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "\"${currentAlloc.commentText}\"",
+                                color = Color(0xFF1E293B),
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (commentCopied) Color(0xFFDCFCE7) else Color(0xFFEDE9FE)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (commentCopied) Icons.Default.Check else Icons.Outlined.ContentCopy,
+                                    contentDescription = "Copy",
+                                    tint = if (commentCopied) Color(0xFF16A34A) else Color(0xFF6D28D9),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Attach Screenshot
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .clickable {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AddPhotoAlternate,
+                            contentDescription = "Upload",
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = if (currentScreenshotBase64.isNotBlank()) "Proof Attached ✓" else "Attach Screenshot",
+                            color = if (currentScreenshotBase64.isNotBlank()) Color(0xFF16A34A) else Color(0xFF0284C7),
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$totalDevices comments reserved",
+                            color = Color(0xFF64748B),
+                            fontFamily = InterFontFamily,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "Return this comment",
+                            color = Color(0xFFE11D48),
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 10.sp,
+                            modifier = Modifier.clickable { /* TBD if actual return is required */ }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Action Buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(0.32f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE2E8F0))
+                    .clickable { onCancel() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Cancel",
+                    color = Color(0xFF475569),
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+
+            Box(modifier = Modifier.weight(0.68f)) {
+                if (activeAllocations == null || activeAllocations.isEmpty()) {
+                    ShinyGradientButton(
+                        text = "Reserve $selectedReserveCount Comment${if (selectedReserveCount > 1) "s" else ""}",
+                        onClick = { onAllocateBulkComments(selectedReserveCount) },
+                        gradientColors = listOf(Color(0xFF0284C7), Color(0xFF0EA5E9)),
+                        height = 44.dp,
+                        cornerRadius = 12.dp,
+                        fontSizeSp = 12.5f
+                    )
+                } else {
+                    val allUploaded = activeAllocations.all { deviceScreenshots[it.deviceIndex]?.isNotBlank() == true }
+                    ShinyGradientButton(
+                        text = if (isSubmitting) "Submitting..." else "Submit All ${activeAllocations.size} Proofs",
+                        onClick = {
+                            if (!allUploaded) {
+                                Toast.makeText(context, "Upload screenshots for all tabs before submitting.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                onSubmitBulkBatch(deviceScreenshots)
+                            }
+                        },
+                        enabled = !isSubmitting,
+                        gradientColors = if (allUploaded) listOf(Color(0xFF15803D), Color(0xFF10B981)) else listOf(Color(0xFF64748B), Color(0xFF94A3B8)),
+                        height = 44.dp,
+                        cornerRadius = 12.dp,
+                        fontSizeSp = 12.5f
+                    )
+                }
+            }
+        }
+    }
+}

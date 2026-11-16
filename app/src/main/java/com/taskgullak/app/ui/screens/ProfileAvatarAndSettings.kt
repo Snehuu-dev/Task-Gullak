@@ -1981,7 +1981,7 @@ fun BulkModApplyModalBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "🔥 BULK MODE ACTIVE",
+                            text = "BULK MODE ACTIVE",
                             color = Color(0xFF38BDF8),
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,

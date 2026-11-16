@@ -412,8 +412,16 @@ data class BroadcastNotification(
     val type: String = "broadcast",
     val targetUserId: String = "all",
     val active: Boolean = true,
+    val durationMinutes: Long = 0L,
     @ServerTimestamp val createdAt: Timestamp? = null
-)
+) {
+    fun isExpired(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        if (durationMinutes <= 0L) return false
+        val createdMs = createdAt?.toDate()?.time ?: 0L
+        if (createdMs <= 0L) return false
+        return nowMillis >= (createdMs + (durationMinutes * 60 * 1000L))
+    }
+}
 
 @IgnoreExtraProperties
 data class WalletTransaction(

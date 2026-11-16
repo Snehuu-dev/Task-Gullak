@@ -414,7 +414,8 @@ object TaskGullakNotificationHelper {
         context: Context,
         uniqueKey: String,
         title: String,
-        message: String
+        message: String,
+        timeoutAfterMs: Long = -1L
     ) {
         val dismissed = loadDismissedNotificationIds(context)
         if (dismissed.contains(uniqueKey) || dismissed.contains(uniqueKey.removePrefix("push_"))) {
@@ -448,7 +449,7 @@ object TaskGullakNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
@@ -457,10 +458,13 @@ object TaskGullakNotificationHelper {
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .build()
+            
+        if (timeoutAfterMs > 0L) {
+            builder.setTimeoutAfter(timeoutAfterMs)
+        }
 
         try {
-            NotificationManagerCompat.from(context).notify(uniqueKey.hashCode(), notification)
+            NotificationManagerCompat.from(context).notify(uniqueKey.hashCode(), builder.build())
         } catch (_: SecurityException) {
             // Permission may have been revoked at runtime
         }
@@ -566,7 +570,14 @@ object TaskGullakNotificationHelper {
             }
             setBaselineInitialized(context, "broadcasts")
         } else {
+            val nowMs = System.currentTimeMillis()
             activeBroadcasts.forEach { b ->
+                if (b.isExpired(nowMs)) {
+                    val notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    notifManager.cancel("broadcast_${b.id}".hashCode())
+                    return@forEach
+                }
+                
                 val uniqueKey = "broadcast_${b.id}"
                 val createdAtMs = b.createdAt?.toDate()?.time ?: 0L
                 if (createdAtMs > 0L && cursorCutoff > 0L && createdAtMs < (cursorCutoff - 5000L)) {
@@ -578,7 +589,8 @@ object TaskGullakNotificationHelper {
                         context = context,
                         uniqueKey = uniqueKey,
                         title = b.title.ifBlank { "Task Gullak Announcement" },
-                        message = b.message
+                        message = b.message,
+                        timeoutAfterMs = if (b.durationMinutes > 0L) b.durationMinutes * 60 * 1000L else -1L
                     )
                 }
             }
