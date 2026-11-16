@@ -1,54 +1,43 @@
-# ANY TASK — Admin Panel (multi-file)
+# Task Gullak Admin Panel
 
-Same app as before, now split into folders so each part can be edited on its own.
+How to run: open `index.html` from a web server or Firebase Hosting (`firebase deploy --only hosting`).
+Double-clicking the file also works for the master-password login. Google sign-in needs https.
 
-## Folder map — kahan kya badalna hai
+```
+index.html            page markup only (login, sidebar, every page, dialogs)
+css/
+  base.css            colours, layout, cards, buttons, lists
+  layout.css          responsive rules + motion/dashboard styles
+  pages.css           task cards, approvals, reports, receipts, notifications
+  loader.css          loading screen (ring) + thin top bar
+js/
+  boot.js             loads Firebase, then every file below in order
+  guard.js            shows readable errors on the login screen
+  config.js           Firebase config, admin emails, database connection
+  helpers.js          small helpers + icons
+  state.js            app state, toast/dialogs, audit log, data accessors
+  shell.js            navigation, click handling, login
+  listeners.js        live Firestore listeners, finance numbers, render dispatch
+  pages/
+    overview.js       dashboard (monthly)
+    approvals.js      approvals, folders, bulk mode
+    tasks.js          task list + task editor (Normal / Bulk / Both)
+    comments.js       comment pool, blocked users
+    users.js          users + wallets
+    withdrawals.js    withdrawals
+    reports.js        monthly reports + report images
+    notifications.js  notifications to users
+    bulk-access.js    Bulk Access (user requests -> Activate / Reject)
+    system.js         maintenance, settings, activity log, developer tools
+  init.js             start-up
+user-app/             small files for your USER app (bulk access, task details)
+functions/            optional Cloud Functions (push, daily cleanup, screenshots)
+SETUP-STEPS.md        optional setup
+```
 
-| Kya badalna hai | File |
-|---|---|
-| Page ka HTML (screens, popups, buttons) | `index.html` |
-| Firebase SDK version | `index.html` (import URLs) |
-| Firebase keys, admin email whitelist | `js/core/config.js` |
-| Chhote helper functions (format, date, icons) | `js/core/helpers.js` |
-| App state (filters, selections) | `js/core/state.js` |
-| Toast / popup dialogs | `js/core/ui.js` |
-| Page switching (sidebar) | `js/core/navigation.js` |
-| Button clicks / typing (event handling) | `js/core/events.js` |
-| Login / logout | `js/core/auth.js` |
-| Firestore realtime listeners | `js/core/realtime.js` |
-| Dashboard | `js/views/overview.js` |
-| Approvals, search, bulk approve/reject/block | `js/views/approvals.js` |
-| Task Manager (add/edit task, day filter) | `js/views/tasks.js` |
-| Play Store name / icon / rating fetch | `js/services/play-store.js` |
-| Comments, feedback | `js/views/comments.js` |
-| Users & wallet | `js/views/users.js` |
-| Withdrawals | `js/views/withdrawals.js` |
-| Monthly records / reports | `js/views/reports.js` |
-| Push notifications | `js/views/notifications.js` |
-| Maintenance mode | `js/views/maintenance.js` |
-| Settings, Activity logs, Developer tools | `js/views/settings.js`, `logs.js`, `devtools.js` |
-| Startup | `js/app.js` |
-| Colors, layout, theme | `css/base.css` |
-| Cards, buttons, lists, chips | `css/components.css` |
-| Approvals / task card / popups / login | `css/approvals.css`, `tasks.css`, `overlays.css` |
-| Mobile + dark mode | `css/responsive.css` |
-| Newer styles (dashboard, skeleton, animation) | `css/enhancements.css` |
-| Order in which JS files load | `js/manifest.js` |
-| Play Store proxy (Cloudflare Worker) | `tools/play-proxy-worker.js` |
+Add a new page: create `js/pages/<name>.js`, add its file name in `js/boot.js` (FILES list) and in the `<link rel="preload">` list in `index.html`.
+Files load in the order listed in `boot.js`; a file can use anything defined in the files above it.
 
-## Update karne ka tarika
-1. Jo file badalni hai wahi edit karo.
-2. `js/manifest.js` me `APP_VERSION` badha do (jaise `1.0.1`) taaki browser purani cached file na dikhaye.
-3. Upload / deploy karo.
-
-## Run karna
-Ye ek website hai, isliye local server ya hosting se chalao (file ko seedha double-click karke nahi):
-
-    cd admin-panel
-    python3 -m http.server 8000      # phir http://localhost:8000
-
-Hosting: Firebase Hosting / Netlify / GitHub Pages (folder ko jyon ka tyon upload karo).
-Google login ke liye apna domain Firebase Console → Authentication → Settings → Authorized domains me add karna zaroori hai.
-
-## Nayi file jodna
-JS file banao (top par `'use strict';` likho) → `js/manifest.js` ki list me sahi jagah add karo. Files ek hi shared scope me chalti hain, isliye ek file ke functions dusri file me seedha use ho sakte hain.
+Faster loading: Firestore keeps a copy of your data on the device (the next visit opens instantly),
+the first screen loads tasks / submissions / withdrawals / users first, and logs, notifications and
+bulk requests load afterwards when the browser is idle.

@@ -884,6 +884,44 @@ class TaskGullakRepository(
                     )
                 )
             } else {
+                val userByEmailSnap = if (safeEmail.isNotBlank()) {
+                    runCatching { db.collection("users").whereEqualTo("email", safeEmail).limit(1).get().await() }.getOrNull()
+                } else null
+
+                val existingByEmailDoc = userByEmailSnap?.documents?.firstOrNull()
+                if (existingByEmailDoc != null && existingByEmailDoc.exists()) {
+                    val existingRefCode = existingByEmailDoc.getString("referralCode").orEmpty()
+                    val existingName = existingByEmailDoc.getString("fullName").orEmpty()
+
+                    val mergePayload = mutableMapOf<String, Any>(
+                        "userId" to uid,
+                        "email" to safeEmail,
+                        "emailVerified" to true,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                    if (existingName.isBlank() && safeName.isNotBlank()) {
+                        mergePayload["fullName"] = safeName
+                    }
+                    if (existingRefCode.isBlank() && safeReferralCode.isNotBlank()) {
+                        mergePayload["referralCode"] = safeReferralCode
+                    }
+
+                    existingByEmailDoc.reference.set(mergePayload, com.google.firebase.firestore.SetOptions.merge()).await()
+                    docRef.set(mergePayload, com.google.firebase.firestore.SetOptions.merge()).await()
+
+                    val profile = existingByEmailDoc.toObject(
+                        UserProfile::class.java,
+                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
+                    ) ?: UserProfile(
+                        id = existingByEmailDoc.id,
+                        userId = uid,
+                        fullName = safeName,
+                        email = safeEmail,
+                        emailVerified = true
+                    )
+                    return Result.success(profile)
+                }
+
                 val payload = mutableMapOf<String, Any>(
                     "userId" to uid,
                     "fullName" to safeName,
