@@ -692,18 +692,20 @@ internal fun OffersTabShellContent(
         }
     }
 
-    val filteredTasks = remember(availableTasks, isBulkActive) {
+    val isUserBulkActive = userProfile?.isBulkActive == true || bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
+
+    val filteredTasks = remember(availableTasks, isUserBulkActive) {
         availableTasks.filter { task ->
             val mode = task.modeType.uppercase()
-            val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted")
-            val isStockExhausted = (task.remainingQuantity <= 0 && task.totalQuantity > 0) || (task.totalCommentsCount > 0 && task.availableCommentsCount <= 0)
+            val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted", "draft")
+            val isStockExhausted = task.remainingQuantity <= 0 && task.totalQuantity > 0
 
             if (isExhaustedOrClosed || isStockExhausted) return@filter false
 
-            if (isBulkActive) {
-                mode == "BULK" || mode == "BOTH"
+            if (isUserBulkActive) {
+                true
             } else {
-                mode == "NORMAL" || mode == "BOTH"
+                mode != "BULK" && !task.isBulk
             }
         }
     }
