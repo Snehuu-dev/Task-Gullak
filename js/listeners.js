@@ -108,7 +108,8 @@ const approvalMs = s => tsMs(s.updatedAt) || subMs(s);
 /* ============================================================
    RENDER DISPATCH
    ============================================================ */
-const RENDER = {};
+window.RENDER = window.RENDER || {};
+var RENDER = window.RENDER;
 
 function renderAll(force) {
   { const tl = $('#top-load'); if (tl) tl.classList.toggle('on', !!S.admin && ['tasks', 'submissions', 'users', 'withdrawals'].some(k => !S.live[k] && !S.errs[k])); }

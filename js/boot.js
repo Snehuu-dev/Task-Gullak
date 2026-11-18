@@ -7,7 +7,7 @@
   Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]).then(function (m) {
     [m[0], m[1], m[2]].forEach(function (ns, i) { FB[['app', 'auth', 'firestore'][i]].forEach(function (n) { globalThis[n] = ns[n]; }); });
     FILES.forEach(function (f, i) {
-      var s = document.createElement('script'); s.src = f + '?v=1.0.8'; s.async = false;
+      var s = document.createElement('script'); s.src = f + '?v=1.0.9'; s.async = false;
       s.onerror = function () { fail('Could not load ' + f + '. Open the site from a web server or Firebase Hosting.'); };
       document.body.appendChild(s);
     });

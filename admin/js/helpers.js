@@ -67,6 +67,12 @@ function userInfo(uid) {
   return S.users.find(x => x && (x.id === c || x.userId === c || x.uid === c || (x.email && canon(x.email) === c))) || null;
 }
 window.userInfo = userInfo;
+window.RENDER = window.RENDER || {};
+window.ACT = window.ACT || {};
+window.INP = window.INP || {};
+var RENDER = window.RENDER;
+var ACT = window.ACT;
+var INP = window.INP;
 var ymd = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.ymd = ymd;
 var setHTML = (el, html) => { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };

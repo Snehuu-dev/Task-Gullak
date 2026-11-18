@@ -46,8 +46,8 @@ function go(view, opts = {}) {
 /* ============================================================
    EVENT DELEGATION
    ============================================================ */
-const ACT = {};
-const INP = {};
+window.ACT = window.ACT || {}; var ACT = window.ACT;
+window.INP = window.INP || {}; var INP = window.INP;
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el) { if (!e.target.closest('#user-menu') && !e.target.closest('[data-act="userMenu"]')) $('#user-menu')?.classList.add('hidden'); return; }
