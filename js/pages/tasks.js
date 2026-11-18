@@ -55,12 +55,12 @@ ACT.taskApprovals = el => {
   const t = S.tasks.find(x => x.id === el.dataset.id);
   go('approvals', { range: 'all', status: 'all', q: t ? taskName(t) : '' });
 };
-async function setTaskStatus(id, status) {
-  const active = status === 'active';
-  const patch = { active, isActive: active, status, updatedAt: serverTimestamp(), updatedBy: S.admin };
+async function setTaskStatus(id, newStatus) {
+  const active = newStatus === 'active';
+  const patch = { active, isActive: active, status: newStatus, updatedAt: serverTimestamp(), updatedBy: S.admin };
   await updateDoc(doc(db, 'tasks', id), patch);
   try { await updateDoc(doc(db, 'offers', id), patch); } catch (_) { }
-  logAction('task_status', id, { status });
+  logAction('task_status', id, { status: newStatus });
 }
 /* A task lives only on the day it was added: from the next day it is deleted automatically (submissions / approvals are kept). */
 async function sweepOldTasks() {

@@ -73,8 +73,8 @@ ACT.taskApprovals = el => {
 };
 ACT.tkDay = el => { S.tasksUI.day = el.dataset.k; S.tasksUI.date = ''; S.tasksUI.page = 1; renderAll(); };
 INP.tkDate = el => { S.tasksUI.date = el.value; S.tasksUI.day = el.value ? 'date' : 'today'; S.tasksUI.page = 1; renderAll(); };
-async function setTaskStatus(id, status) {
-  const active = status === 'active';
+async function setTaskStatus(id, newStatus) {
+  const active = newStatus === 'active';
   const t = (S.tasks || []).find(x => x.id === id);
   const patch = { active, isActive: active, status, updatedAt: serverTimestamp(), updatedBy: S.admin };
   if (active && t) {
@@ -98,7 +98,7 @@ async function setTaskStatus(id, status) {
   }
   await updateDoc(doc(db, 'tasks', id), patch);
   try { await updateDoc(doc(db, 'offers', id), patch); } catch (_) { }
-  logAction('task_status', id, { status });
+  logAction('task_status', id, { status: newStatus });
 }
 ACT.taskPause = async el => { await setTaskStatus(el.dataset.id, 'paused'); toast('Task paused'); };
 ACT.taskActivate = async el => { await setTaskStatus(el.dataset.id, 'active'); toast('Task is live', 'ok'); };
