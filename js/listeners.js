@@ -57,18 +57,28 @@ function listen(key, ref, apply) {
     err => { S.live[key] = false; S.errs[key] = err.code || err.message; if (!['adminLogs', 'adminMeta'].includes(key)) console.warn('Listener', key, err.code || err.message); schedule(); });
 }
 function startListeners() {
-  if (started) return; started = true; S.bootAt = Date.now(); setTimeout(schedule, 250); setTimeout(schedule, 8200); syncClock();
+  if (started) return; started = true; S.bootAt = Date.now(); setTimeout(schedule, 250); setTimeout(schedule, 3000); syncClock();
   listen('tasks', collection(db, 'tasks'), snap => { S.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); setTimeout(sweepExpired, 800); setTimeout(sweepOldTasks, 1200); setTimeout(sweepOldBcasts, 1500); });
   listen('submissions', collection(db, 'submissions'), snap => { S.subs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => subMs(b) - subMs(a)); });
   listen('withdrawals', collection(db, 'withdrawals'), snap => { S.wds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => wdMs(b) - wdMs(a)); });
   listen('users', collection(db, 'users'), snap => { S.usersRaw = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.users = dedupeUsers(S.usersRaw); S.uidAlias = new Map(); S.users.forEach(u => (u._aliases || []).forEach(a => S.uidAlias.set(a, u.id))); });
-  /* less important data waits until the page is idle, so the first screen loads sooner */
+
+  /* Safety fallback: if Firestore listeners take more than 2.5s, mark as live so UI displays immediately */
+  setTimeout(() => {
+    ['tasks', 'submissions', 'withdrawals', 'users', 'broadcasts'].forEach(k => {
+      if (!S.live[k] && !S.errs[k]) {
+        S.live[k] = true;
+      }
+    });
+    schedule();
+  }, 2500);
+
   const later = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 1200 }) : setTimeout(f, 800));
   later(() => {
     listen('broadcasts', collection(db, 'broadcasts'), snap => { S.bcasts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
     listen('adminLogs', query(collection(db, 'adminLogs'), orderBy('createdMs', 'desc'), limit(300)), snap => { S.logs = snap.docs.map(d => ({ id: d.id, ...d.data() })); });
     listen('adminMeta', collection(db, 'adminMeta'), snap => { S.meta = {}; snap.docs.forEach(d => { S.meta[d.id] = d.data(); }); });
-    startBulkListener();
+    if (typeof startBulkListener === 'function') startBulkListener();
   });
 }
 

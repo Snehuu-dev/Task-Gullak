@@ -30,5 +30,5 @@ const app = initializeApp(firebaseConfig);
 /* No popup resolver at startup => Google's gapi script (apis.google.com) is NOT loaded unless Google sign-in is clicked on http(s). */
 const auth = initializeAuth(app, { persistence: /^https?:$/.test(location.protocol) ? browserLocalPersistence : inMemoryPersistence });
 let db;
-try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }   // data is kept on the device: next visit shows instantly
-catch (_) { db = getFirestore(app); }
+try { db = getFirestore(app); }
+catch (_) { db = getFirestore(); }
