@@ -1801,11 +1801,11 @@ ACT.tmSave = async () => {
   const remainingQty = Math.max(0, totalQty - usedQty);
 
   const onceMode = $('#tm-once').value, hideAfterComplete = onceMode !== 'keep', reshow = onceMode === 'reshow' && !!existingId;
-  let status = $('#tm-status').value;
-  if (remainingQty <= 0 && status === 'active') {
-    status = 'exhausted';
+  let taskFormStatus = $('#tm-status').value;
+  if (remainingQty <= 0 && taskFormStatus === 'active') {
+    taskFormStatus = 'exhausted';
   }
-  const active = status === 'active';
+  const active = taskFormStatus === 'active';
   const isBulk = modeType === 'BULK' || modeType === 'BOTH';
   const timerEnabled = modeType === 'BULK' ? false : (existing?.timerEnabled ?? true);
 
@@ -1824,7 +1824,7 @@ ACT.tmSave = async () => {
     iconUrl, appIcon: iconUrl, taskPfpBase64: iconUrl, referenceScreenshotUrl: existing?.referenceScreenshotUrl || '', exampleProofBase64: existing?.exampleProofBase64 || '',
     category, rewardInr: reward, rewardAmount: reward, reward, durationMinutes: duration, timerMinutes: duration, deadlineHours: existing?.deadlineHours || 24, maxSubmissions: 0, hideAfterComplete, oneTimePerUser: hideAfterComplete, ...(reshow ? { reshowAt: Date.now(), submittedUserIds: [] } : {}),
     instructions: ins, description: ins.join('\n'), proofRequirement: existing?.proofRequirement || 'Upload completion screenshot and your genuine feedback',
-    active, isActive: active, pausedByMaintenance: false, status,
+    active, isActive: active, pausedByMaintenance: false, status: taskFormStatus,
     isBulk, modeType, mode_type: modeType,
     bulkMinQuantity: bulkMin, bulk_min_quantity: bulkMin,
     bulkMaxQuantity: bulkMax, bulk_max_quantity: bulkMax,
@@ -1839,8 +1839,8 @@ ACT.tmSave = async () => {
   try {
     await setDoc(docRef, payload, { merge: true });
     try { await setDoc(doc(db, 'offers', docRef.id), payload, { merge: true }); } catch (_) { }
-    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status, modeType, remainingQty });
-    closeTask(); toast(`Task “${title}” saved (${inr(reward)}, ${status === 'active' ? 'LIVE' : status})`, 'ok');
+    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status: taskFormStatus, modeType, remainingQty });
+    closeTask(); toast(`Task “${title}” saved (${inr(reward)}, ${taskFormStatus === 'active' ? 'LIVE' : taskFormStatus})`, 'ok');
   } catch (e) { err.textContent = 'Save failed: ' + (e.code || e.message); }
   btn.disabled = false;
 };

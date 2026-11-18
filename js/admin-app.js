@@ -1764,7 +1764,7 @@ ACT.tmSave = async () => {
   if (!title) { err.textContent = 'An app name or a valid Play Store link is required.'; return; }
   const reward = Math.max(1, parseInt($('#tm-reward').value || '0', 10) || 0), duration = Math.max(1, parseInt($('#tm-duration').value || '0', 10) || 15);
   if (!reward) { err.textContent = 'Reward must be ₹1 or more.'; return; }
-  const onceMode = $('#tm-once').value, hideAfterComplete = onceMode !== 'keep', reshow = onceMode === 'reshow' && !!existingId, status = $('#tm-status').value, active = status === 'active';
+  const onceMode = $('#tm-once').value, hideAfterComplete = onceMode !== 'keep', reshow = onceMode === 'reshow' && !!existingId, taskFormStatus = $('#tm-status').value, active = taskFormStatus === 'active';
   const appId = pkgOf(url) || title.toLowerCase().replace(/\W+/g, '_');
   if (!existingId && S.tasks.some(t => (t.appId || t.packageName) === appId && taskStatus(t) !== 'archived')) {
     if (!await confirmBox('Duplicate task?', 'A task for this app already exists. Create a new one anyway?', { ok: 'Create anyway' })) return;
@@ -1780,7 +1780,7 @@ ACT.tmSave = async () => {
     iconUrl, appIcon: iconUrl, taskPfpBase64: iconUrl, referenceScreenshotUrl: existing?.referenceScreenshotUrl || '', exampleProofBase64: existing?.exampleProofBase64 || '',
     category, rewardInr: reward, rewardAmount: reward, reward, durationMinutes: duration, timerMinutes: duration, deadlineHours: existing?.deadlineHours || 24, maxSubmissions: 0, hideAfterComplete, oneTimePerUser: hideAfterComplete, ...(reshow ? { reshowAt: Date.now(), submittedUserIds: [] } : {}),
     instructions: ins, description: ins.join('\n'), proofRequirement: existing?.proofRequirement || 'Upload completion screenshot and your genuine feedback',
-    active, isActive: active, pausedByMaintenance: false, status,
+    active, isActive: active, pausedByMaintenance: false, status: taskFormStatus,
     comments: texts, commentPool: texts, commentItems: buildCommentItems(docRef.id, title, appId, texts, existing?.commentItems), updatedAt: serverTimestamp(), updatedBy: S.admin
   };
   if (!existingId) { payload.createdAt = serverTimestamp(); payload.createdBy = S.admin; }
@@ -1788,8 +1788,8 @@ ACT.tmSave = async () => {
   try {
     await setDoc(docRef, payload, { merge: true });
     try { await setDoc(doc(db, 'offers', docRef.id), payload, { merge: true }); } catch (_) { }
-    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status });
-    closeTask(); toast(`Task “${title}” saved (${inr(reward)}, ${status === 'active' ? 'LIVE' : status})`, 'ok');
+    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status: taskFormStatus });
+    closeTask(); toast(`Task “${title}” saved (${inr(reward)}, ${taskFormStatus === 'active' ? 'LIVE' : taskFormStatus})`, 'ok');
   } catch (e) { err.textContent = 'Save failed: ' + (e.code || e.message); }
   btn.disabled = false;
 };
