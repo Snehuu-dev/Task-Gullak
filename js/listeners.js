@@ -33,7 +33,6 @@ async function syncSubmitters() {
 /* One person = one user. The same email can exist as two Firestore docs (Google login -> Firebase UID doc, email/password -> "user_<email>" doc).
    We merge them by email so the admin sees a single user. The UID doc wins; its wallet is shown (never added twice). */
 const isLegacyId = id => /^user_/i.test(String(id)) || /@/.test(String(id));
-const canon = id => (S.uidAlias && S.uidAlias.get(id)) || id;
 function dedupeUsers(list) {
   const g = new Map();
   list.forEach(u => { const em = String(u.email || '').trim().toLowerCase(); const k = em || ('id:' + u.id); if (!g.has(k)) g.set(k, []); g.get(k).push(u); });
