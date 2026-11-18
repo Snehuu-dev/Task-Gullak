@@ -4,7 +4,6 @@
 /* ============================================================
    TASKS
    ============================================================ */
-const ymd = d => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
 function taskDayRange(f) {
   const d0 = new Date(); d0.setHours(0, 0, 0, 0); const t0 = d0.getTime();
   if (f.day === 'today') return { from: t0, to: t0 + DAY - 1, label: 'Today (' + fmtD(t0) + ')', ymd: [ymd(t0), ymd(t0)] };
@@ -114,10 +113,7 @@ const buildCommentItems = (taskId, title, appId, texts, existing = []) => {
     assignedUser: '', claimedAtMillis: 0, claimExpiresAtMillis: 0, submittedAtMillis: 0, updatedAtMillis: now
   }));
 };
-const lines = v => v.split('\n').map(x => x.trim()).filter(Boolean);
 /* one person = one entry; blocking one login method blocks every id of that person (Google uid + email/password doc) */
-const idsOfUser = uid => { const c = canon(uid), u = S.users.find(x => x.id === c); return [...new Set([c, uid, ...((u && u._aliases) || [])])]; };
-const userInfo = uid => { const c = canon(uid); return S.users.find(x => x.id === c || x.userId === c) || null; };
 function prevUsersForApp(title, appId) {
   const tl = String(title || '').trim().toLowerCase();
   const same = S.tasks.filter(t => (appId && (t.appId === appId || t.packageName === appId)) || (tl && taskName(t).trim().toLowerCase() === tl));

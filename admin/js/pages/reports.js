@@ -4,10 +4,6 @@
 /* ============================================================
    MONTHLY RECORDS / REPORTS
    ============================================================ */
-const monthLabel = key => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); };
-const shiftMonth = (key, d) => { const [y, m] = key.split('-').map(Number); return monthKey(new Date(y, m - 1 + d, 1).getTime()); };
-const AVC = ['#1a73e8', '#188038', '#e37400', '#d93025', '#9334e6', '#007b83'];
-const avc = s => AVC[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
 const payName = w => { const u = S.users.find(x => x.id === canon(w.userId)); return w.userName || (u && (u.fullName || u.email)) || w.userEmail || w.userId || 'User'; };
 function spendByTask(ap) {
   const per = new Map();

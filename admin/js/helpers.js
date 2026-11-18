@@ -31,7 +31,13 @@ const mask = acc => { const a = String(acc || ''); return a.length > 4 ? 'XXXX' 
 const slug = s => String(s || '').replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'x';
 const monthKey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
 const monthRange = key => { const [y, m] = key.split('-').map(Number); return [new Date(y, m - 1, 1).getTime(), new Date(y, m, 1).getTime()]; };
+const monthLabel = key => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); };
+const shiftMonth = (key, d) => { const [y, m] = key.split('-').map(Number); return monthKey(new Date(y, m - 1 + d, 1).getTime()); };
+const ymd = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const setHTML = (el, html) => { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };
+const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+const AVC = ['#1a73e8', '#188038', '#e37400', '#d93025', '#9334e6', '#007b83'];
+const avc = s => AVC[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
 const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\n');
 function saveText(name, text, mime = 'text/plain') {
