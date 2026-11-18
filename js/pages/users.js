@@ -5,36 +5,10 @@
    USERS & WALLET
    ============================================================ */
 const isOnline = u => userSeen(u) > Date.now() - 5 * 60 * 1000;
-
-function getUnifiedUsersList(rawUsers) {
-  if (!Array.isArray(rawUsers)) return [];
-  const map = new Map();
-  rawUsers.forEach(u => {
-    if (!u) return;
-    const email = String(u.email || '').trim().toLowerCase();
-    const key = email || u.id || u.userId;
-    if (!map.has(key)) {
-      map.set(key, { ...u, _aliases: [u.id, u.userId].filter(Boolean) });
-    } else {
-      const existing = map.get(key);
-      existing._aliases = Array.from(new Set([...(existing._aliases || []), u.id, u.userId].filter(Boolean)));
-      existing.walletBalance = Math.max(num(existing.walletBalance), num(u.walletBalance));
-      existing.completedTasksCount = Math.max(num(existing.completedTasksCount), num(u.completedTasksCount));
-      existing.totalReferralBonusEarned = Math.max(num(existing.totalReferralBonusEarned), num(u.totalReferralBonusEarned));
-      existing.totalLifetimeCommissionEarned = Math.max(num(existing.totalLifetimeCommissionEarned), num(u.totalLifetimeCommissionEarned));
-      if (!existing.fullName && u.fullName) existing.fullName = u.fullName;
-      if (!existing.upiId && u.upiId) existing.upiId = u.upiId;
-      if (u.isBanned) existing.isBanned = true;
-      if (userSeen(u) > userSeen(existing)) existing.lastSeenAt = u.lastSeenAt || u.updatedAt;
-    }
-  });
-  return Array.from(map.values());
-}
-
 function usersFiltered() {
   const f = S.us, q = f.q.trim().toLowerCase();
   const from = f.from ? new Date(f.from + 'T00:00:00').getTime() : 0, to = f.to ? new Date(f.to + 'T23:59:59.999').getTime() : Infinity;
-  let list = getUnifiedUsersList(S.users).filter(u => {
+  let list = S.users.filter(u => {
     if (q && ![u.fullName, u.email, u.id, u.userId, u.upiId, u.phone].join(' ').toLowerCase().includes(q)) return false;
     if (f.status === 'active' && u.isBanned) return false; if (f.status === 'banned' && !u.isBanned) return false; if (f.status === 'balance' && !num(u.walletBalance)) return false;
     const t = userMs(u); if ((f.from || f.to) && (t < from || t > to)) return false;
@@ -44,10 +18,9 @@ function usersFiltered() {
   return list.sort(sorters[f.sort] || sorters.recent);
 }
 RENDER.users = () => {
-  const unified = getUnifiedUsersList(S.users);
-  const online = unified.filter(isOnline).length, banned = unified.filter(u => u.isBanned).length;
+  const online = S.users.filter(isOnline).length, banned = S.users.filter(u => u.isBanned).length;
   const k = (cls, icon, l, v, sub) => `<div class="kpi s ${cls}"><div class="ico">${ic(icon, 22)}</div><div class="grow"><div class="lbl">${l}</div><div class="val">${v}</div>${sub ? `<div class="fs11 muted">${sub}</div>` : ''}</div></div>`;
-  setHTML($('#us-kpi'), k('blue', 'users', 'Total Users', unified.length, '') + k('green', 'check', 'Online now', online, 'seen in last 5 min') + k('red', 'ban', 'Blocked', banned, '') + k('orange', 'wallet', 'Wallet Liability', inr(unified.reduce((n, u) => n + num(u.walletBalance), 0)), ''));
+  setHTML($('#us-kpi'), k('blue', 'users', 'Total Users', S.users.length, '') + k('green', 'check', 'Online now', online, 'seen in last 5 min') + k('red', 'ban', 'Blocked', banned, '') + k('orange', 'wallet', 'Wallet Liability', inr(S.users.reduce((n, u) => n + num(u.walletBalance), 0)), ''));
   if (loadGate('users', S.users.length, skelHTML(5), $('#us-list'))) return;
   const p = paginate(usersFiltered(), 'users', 15, S.us);
   setHTML($('#us-list'), p.items.map(u => {

@@ -132,7 +132,7 @@ const skelCards = () => LOADER(), skelFolders = () => LOADER(), skelHTML = () =>
 function loadGate(key, hasData, skel, box) {
   if (S.live[key] || hasData) return false;
   const waited = Date.now() - (S.bootAt || Date.now());
-  if (S.errs[key] || !navigator.onLine || waited > 2500) {
+  if (S.errs[key] || !navigator.onLine || waited > 8000) {
     setHTML(box, `<div class="card"><div class="note bad">${ic('alert', 18)}<div class="grow"><b>${navigator.onLine ? 'Could not load data' : 'No internet connection'}</b><div class="fs12">${esc(String(S.errs[key] || (navigator.onLine ? 'Taking too long — check your connection or Firestore rules.' : 'It will load by itself when you are back online.')))}</div></div><button class="btn ghost xs" data-act="reloadPage">Retry</button></div></div>`);
     return true;
   }

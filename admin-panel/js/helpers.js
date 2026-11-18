@@ -4,12 +4,17 @@
 /* ============================================================
    HELPERS
    ============================================================ */
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const inr = n => '₹' + num(n).toLocaleString('en-IN');
-const tsMs = v => {
+window.$ = (s, r = document) => (r || document).querySelector(s);
+window.$$ = (s, r = document) => [...(r || document).querySelectorAll(s)];
+var $ = window.$;
+var $$ = window.$$;
+var num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+window.num = num;
+var esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.esc = esc;
+var inr = n => '₹' + num(n).toLocaleString('en-IN');
+window.inr = inr;
+var tsMs = v => {
   if (!v) return 0;
   if (typeof v === 'number') return v < 1e11 ? v * 1000 : v;
   if (typeof v.toMillis === 'function') return v.toMillis();
@@ -17,9 +22,12 @@ const tsMs = v => {
   if (typeof v === 'string') { const t = Date.parse(v); return isNaN(t) ? 0 : t; }
   return 0;
 };
-const fmtDT = ms => ms ? new Date(ms).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-const fmtD = ms => ms ? new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const ago = ms => {
+window.tsMs = tsMs;
+var fmtDT = ms => ms ? new Date(ms).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+window.fmtDT = fmtDT;
+var fmtD = ms => ms ? new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+window.fmtD = fmtD;
+var ago = ms => {
   if (!ms) return '—';
   const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 60) return 'just now';
@@ -27,17 +35,29 @@ const ago = ms => {
   if (s < 86400) return Math.floor(s / 3600) + ' hr ago';
   return Math.floor(s / 86400) + ' d ago';
 };
-const mask = acc => { const a = String(acc || ''); return a.length > 4 ? 'XXXX' + a.slice(-4) : a ? 'XXXX' : '—'; };
-const slug = s => String(s || '').replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'x';
-const monthKey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
-const monthRange = key => { const [y, m] = key.split('-').map(Number); return [new Date(y, m - 1, 1).getTime(), new Date(y, m, 1).getTime()]; };
-const monthLabel = key => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); };
-const shiftMonth = (key, d) => { const [y, m] = key.split('-').map(Number); return monthKey(new Date(y, m - 1 + d, 1).getTime()); };
-const ymd = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-const setHTML = (el, html) => { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };
-const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
-const AVC = ['#1a73e8', '#188038', '#e37400', '#d93025', '#9334e6', '#007b83'];
-const avc = s => AVC[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
+window.ago = ago;
+var mask = acc => { const a = String(acc || ''); return a.length > 4 ? 'XXXX' + a.slice(-4) : a ? 'XXXX' : '—'; };
+window.mask = mask;
+var slug = s => String(s || '').replace(/\W+/g, '_').replace(/^_+|_+$/g, '') || 'x';
+window.slug = slug;
+var monthKey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+window.monthKey = monthKey;
+var monthRange = key => { const [y, m] = key.split('-').map(Number); return [new Date(y, m - 1, 1).getTime(), new Date(y, m, 1).getTime()]; };
+window.monthRange = monthRange;
+var monthLabel = key => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); };
+window.monthLabel = monthLabel;
+var shiftMonth = (key, d) => { const [y, m] = key.split('-').map(Number); return monthKey(new Date(y, m - 1 + d, 1).getTime()); };
+window.shiftMonth = shiftMonth;
+var ymd = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+window.ymd = ymd;
+var setHTML = (el, html) => { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };
+window.setHTML = setHTML;
+var lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+window.lines = lines;
+var AVC = ['#1a73e8', '#188038', '#e37400', '#d93025', '#9334e6', '#007b83'];
+window.AVC = AVC;
+var avc = s => AVC[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length];
+window.avc = avc;
 const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\n');
 function saveText(name, text, mime = 'text/plain') {

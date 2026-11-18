@@ -287,7 +287,7 @@ async function tmSaveOne(opts = {}) {
   if (!title) { err.textContent = 'An app name or a valid Play Store link is required.'; return; }
   const reward = Math.max(1, parseInt($('#tm-reward').value || '0', 10) || 0), duration = Math.max(1, parseInt($('#tm-duration').value || '0', 10) || 15);
   if (!reward) { err.textContent = 'Reward must be ₹1 or more.'; return; }
-  const hideAfterComplete = !(existing && existing.hideAfterComplete === false), reshow = false, taskFormStatus = $('#tm-status').value, active = taskFormStatus === 'active';
+  const hideAfterComplete = !(existing && existing.hideAfterComplete === false), reshow = false, status = $('#tm-status').value, active = status === 'active';
   const appId = pkgOf(url) || title.toLowerCase().replace(/\W+/g, '_');
   if (!existingId && !opts.skipDup && S.tasks.some(t => (t.appId || t.packageName) === appId && taskStatus(t) !== 'archived')) {
     if (!await confirmBox('Duplicate task?', 'A task for this app already exists. Create a new one anyway?', { ok: 'Create anyway' })) return;
@@ -305,7 +305,7 @@ async function tmSaveOne(opts = {}) {
     iconUrl, appIcon: iconUrl, taskPfpBase64: iconUrl, referenceScreenshotUrl: existing?.referenceScreenshotUrl || '', exampleProofBase64: existing?.exampleProofBase64 || '',
     category, rewardInr: reward, rewardAmount: reward, reward, durationMinutes: duration, timerMinutes: duration, deadlineHours: existing?.deadlineHours || 24, maxSubmissions: 0, hideAfterComplete, oneTimePerUser: hideAfterComplete, ...(reshow ? { reshowAt: Date.now(), submittedUserIds: [] } : {}),
     instructions: ins, description: ins.join('\n'), proofRequirement: existing?.proofRequirement || 'Upload completion screenshot and your genuine feedback',
-    active, isActive: active, pausedByMaintenance: false, status: taskFormStatus,
+    active, isActive: active, pausedByMaintenance: false, status,
     taskMode: tMode, normalEnabled: tMode !== 'bulk', bulkEnabled: tMode !== 'normal', bulkMaxComments: tMode === 'normal' ? 0 : bulkMax,
     comments: texts, commentPool: texts, commentItems: buildCommentItems(docRef.id, title, appId, texts, existing?.commentItems), updatedAt: serverTimestamp(), updatedBy: S.admin
   };
@@ -314,9 +314,9 @@ async function tmSaveOne(opts = {}) {
   try {
     await setDoc(docRef, payload, { merge: true });
     try { await setDoc(doc(db, 'offers', docRef.id), payload, { merge: true }); } catch (_) { }
-    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status: taskFormStatus });
+    logAction(existingId ? 'task_edit' : 'task_create', docRef.id, { title, reward, status });
     archiveTask({ ...payload, id: docRef.id, createdAt: existing ? existing.createdAt : Date.now(), submittedUserIds: existing?.submittedUserIds || [] });
-    okSave = true; if (!opts.keepOpen) closeTask(); if (!opts.quiet && !opts.keepOpen) toast(`Task “${title}” saved (${inr(reward)}, ${taskFormStatus === 'active' ? 'LIVE' : taskFormStatus})`, 'ok');
+    okSave = true; if (!opts.keepOpen) closeTask(); if (!opts.quiet && !opts.keepOpen) toast(`Task “${title}” saved (${inr(reward)}, ${status === 'active' ? 'LIVE' : status})`, 'ok');
   } catch (e) { err.textContent = 'Save failed: ' + (e.code || e.message); }
   btn.disabled = false;
   return okSave;
