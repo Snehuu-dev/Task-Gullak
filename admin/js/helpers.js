@@ -48,6 +48,25 @@ var monthLabel = key => { const [y, m] = key.split('-').map(Number); return new 
 window.monthLabel = monthLabel;
 var shiftMonth = (key, d) => { const [y, m] = key.split('-').map(Number); return monthKey(new Date(y, m - 1 + d, 1).getTime()); };
 window.shiftMonth = shiftMonth;
+function canon(id) {
+  if (!id) return '';
+  const str = String(id).trim().toLowerCase();
+  return (typeof S !== 'undefined' && S.uidAlias && S.uidAlias.get && S.uidAlias.get(str)) || str;
+}
+window.canon = canon;
+function idsOfUser(uid) {
+  const c = canon(uid);
+  const u = (typeof S !== 'undefined' && Array.isArray(S.users)) ? S.users.find(x => x && (x.id === c || x.userId === c)) : null;
+  return [...new Set([c, String(uid || ''), ...((u && u._aliases) || [])])].filter(Boolean);
+}
+window.idsOfUser = idsOfUser;
+function userInfo(uid) {
+  if (!uid) return null;
+  const c = canon(uid);
+  if (typeof S === 'undefined' || !Array.isArray(S.users)) return null;
+  return S.users.find(x => x && (x.id === c || x.userId === c || x.uid === c || (x.email && canon(x.email) === c))) || null;
+}
+window.userInfo = userInfo;
 var ymd = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 window.ymd = ymd;
 var setHTML = (el, html) => { if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };

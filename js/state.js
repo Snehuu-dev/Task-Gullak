@@ -89,29 +89,54 @@ async function logAction(action, target, details = {}) {
 /* ============================================================
    DATA ACCESSORS
    ============================================================ */
-const shotOf = s => (s && (s.screenshotUrl || s.screenshotBase64)) || '';
-const subMs = s => tsMs(s.createdAt) || num(s.submittedAtMillis) || num(s.timestamp) || num(s.createdAtMillis) || 0;
-const subSt = s => (s.status || 'pending').toLowerCase();
-const wdSt = w => (w.status || 'pending').toLowerCase();
-const wdMs = w => tsMs(w.createdAt) || num(w.timestamp) || num(w.requestedAt) || 0;
-const wdPaidMs = w => tsMs(w.processedAt) || tsMs(w.paidAt) || wdMs(w);
-const wdMethod = w => w.upiId ? 'upi' : (w.accountNumber || w.bankName) ? 'bank' : (String(w.method || w.paymentMethod || '').toLowerCase().includes('upi') ? 'upi' : 'other');
-const userMs = u => tsMs(u.createdAt) || tsMs(u.joinedAt) || 0;
-const userSeen = u => Math.max(tsMs(u.lastActiveAt), tsMs(u.lastSeen), tsMs(u.lastLoginAt), tsMs(u.lastActive), tsMs(u.presenceAt));
+/* ============================================================
+   DATA ACCESSORS
+   ============================================================ */
+var shotOf = s => (s && (s.screenshotUrl || s.screenshotBase64)) || '';
+window.shotOf = shotOf;
+var subMs = s => { if (!s) return Date.now(); const t = tsMs(s.createdAt) || tsMs(s.updatedAt) || num(s.submittedAtMillis) || num(s.timestamp) || num(s.createdAtMillis); return t > 0 ? t : Date.now(); };
+window.subMs = subMs;
+var subSt = s => (s && s.status ? String(s.status) : 'pending').toLowerCase();
+window.subSt = subSt;
+var wdSt = w => (w && w.status ? String(w.status) : 'pending').toLowerCase();
+window.wdSt = wdSt;
+var wdMs = w => { if (!w) return Date.now(); const t = tsMs(w.createdAt) || tsMs(w.updatedAt) || num(w.timestamp) || num(w.requestedAt); return t > 0 ? t : Date.now(); };
+window.wdMs = wdMs;
+var wdPaidMs = w => tsMs(w.processedAt) || tsMs(w.paidAt) || wdMs(w);
+window.wdPaidMs = wdPaidMs;
+var wdMethod = w => w ? (w.upiId ? 'upi' : (w.accountNumber || w.bankName) ? 'bank' : (String(w.method || w.paymentMethod || '').toLowerCase().includes('upi') ? 'upi' : 'other')) : 'other';
+window.wdMethod = wdMethod;
+var userMs = u => { if (!u) return Date.now(); const t = tsMs(u.createdAt) || tsMs(u.joinedAt) || tsMs(u.registeredAt) || num(u.createdAtMs); return t > 0 ? t : Date.now(); };
+window.userMs = userMs;
+var userSeen = u => u ? Math.max(tsMs(u.lastActiveAt), tsMs(u.lastSeen), tsMs(u.lastLoginAt), tsMs(u.lastActive), tsMs(u.presenceAt), userMs(u)) : 0;
+window.userSeen = userSeen;
 document.addEventListener('error', e => { const i = e.target; if (i && i.tagName === 'IMG' && i.classList.contains('appico') && i.src !== PLAY_ICON) { i.onerror = null; i.src = PLAY_ICON; } }, true);
-const taskIcon = t => t.iconUrl || t.appIcon || t.taskPfpBase64 || PLAY_ICON;
-const taskName = t => t.title || t.appName || 'Untitled App';
-const taskReward = t => num(t.rewardInr ?? t.rewardAmount ?? t.reward);
-const taskStatus = t => { const s = String(t.status || '').toLowerCase(); if (s === 'archived') return 'archived'; if (s === 'draft') return 'draft'; return (t.active === false || t.isActive === false || s === 'paused') ? 'paused' : 'active'; };
-const taskOfSub = s => S.tasks.find(t => t.id === s.taskId) || S.tasks.find(t => taskName(t).trim().toLowerCase() === String(s.taskTitle || '').trim().toLowerCase());
-const subDay = s => ymd(subMs(s) || Date.now());           // local calendar day the screenshot was uploaded
-const subKey = s => `${(s.taskId || 'general').trim()}::${(s.taskTitle || 'Untitled Task').trim()}::${subDay(s)}`;   // one folder = one app + one day
-const statusPill = st => st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending</span>';
-const wdPill = st => st === 'approved' ? '<span class="pill ok">Paid</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : st === 'processing' ? '<span class="pill info">Processing</span>' : '<span class="pill warn">Pending</span>';
-const isMaintActive = () => !!(S.bcasts.find(b => b.id === 'system_maintenance_banner') || {}).active;
-const maintDoc = () => S.bcasts.find(b => b.id === 'system_maintenance_banner') || {};
-const pendingSubs = () => S.subs.filter(s => subSt(s) === 'pending');
-const pendingWds = () => S.wds.filter(w => ['pending', 'processing'].includes(wdSt(w)));
+var taskIcon = t => (t && (t.iconUrl || t.appIcon || t.taskPfpBase64)) || PLAY_ICON;
+window.taskIcon = taskIcon;
+var taskName = t => (t && (t.title || t.appName)) || 'Untitled App';
+window.taskName = taskName;
+var taskReward = t => t ? num(t.rewardInr ?? t.rewardAmount ?? t.reward) : 0;
+window.taskReward = taskReward;
+var taskStatus = t => { if (!t) return 'active'; const s = String(t.status || '').toLowerCase(); if (s === 'archived') return 'archived'; if (s === 'draft') return 'draft'; return (t.active === false || t.isActive === false || s === 'paused') ? 'paused' : 'active'; };
+window.taskStatus = taskStatus;
+var taskOfSub = s => s ? (S.tasks.find(t => t.id === s.taskId) || S.tasks.find(t => taskName(t).trim().toLowerCase() === String(s.taskTitle || '').trim().toLowerCase())) : null;
+window.taskOfSub = taskOfSub;
+var subDay = s => ymd(subMs(s) || Date.now());
+window.subDay = subDay;
+var subKey = s => s ? `${(s.taskId || 'general').trim()}::${(s.taskTitle || 'Untitled Task').trim()}::${subDay(s)}` : 'general::Untitled Task::today';
+window.subKey = subKey;
+var statusPill = st => st === 'approved' ? '<span class="pill ok">Approved</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : '<span class="pill warn">Pending</span>';
+window.statusPill = statusPill;
+var wdPill = st => st === 'approved' ? '<span class="pill ok">Paid</span>' : st === 'rejected' ? '<span class="pill bad">Rejected</span>' : st === 'processing' ? '<span class="pill info">Processing</span>' : '<span class="pill warn">Pending</span>';
+window.wdPill = wdPill;
+var isMaintActive = () => !((S.bcasts || []).find(b => b && b.id === 'system_maintenance_banner') || {}).active;
+window.isMaintActive = isMaintActive;
+var maintDoc = () => (S.bcasts || []).find(b => b && b.id === 'system_maintenance_banner') || {};
+window.maintDoc = maintDoc;
+var pendingSubs = () => (S.subs || []).filter(s => subSt(s) === 'pending');
+window.pendingSubs = pendingSubs;
+var pendingWds = () => (S.wds || []).filter(w => ['pending', 'processing'].includes(wdSt(w)));
+window.pendingWds = pendingWds;
 
 function paginate(list, key, size, state) {
   const pages = Math.max(1, Math.ceil(list.length / size));
