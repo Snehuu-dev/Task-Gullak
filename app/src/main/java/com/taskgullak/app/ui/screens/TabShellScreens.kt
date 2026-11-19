@@ -64,6 +64,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
@@ -696,16 +698,17 @@ internal fun OffersTabShellContent(
 
     val filteredTasks = remember(availableTasks, isUserBulkActive) {
         availableTasks.filter { task ->
-            val mode = task.modeType.uppercase()
+            val mode = task.modeType.uppercase().ifBlank { if (task.isBulk) "BULK" else "NORMAL" }
             val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted", "draft")
             val isStockExhausted = task.remainingQuantity <= 0 && task.totalQuantity > 0
 
             if (isExhaustedOrClosed || isStockExhausted) return@filter false
 
-            if (isUserBulkActive) {
-                true
-            } else {
-                mode != "BULK" && !task.isBulk
+            when (mode) {
+                "BOTH" -> true
+                "BULK" -> isUserBulkActive
+                "NORMAL" -> !isUserBulkActive
+                else -> if (task.isBulk) isUserBulkActive else !isUserBulkActive
             }
         }
     }
@@ -6336,293 +6339,422 @@ private fun BulkTaskSubmissionFormPanel(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // App Title Section
         Text(
             text = "Details",
-            color = Color(0xFF17142E),
-            fontFamily = PoppinsFontFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 13.5.sp
+            color = Color(0xFFF4F4FA),
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp
         )
 
-        // Dropdown or Tabs
         if (activeAllocations == null || activeAllocations.isEmpty()) {
-            // Before reservation: Dropdown
+            // State A: BEFORE Reservation
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFDDD6FE), RoundedCornerShape(14.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF171923))
+                    .border(1.dp, Color(0xFF303343), RoundedCornerShape(18.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     text = "Reserve Comments",
-                    color = Color(0xFF17142E),
-                    fontFamily = PoppinsFontFamily,
+                    color = Color(0xFFF4F4FA),
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.5.sp
+                    fontSize = 19.sp
                 )
 
-                Box {
+                Text(
+                    text = "Pick how many tasks you want · max $maxLimit per user",
+                    color = Color(0xFFA7A9B9),
+                    fontFamily = InterFontFamily,
+                    fontSize = 14.sp
+                )
+
+                // Dropdown Trigger & Options
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        shape = if (dropdownExpanded) RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp) else RoundedCornerShape(16.dp),
+                        color = Color(0xFF25264E),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { dropdownExpanded = true }
+                            .heightIn(min = 56.dp)
+                            .clickable { dropdownExpanded = !dropdownExpanded }
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "$selectedReserveCount Device${if (selectedReserveCount > 1) "s" else ""}",
-                                color = Color(0xFF1E293B),
+                                text = "Number of comments",
+                                color = Color(0xFFF4F4FF),
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
                             )
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select",
-                                tint = Color(0xFF64748B)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "$selectedReserveCount",
+                                    color = Color(0xFFF4F4FF),
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Icon(
+                                    imageVector = if (dropdownExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Expand",
+                                    tint = Color(0xFFF4F4FF),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
-                    DropdownMenu(
-                        expanded = dropdownExpanded,
-                        onDismissRequest = { dropdownExpanded = false },
-                        modifier = Modifier.fillMaxWidth(0.85f).background(Color.White)
-                    ) {
-                        for (i in 1..maxLimit) {
-                            DropdownMenuItem(
-                                text = { Text("$i Device${if (i > 1) "s" else ""}", fontFamily = InterFontFamily) },
-                                onClick = {
-                                    selectedReserveCount = i
-                                    dropdownExpanded = false
+
+                    if (dropdownExpanded) {
+                        Surface(
+                            shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                            color = Color(0xFF151722),
+                            border = BorderStroke(1.dp, Color(0xFF34374B)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                for (i in 1..maxLimit) {
+                                    val isSelected = selectedReserveCount == i
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 44.dp, height = 40.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (isSelected) Brush.horizontalGradient(listOf(Color(0xFF6650ED), Color(0xFF8B48ED)))
+                                                else Brush.horizontalGradient(listOf(Color(0xFF22254A), Color(0xFF22254A)))
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isSelected) Color(0xFF8066FF) else Color(0xFF34374B),
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .clickable {
+                                                selectedReserveCount = i
+                                                dropdownExpanded = false
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "$i",
+                                            color = if (isSelected) Color.White else Color(0xFFA9A4FF),
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp
+                                        )
+                                    }
                                 }
-                            )
+                            }
                         }
                     }
                 }
+
+                Button(
+                    onClick = { onAllocateBulkComments(selectedReserveCount) },
+                    shape = RoundedCornerShape(13.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFF6048ED), Color(0xFF9349EE))))
+                ) {
+                    Text(
+                        text = "Reserve $selectedReserveCount Comment${if (selectedReserveCount > 1) "s" else ""}",
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+
+                val availCount = task.availableCommentsCount.coerceAtLeast(task.remainingQuantity)
+                Text(
+                    text = "$availCount comment${if (availCount == 1) "" else "s"} available in pool",
+                    color = Color(0xFFA7A9B9),
+                    fontFamily = InterFontFamily,
+                    fontSize = 13.sp
+                )
             }
         } else {
-            // After reservation: Tabs
+            // State B: AFTER Reservation (Your Review Comments)
             val totalDevices = activeAllocations.size
             val currentAlloc = activeAllocations.firstOrNull { it.deviceIndex == currentDeviceIdx } ?: activeAllocations.firstOrNull()
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFF0284C7), RoundedCornerShape(14.dp))
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF171923))
+                    .border(1.dp, Color(0xFF303343), RoundedCornerShape(18.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     text = "Your Review Comments",
-                    color = Color(0xFF17142E),
-                    fontFamily = PoppinsFontFamily,
+                    color = Color(0xFFF4F4FA),
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.5.sp
+                    fontSize = 19.sp
                 )
 
-                ScrollableTabRow(
-                    selectedTabIndex = currentDeviceIdx - 1,
-                    containerColor = Color.Transparent,
-                    contentColor = Color(0xFF0284C7),
-                    edgePadding = 0.dp,
-                    indicator = { tabPositions ->
-                        androidx.compose.material3.TabRowDefaults.Indicator(
-                            Modifier.tabIndicatorOffset(tabPositions[currentDeviceIdx - 1]),
-                            color = Color(0xFF0284C7)
-                        )
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     activeAllocations.forEach { alloc ->
-                        Tab(
-                            selected = currentDeviceIdx == alloc.deviceIndex,
-                            onClick = { currentDeviceIdx = alloc.deviceIndex },
-                            text = {
-                                Text(
-                                    "Comment ${alloc.deviceIndex}",
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = if (currentDeviceIdx == alloc.deviceIndex) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        )
+                        val isSelected = currentDeviceIdx == alloc.deviceIndex
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(25.dp))
+                                .background(if (isSelected) Color(0xFF6650ED) else Color(0xFF1B1E2B))
+                                .border(1.dp, if (isSelected) Color(0xFF6650ED) else Color(0xFF34374B), RoundedCornerShape(25.dp))
+                                .clickable { currentDeviceIdx = alloc.deviceIndex }
+                                .padding(horizontal = 18.dp, vertical = 9.dp)
+                        ) {
+                            Text(
+                                text = "Comment ${alloc.deviceIndex}",
+                                color = if (isSelected) Color.White else Color(0xFFA7A9B9),
+                                fontFamily = InterFontFamily,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 15.sp
+                            )
+                        }
                     }
                 }
 
                 if (currentAlloc != null) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, if (commentCopied) Color(0xFF10B981) else Color(0xFFCBD5E1)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                clipboardManager.setText(AnnotatedString(currentAlloc.commentText))
-                                commentCopied = true
-                                scope.launch {
-                                    delay(500L)
-                                    commentCopied = false
-                                }
-                            }
+                        shape = RoundedCornerShape(17.dp),
+                        color = Color(0xFF171923),
+                        border = BorderStroke(1.dp, Color(0xFF34374B)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(15.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
                                 text = "\"${currentAlloc.commentText}\"",
-                                color = Color(0xFF1E293B),
+                                color = Color(0xFFF4F4FA),
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 12.sp,
+                                fontSize = 15.sp,
                                 modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Box(
                                 modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (commentCopied) Color(0xFFDCFCE7) else Color(0xFFEDE9FE)),
+                                    .size(50.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF25264E))
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(currentAlloc.commentText))
+                                        commentCopied = true
+                                        Toast.makeText(context, "Comment copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        scope.launch {
+                                            delay(1000L)
+                                            commentCopied = false
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = if (commentCopied) Icons.Default.Check else Icons.Outlined.ContentCopy,
                                     contentDescription = "Copy",
-                                    tint = if (commentCopied) Color(0xFF16A34A) else Color(0xFF6D28D9),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = if (commentCopied) Color(0xFF9BE0C6) else Color(0xFF9285FF),
+                                    modifier = Modifier.size(23.dp)
                                 )
                             }
                         }
                     }
 
-                    // Attach Screenshot
-                    Row(
+                    Surface(
+                        shape = RoundedCornerShape(17.dp),
+                        color = Color(0xFF1B1E2B),
+                        border = BorderStroke(2.dp, Color(0xFF36394D)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF1F5F9))
                             .clickable {
                                 photoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AddPhotoAlternate,
-                            contentDescription = "Upload",
-                            tint = Color(0xFF0284C7),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = if (currentScreenshotBase64.isNotBlank()) "Proof Attached ✓" else "Attach Screenshot",
-                            color = if (currentScreenshotBase64.isNotBlank()) Color(0xFF16A34A) else Color(0xFF0284C7),
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF24264A)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🖼️", fontSize = 23.sp)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (currentScreenshotBase64.isNotBlank()) "Proof Attached ✓" else "Attach Screenshot",
+                                    color = if (currentScreenshotBase64.isNotBlank()) Color(0xFF9BE0C6) else Color.White,
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = "Tap to select screenshot of this comment",
+                                    color = Color(0xFFA7A9B9),
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Button(
+                        onClick = {
+                            Toast.makeText(context, "Comment returned to pool", Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color(0xFFBD941C)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
                     ) {
                         Text(
-                            text = "$totalDevices comments reserved",
-                            color = Color(0xFF64748B),
+                            text = "↩ Return this comment",
+                            color = Color(0xFFF1C54A),
                             fontFamily = InterFontFamily,
-                            fontSize = 10.sp
-                        )
-                        Text(
-                            text = "Return this comment",
-                            color = Color(0xFFE11D48),
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 10.sp,
-                            modifier = Modifier.clickable { /* TBD if actual return is required */ }
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        // Install Button (below card)
+        val resolvedStoreUrl = task.storeUrl
+        Button(
+            onClick = {
+                if (resolvedStoreUrl.isNotBlank()) {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolvedStoreUrl))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Store link is not available", Toast.LENGTH_SHORT).show()
+                }
+            },
+            shape = RoundedCornerShape(13.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFF6048ED), Color(0xFF9349EE))))
+        ) {
+            Text(
+                text = "↓ Install",
+                color = Color.White,
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
 
-        // Action Buttons
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Fixed Bottom Navigation Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
+            Button(
+                onClick = { onCancel() },
+                shape = RoundedCornerShape(13.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF292C38)),
                 modifier = Modifier
-                    .weight(0.32f)
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE2E8F0))
-                    .clickable { onCancel() },
-                contentAlignment = Alignment.Center
+                    .weight(1f)
+                    .height(52.dp)
             ) {
                 Text(
                     text = "Cancel",
-                    color = Color(0xFF475569),
-                    fontFamily = PoppinsFontFamily,
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    fontSize = 15.sp
                 )
             }
 
-            Box(modifier = Modifier.weight(0.68f)) {
-                if (activeAllocations == null || activeAllocations.isEmpty()) {
-                    ShinyGradientButton(
-                        text = "Reserve $selectedReserveCount Comment${if (selectedReserveCount > 1) "s" else ""}",
-                        onClick = { onAllocateBulkComments(selectedReserveCount) },
-                        gradientColors = listOf(Color(0xFF0284C7), Color(0xFF0EA5E9)),
-                        height = 44.dp,
-                        cornerRadius = 12.dp,
-                        fontSizeSp = 12.5f
+            val allUploaded = activeAllocations?.all { deviceScreenshots[it.deviceIndex]?.isNotBlank() == true } == true
+            Button(
+                onClick = {
+                    if (activeAllocations == null || activeAllocations.isEmpty()) {
+                        Toast.makeText(context, "Please reserve a comment first", Toast.LENGTH_SHORT).show()
+                    } else if (!allUploaded) {
+                        Toast.makeText(context, "Attach a screenshot before submitting", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onSubmitBulkBatch(deviceScreenshots)
+                    }
+                },
+                enabled = !isSubmitting,
+                shape = RoundedCornerShape(13.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier
+                    .weight(1.4f)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(
+                        if (activeAllocations != null && allUploaded)
+                            Brush.horizontalGradient(listOf(Color(0xFF642CE9), Color(0xFFA023E9)))
+                        else
+                            Brush.horizontalGradient(listOf(Color(0xFF4A4D5A), Color(0xFF4A4D5A)))
                     )
-                } else {
-                    val allUploaded = activeAllocations.all { deviceScreenshots[it.deviceIndex]?.isNotBlank() == true }
-                    ShinyGradientButton(
-                        text = if (isSubmitting) "Submitting..." else "Submit All ${activeAllocations.size} Proofs",
-                        onClick = {
-                            if (!allUploaded) {
-                                Toast.makeText(context, "Upload screenshots for all tabs before submitting.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                onSubmitBulkBatch(deviceScreenshots)
-                            }
-                        },
-                        enabled = !isSubmitting,
-                        gradientColors = if (allUploaded) listOf(Color(0xFF15803D), Color(0xFF10B981)) else listOf(Color(0xFF64748B), Color(0xFF94A3B8)),
-                        height = 44.dp,
-                        cornerRadius = 12.dp,
-                        fontSizeSp = 12.5f
-                    )
-                }
+            ) {
+                Text(
+                    text = if (isSubmitting) "Submitting..." else "Submit Screenshot Proof",
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
     }
