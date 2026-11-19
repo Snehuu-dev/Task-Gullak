@@ -661,11 +661,21 @@ class TaskGullakRepository(
                     if (isExplicitlyInactive) {
                         null
                     } else {
-                        val rawMode = (data["modeType"] as? String) ?: (data["mode_type"] as? String) ?: "NORMAL"
-                        val isBulkFlag = (data["isBulk"] as? Boolean) ?: rawMode.equals("BULK", ignoreCase = true) || rawMode.equals("BOTH", ignoreCase = true)
+                        val rawModeStr = (data["modeType"] as? String)?.ifBlank { null }
+                            ?: (data["mode_type"] as? String)?.ifBlank { null }
+                            ?: (data["taskMode"] as? String)?.ifBlank { null }
+                            ?: (data["mode"] as? String)?.ifBlank { null }
+                            ?: (data["type"] as? String)?.ifBlank { null }
+                            ?: when {
+                                data["bulkEnabled"] == true && data["normalEnabled"] == true -> "BOTH"
+                                data["bulkEnabled"] == true || data["isBulk"] == true -> "BULK"
+                                else -> "NORMAL"
+                            }
+                        val rawMode = rawModeStr.uppercase()
+                        val isBulkFlag = (data["isBulk"] as? Boolean) ?: rawMode.contains("BULK") || rawMode.contains("BOTH")
                         val minQty = ((data["bulkMinQuantity"] as? Number) ?: (data["bulk_min_quantity"] as? Number))?.toInt() ?: 1
                         val maxQty = ((data["bulkMaxQuantity"] as? Number) ?: (data["bulk_max_quantity"] as? Number))?.toInt() ?: 5
-                        val timerEnabled = if (rawMode.equals("BULK", ignoreCase = true)) false else ((data["timerEnabled"] as? Boolean) ?: (data["timer_enabled"] as? Boolean) ?: true)
+                        val timerEnabled = if (rawMode.contains("BULK")) false else ((data["timerEnabled"] as? Boolean) ?: (data["timer_enabled"] as? Boolean) ?: true)
 
                         AdminTask(
                             id = doc.id,

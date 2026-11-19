@@ -770,7 +770,7 @@ internal fun OffersTabShellContent(
                     letterSpacing = (-0.6).sp
                 )
                 Text(
-                    text = if (isBulkActive) "🔥 Bulk Access Active • Max Device Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices" else "${filteredTasks.size} offer available",
+                    text = if (isBulkActive) "Bulk Access Active • Max Device Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices" else "${filteredTasks.size} offer available",
                     color = if (isBulkActive) Color(0xFF0284C7) else Color(0xFF6F6E8A),
                     fontFamily = InterFontFamily,
                     fontWeight = if (isBulkActive) FontWeight.Bold else FontWeight.Normal,

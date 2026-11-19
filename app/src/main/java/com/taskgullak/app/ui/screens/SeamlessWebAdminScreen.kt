@@ -172,6 +172,9 @@ fun SeamlessWebAdminScreen(
                 .testTag("admin_webview"),
             factory = { ctx ->
                 WebView(ctx).apply {
+                    isVerticalScrollBarEnabled = false
+                    isHorizontalScrollBarEnabled = false
+                    overScrollMode = android.view.View.OVER_SCROLL_NEVER
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT

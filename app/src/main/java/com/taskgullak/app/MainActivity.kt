@@ -157,6 +157,8 @@ internal fun resolvePostSplashScreen(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.decorView.isVerticalScrollBarEnabled = false
+        window.decorView.isHorizontalScrollBarEnabled = false
         configureAppCheck(this, intent)
         captureDeepLinkReferralIfPresent(intent)
         enableEdgeToEdge()
