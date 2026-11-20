@@ -167,28 +167,45 @@ class TaskGullakRepository(
     ): Flow<List<UserProfile>> {
         val path = "users"
         val cleanCode = referrerCode.trim().uppercase()
-        val query = if (cleanCode.isNotBlank()) {
-            db.collection("users").whereEqualTo("referredByCode", cleanCode)
+
+        val byCodeFlow = if (cleanCode.isNotBlank()) {
+            db.collection("users").whereEqualTo("referredByCode", cleanCode).snapshots()
+                .map { snap -> snap.documents.mapNotNull { it.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)?.copy(id = it.id, userId = it.getString("userId") ?: it.id) } }
+                .catch { emit(emptyList()) }
         } else {
-            db.collection("users").whereEqualTo("referredByUserId", referrerUserId)
+            kotlinx.coroutines.flow.flowOf(emptyList())
         }
 
-        return query
-            .snapshots()
-            .map { querySnapshot ->
-                querySnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(
-                        UserProfile::class.java,
-                        DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
-                    )?.copy(id = doc.id, userId = doc.getString("userId") ?: doc.id)
+        val byUidFlow = if (referrerUserId.isNotBlank()) {
+            db.collection("users").whereEqualTo("referredByUserId", referrerUserId).snapshots()
+                .map { snap -> snap.documents.mapNotNull { it.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)?.copy(id = it.id, userId = it.getString("userId") ?: it.id) } }
+                .catch { emit(emptyList()) }
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+
+        val byReferredByFlow = if (cleanCode.isNotBlank()) {
+            db.collection("users").whereEqualTo("referredBy", cleanCode).snapshots()
+                .map { snap -> snap.documents.mapNotNull { it.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)?.copy(id = it.id, userId = it.getString("userId") ?: it.id) } }
+                .catch { emit(emptyList()) }
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+
+        return combine(byCodeFlow, byUidFlow, byReferredByFlow) { list1, list2, list3 ->
+            val map = LinkedHashMap<String, UserProfile>()
+            (list1 + list2 + list3).forEach { user ->
+                if (user.id != referrerUserId && user.userId != referrerUserId) {
+                    map[user.id] = user
                 }
             }
-            .catch { error ->
-                if (error is Exception) {
-                    handleFirestoreError(error, OperationType.LIST, path)
-                }
-                throw error
+            map.values.toList()
+        }.catch { error ->
+            if (error is Exception) {
+                handleFirestoreError(error, OperationType.LIST, path)
             }
+            emit(emptyList())
+        }
     }
 
     /**
@@ -503,6 +520,9 @@ class TaskGullakRepository(
                     val status = doc.getString("status").orEmpty().ifBlank { "pending" }
                     val method = doc.getString("payoutMethod").orEmpty().ifBlank { "UPI Transfer" }
                     val upi = doc.getString("upiId").orEmpty()
+                    val utr = doc.getString("utrNumber").orEmpty()
+                        .ifBlank { doc.getString("utr").orEmpty() }
+                        .ifBlank { doc.getString("utrNo").orEmpty() }
                     val note = doc.getString("note").orEmpty()
                         .ifBlank { "Withdrawal via $method ($upi) (-₹$amount)" }
                     WalletTransaction(
@@ -514,6 +534,7 @@ class TaskGullakRepository(
                         status = status,
                         payoutMethod = method,
                         upiId = upi,
+                        utrNumber = utr,
                         withdrawalId = doc.id,
                         createdAt = doc.getTimestamp("createdAt"),
                         updatedAt = doc.getTimestamp("updatedAt")

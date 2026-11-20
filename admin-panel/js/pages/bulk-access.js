@@ -13,10 +13,14 @@ function bulkRows() {
     r.email = (u && u.email) || (q && q.userEmail) || '';
     const uSt = String((u && u.bulkStatus) || '').toLowerCase();
     const qSt = String((q && q.status) || '').toLowerCase();
-    const isActive = (u && u.bulkMode === true) || uSt === 'active' || uSt === 'approved' || qSt === 'approved';
-    const isPending = !isActive && (qSt === 'pending' || uSt === 'pending' || uSt === 'requested');
+    const qType = String((q && (q.type || q.requestType)) || '').toLowerCase();
+
+    const isExit = qType === 'exit' || qSt === 'requested_exit' || uSt === 'requested_exit';
+    const isActive = !isExit && ((u && u.bulkMode === true) || uSt === 'active' || uSt === 'approved' || qSt === 'approved');
+    const isPending = !isActive && (isExit || qSt === 'pending' || uSt === 'pending' || uSt === 'requested');
     const isRejected = !isActive && !isPending && (['rejected', 'revoked'].includes(qSt) || ['rejected', 'revoked'].includes(uSt));
     r.status = isActive ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'available';
+    r.isExit = isExit;
     return r;
   }).sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
@@ -33,19 +37,25 @@ async function bkSet(uid, userPatch, reqPatch, statuses) {
 ACT.bkTab = el => { S.bkTab = el.dataset.k; renderAll(); };
 ACT.bkApprove = async el => {
   const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
-  try { await bkSet(uid, { bulkMode: true, bulkStatus: 'active', bulkApprovedAt: serverTimestamp(), bulkApprovedBy: S.admin, bulkRejectReason: '' }, { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'approved']); logAction('bulk_access_on', uid, { name: r && r.name }); toast(`Bulk mode is active for ${r ? r.name : 'user'}`, 'ok'); }
+  try { await bkSet(uid, { bulkMode: true, bulkStatus: 'active', bulkApprovedAt: serverTimestamp(), bulkApprovedBy: S.admin, bulkRejectReason: '' }, { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'approved', 'requested_exit']); logAction('bulk_access_on', uid, { name: r && r.name }); toast(`Bulk mode is active for ${r ? r.name : 'user'}`, 'ok'); }
+  catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
+};
+ACT.bkAcceptExit = async el => {
+  const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
+  if (!await confirmBox('Accept Exit Request?', `${esc(r ? r.name : 'This user')} will exit Bulk Mode and return to Normal Mode.`, { ok: 'Accept Exit' })) return;
+  try { await bkSet(uid, { bulkMode: false, bulkStatus: 'none', bulkApprovedLimit: 0, bulkRejectReason: '' }, { status: 'approved', reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'requested_exit', 'approved']); logAction('bulk_access_exit_accept', uid, { name: r && r.name }); toast(`Exit request accepted. ${r ? r.name : 'User'} is now a Normal User.`, 'ok'); }
   catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
 };
 ACT.bkReject = async el => {
   const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
-  const reason = await rejectDialog(`Reject Bulk access for ${r ? r.name : 'this user'}?`, '<p class="fs12 muted">Bulk mode stays hidden for this user. You can activate it later.</p>'); if (!reason) return;
-  try { await bkSet(uid, { bulkMode: false, bulkStatus: 'rejected', bulkRejectReason: reason }, { status: 'rejected', adminNote: reason, reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending']); logAction('bulk_access_reject', uid, { name: r && r.name, reason }); toast('Rejected. Bulk mode is hidden for this user', 'ok'); }
+  const reason = await rejectDialog(`Reject request for ${r ? r.name : 'this user'}?`, '<p class="fs12 muted">Request will be rejected.</p>'); if (!reason) return;
+  try { await bkSet(uid, { bulkMode: false, bulkStatus: 'rejected', bulkRejectReason: reason }, { status: 'rejected', adminNote: reason, reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'requested_exit']); logAction('bulk_access_reject', uid, { name: r && r.name, reason }); toast('Rejected.', 'ok'); }
   catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
 };
 ACT.bkRevoke = async el => {
   const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
   if (!await confirmBox('Turn off Bulk mode?', `${esc(r ? r.name : 'This user')} will no longer see Bulk mode.`, { ok: 'Turn off', danger: true })) return;
-  try { await bkSet(uid, { bulkMode: false, bulkStatus: 'revoked' }, { status: 'revoked', reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'approved']); logAction('bulk_access_off', uid, { name: r && r.name }); toast('Bulk mode turned off', 'ok'); }
+  try { await bkSet(uid, { bulkMode: false, bulkStatus: 'revoked' }, { status: 'revoked', reviewedBy: S.admin, updatedAt: serverTimestamp() }, ['pending', 'approved', 'requested_exit']); logAction('bulk_access_off', uid, { name: r && r.name }); toast('Bulk mode turned off', 'ok'); }
   catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
 };
 RENDER.bulk = () => {
@@ -65,10 +75,13 @@ RENDER.bulk = () => {
   };
   setHTML($('#bk-list'), list.map(r => {
     const q = r.req, uid = esc(r.uid);
-    const act = f === 'active'
+    const act = r.isExit
+      ? `<button class="btn okfill sm" data-act="bkAcceptExit" data-uid="${uid}">Accept Exit Request</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
+      : f === 'active'
       ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
       : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate Bulk Mode</button>`;
-    return `<div class="card"><div class="row" style="gap:10px;align-items:flex-start"><span class="avatar" style="background:${avc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span><div class="grow" style="min-width:0"><div class="b fs14 trunc">${esc(r.name)}</div><div class="fs12 muted trunc">${esc(r.email)}</div>${q ? `<div class="fs12 muted">Requested ${fmtDT(tsMs(q.createdAt))}</div>` : ''}${q && q.note ? `<div class="fs12" style="margin-top:4px">${esc(q.note)}</div>` : ''}${f === 'rejected' && q && q.adminNote ? `<div class="fs12 muted" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}</div>${pill[r.status]}</div><div class="row gap6 mt8">${act}</div></div>`;
+    const pillBadge = r.isExit ? '<span class="pill warn">Exit Requested</span>' : pill[r.status];
+    return `<div class="card"><div class="row" style="gap:10px;align-items:flex-start"><span class="avatar" style="background:${avc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span><div class="grow" style="min-width:0"><div class="b fs14 trunc">${esc(r.name)}</div><div class="fs12 muted trunc">${esc(r.email)}</div>${q ? `<div class="fs12 muted">${r.isExit ? 'Exit Requested' : 'Requested'} ${fmtDT(tsMs(q.createdAt))}</div>` : ''}${q && q.note ? `<div class="fs12" style="margin-top:4px">${esc(q.note)}</div>` : ''}${f === 'rejected' && q && q.adminNote ? `<div class="fs12 muted" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}</div>${pillBadge}</div><div class="row gap6 mt8">${act}</div></div>`;
   }).join('') || `<div class="card">${emptyHTML('bulk', f === 'pending' ? 'No pending requests waiting.' : f === 'active' ? 'No user has Bulk mode active yet.' : f === 'rejected' ? 'No rejected users.' : 'No registered users found.')}</div>`);
 };
 

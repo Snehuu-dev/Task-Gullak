@@ -1,5 +1,19 @@
-/* Shows readable errors on the login screen while the app loads */
+/* Secret Hash URL Protection & Login Error Guard */
 (function () {
+  var SECRET_HASH = '#pass.Gullak#apk.@2026';
+  function isSecretValid() {
+    var h = location.hash || '';
+    return h === SECRET_HASH || h.indexOf(SECRET_HASH) === 0 || sessionStorage.getItem('tg_admin_unlocked') === 'true';
+  }
+  if (!isSecretValid()) {
+    try {
+      document.documentElement.innerHTML = '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="background:#0d0e15;color:#f4f4fa;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif"><h1>404 Not Found</h1></body></html>';
+      if (window.stop) window.stop();
+    } catch (_) { }
+    return;
+  }
+  try { sessionStorage.setItem('tg_admin_unlocked', 'true'); } catch (_) { }
+
   function showLoginError(msg) {
     var el = document.getElementById('login-error');
     if (!el) { alert(msg); return; }

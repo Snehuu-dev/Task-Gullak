@@ -433,6 +433,7 @@ data class WalletTransaction(
     val status: String = "completed", // pending, approved, processing, paid, completed, rejected
     val payoutMethod: String = "",
     val upiId: String = "",
+    val utrNumber: String = "",
     val withdrawalId: String = "",
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null

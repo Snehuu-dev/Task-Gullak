@@ -1159,6 +1159,15 @@ fun HomeScreen(
                                     localFeedbackMsg = "Verification Complete (100% Match): +₹${task.rewardInr} credited to your Gullak."
                                     onComplete(fallbackResult)
                                 }
+                            },
+                            onSubmitBulkModeChangeRequest = { reqType: String, count: Int, reason: String, onResult: (Boolean, String) -> Unit ->
+                                val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                scope.launch {
+                                    val firestoreDb = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                    val repo = com.taskgullak.app.data.repository.TaskGullakRepository(firestoreDb, context)
+                                    val res = repo.submitBulkModeChangeRequest(reqType, count, reason)
+                                    onResult(res.isSuccess, if (res.isSuccess) "Request submitted to Admin" else (res.exceptionOrNull()?.message ?: "Failed"))
+                                }
                             }
                         )
                     }

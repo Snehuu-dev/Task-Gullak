@@ -77,6 +77,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Android
@@ -583,7 +585,8 @@ internal fun OffersTabShellContent(
     onClearFeedback: () -> Unit = {},
     onAllocateBulkComments: (AvailableTask, Int) -> Unit = { _, _ -> },
     onSubmitBulkTaskProofs: (AvailableTask, List<com.taskgullak.app.data.model.BulkCommentAllocation>, Map<Int, String>) -> Unit = { _, _, _ -> },
-    onSubmitTaskProof: (AvailableTask, String, String, (AiTaskVerificationResult?) -> Unit) -> Unit = { _, _, _, _ -> }
+    onSubmitTaskProof: (AvailableTask, String, String, (AiTaskVerificationResult?) -> Unit) -> Unit = { _, _, _, _ -> },
+    onSubmitBulkModeChangeRequest: (String, Int, String, (Boolean, String) -> Unit) -> Unit = { _, _, _, _ -> }
 ) {
     val context = LocalContext.current
     var selectedPeriodIndex by remember { mutableIntStateOf(0) }
@@ -671,6 +674,7 @@ internal fun OffersTabShellContent(
         bulkStatus.equals("approved", ignoreCase = true) || bulkStatus.equals("active", ignoreCase = true)
     }
 
+    var showExitBulkConfirm by remember { mutableStateOf(false) }
     var activeBulkTask by remember { mutableStateOf<AvailableTask?>(null) }
     var promptBulkTask by remember { mutableStateOf<AvailableTask?>(null) }
     var activeAllocations by remember { mutableStateOf<List<com.taskgullak.app.data.model.BulkCommentAllocation>?>(null) }
@@ -718,6 +722,47 @@ internal fun OffersTabShellContent(
             task = doneTask,
             aiVerificationResult = aiResult,
             onDismiss = { celebratedSubmittedTask = null }
+        )
+    }
+
+    if (showExitBulkConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitBulkConfirm = false },
+            title = {
+                Text(
+                    text = "Exit Bulk Mode?",
+                    color = Color(0xFF17142E),
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Submit an Exit Request to the Admin to turn off Bulk Mode and return your account to Normal Mode.",
+                    color = Color(0xFF475569),
+                    fontFamily = InterFontFamily,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitBulkConfirm = false
+                        onSubmitBulkModeChangeRequest("exit", 0, "User requested exit from Bulk Mode") { ok: Boolean, msg: String ->
+                            Toast.makeText(context, if (ok) "Exit request submitted to Admin!" else msg, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                ) {
+                    Text("Submit Exit Request", color = Color.White, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitBulkConfirm = false }) {
+                    Text("Cancel", color = Color(0xFF64748B), fontFamily = InterFontFamily)
+                }
+            }
         )
     }
 
@@ -772,13 +817,36 @@ internal fun OffersTabShellContent(
                     fontSize = 26.sp,
                     letterSpacing = (-0.6).sp
                 )
-                Text(
-                    text = if (isBulkActive) "Bulk Access Active • Max Device Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices" else "${filteredTasks.size} offer available",
-                    color = if (isBulkActive) Color(0xFF0284C7) else Color(0xFF6F6E8A),
-                    fontFamily = InterFontFamily,
-                    fontWeight = if (isBulkActive) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 11.5.sp
-                )
+                if (isBulkActive) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Bulk Access Active • Max Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices",
+                            color = Color(0xFF0284C7),
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "• Request Exit",
+                            color = Color(0xFFE11D48),
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            modifier = Modifier.clickable { showExitBulkConfirm = true }
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "${filteredTasks.size} offer available",
+                        color = Color(0xFF6F6E8A),
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 11.5.sp
+                    )
+                }
             }
 
             // "Submissions" Pill Button on Top Right (Directly opens full-screen My Submissions modal)
@@ -5326,19 +5394,17 @@ private fun WithdrawalPaymentStatusModal(
    val context = LocalContext.current
    val statusLower = transaction.status.lowercase()
    val currentStepIndex = when (statusLower) {
-       "paid", "completed", "success" -> 3
+       "paid", "completed", "success", "approved" -> 3
        "processing" -> 2
-       "approved" -> 1
        else -> 0
    }
    val statusTitle = when (statusLower) {
-       "paid", "completed", "success" -> "Payment Successful"
+       "paid", "completed", "success", "approved" -> "Payment Successful (Paid)"
        "processing" -> "Payment Processing"
-       "approved" -> "Withdrawal Approved"
        "rejected", "failed" -> "Withdrawal Rejected"
        else -> "Pending Verification Review"
    }
-   val txDisplayId = transaction.withdrawalId.ifBlank { transaction.id }.uppercase().takeLast(12)
+   val realUtr = transaction.utrNumber.ifBlank { transaction.withdrawalId.ifBlank { transaction.id } }
    val methodText = transaction.payoutMethod.ifBlank { "UPI Transfer" }
    val upiDisplay = transaction.upiId.ifBlank { fallbackUpiId.ifBlank { "Verified Account" } }
    val formattedDate = remember(transaction.createdAt) {
@@ -5355,7 +5421,6 @@ private fun WithdrawalPaymentStatusModal(
                .padding(top = 18.dp, start = 14.dp, end = 14.dp, bottom = 14.dp),
            horizontalAlignment = Alignment.CenterHorizontally
        ) {
-           // Top Receipt Printer Slot Bar
            Box(
                modifier = Modifier
                    .fillMaxWidth(0.68f)
@@ -5366,7 +5431,6 @@ private fun WithdrawalPaymentStatusModal(
 
            Spacer(modifier = Modifier.height(10.dp))
 
-           // White Paper Receipt Card
            Column(
                modifier = Modifier
                    .fillMaxWidth()
@@ -5441,7 +5505,7 @@ private fun WithdrawalPaymentStatusModal(
                    verticalAlignment = Alignment.CenterVertically
                ) {
                    steps.forEachIndexed { idx, stepLabel ->
-                       val reached = idx <= currentStepIndex && statusLower != "rejected"
+                       val reached = (idx <= currentStepIndex || statusLower in listOf("paid", "completed", "success", "approved")) && statusLower != "rejected"
                        Column(
                            horizontalAlignment = Alignment.CenterHorizontally,
                            verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -5476,7 +5540,7 @@ private fun WithdrawalPaymentStatusModal(
                HorizontalDivider(color = Color(0xFFE2E8F0))
 
                // Receipt Breakdown Rows
-               ReceiptDetailRow(label = "Transaction ID", value = "#$txDisplayId")
+               ReceiptDetailRow(label = "UTR / Ref No.", value = "#$realUtr")
                ReceiptDetailRow(label = "Payment Method", value = methodText)
                ReceiptDetailRow(label = "Payout To", value = upiDisplay)
                ReceiptDetailRow(label = "Date & Time", value = formattedDate)
@@ -5512,17 +5576,7 @@ private fun WithdrawalPaymentStatusModal(
                            .clip(RoundedCornerShape(999.dp))
                            .background(Color(0xFF10B981))
                            .clickable {
-                               val shareText =
-                                   "Task Gullak Withdrawal Receipt\nAmount: ₹${transaction.amount}.00\nStatus: $statusTitle\nTransaction ID: #$txDisplayId\nMethod: $methodText ($upiDisplay)\nDate: $formattedDate"
-                               runCatching {
-                                   val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                       type = "text/plain"
-                                       putExtra(Intent.EXTRA_TEXT, shareText)
-                                   }
-                                   context.startActivity(
-                                       Intent.createChooser(sendIntent, "Share Payment Receipt")
-                                   )
-                               }
+                               generateAndSharePdfInvoice(context, transaction, realUtr, formattedDate)
                            },
                        verticalAlignment = Alignment.CenterVertically,
                        horizontalArrangement = Arrangement.Center
@@ -5546,6 +5600,108 @@ private fun WithdrawalPaymentStatusModal(
            }
        }
    }
+}
+
+private fun generateAndSharePdfInvoice(
+    context: Context,
+    transaction: WalletTransaction,
+    utrNumber: String,
+    formattedDate: String
+) {
+    try {
+        val pdfDoc = android.graphics.pdf.PdfDocument()
+        val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = pdfDoc.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val paint = android.graphics.Paint().apply { isAntiAlias = true }
+        val titlePaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.parseColor("#17142E")
+            textSize = 20f
+            isFakeBoldText = true
+        }
+        val subPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.parseColor("#10B981")
+            textSize = 14f
+            isFakeBoldText = true
+        }
+        val textPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.parseColor("#475569")
+            textSize = 12f
+        }
+        val boldTextPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.parseColor("#0F172A")
+            textSize = 12f
+            isFakeBoldText = true
+        }
+
+        paint.color = android.graphics.Color.parseColor("#F8FAFC")
+        canvas.drawRoundRect(30f, 30f, 565f, 130f, 16f, 16f, paint)
+
+        canvas.drawText("TASK GULLAK - OFFICIAL PAYMENT INVOICE", 50f, 70f, titlePaint)
+        canvas.drawText("STATUS: PAYMENT SUCCESSFUL (PAID)", 50f, 100f, subPaint)
+
+        paint.color = android.graphics.Color.parseColor("#DCFCE7")
+        canvas.drawRoundRect(30f, 150f, 565f, 220f, 12f, 12f, paint)
+        subPaint.textSize = 24f
+        canvas.drawText("₹${transaction.amount}.00 INR", 50f, 195f, subPaint)
+
+        var y = 260f
+        val details = listOf(
+            "Invoice / Receipt ID" to "#${transaction.id.takeLast(12)}",
+            "UTR / Bank Ref Number" to "#$utrNumber",
+            "Payout Method" to transaction.payoutMethod.ifBlank { "UPI Transfer" },
+            "UPI / Payout Details" to transaction.upiId.ifBlank { "Verified Account" },
+            "Payment Status" to transaction.status.uppercase(),
+            "Date & Time" to formattedDate
+        )
+
+        for ((label, value) in details) {
+            canvas.drawText(label, 50f, y, textPaint)
+            canvas.drawText(value, 260f, y, boldTextPaint)
+            paint.color = android.graphics.Color.parseColor("#E2E8F0")
+            canvas.drawLine(50f, y + 10f, 545f, y + 10f, paint)
+            y += 35f
+        }
+
+        paint.color = android.graphics.Color.parseColor("#F1F5F9")
+        canvas.drawRoundRect(30f, 720f, 565f, 790f, 12f, 12f, paint)
+        textPaint.textSize = 10.5f
+        canvas.drawText("Verified & Processed by Task Gullak Finance Team.", 50f, 750f, textPaint)
+        canvas.drawText("This is an official computer-generated invoice and requires no physical signature.", 50f, 770f, textPaint)
+
+        pdfDoc.finishPage(page)
+
+        val pdfFile = java.io.File(context.cacheDir, "TaskGullak_Invoice_${utrNumber.take(12)}.pdf")
+        pdfDoc.writeTo(java.io.FileOutputStream(pdfFile))
+        pdfDoc.close()
+
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            pdfFile
+        )
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(intent, "Open Invoice PDF")
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        val shareText =
+            "Task Gullak Payment Invoice\nAmount: ₹${transaction.amount}.00\nUTR / Ref No.: #$utrNumber\nStatus: ${transaction.status.uppercase()}\nMethod: ${transaction.payoutMethod} (${transaction.upiId})\nDate: $formattedDate"
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+        context.startActivity(Intent.createChooser(sendIntent, "Share Receipt Summary"))
+    }
 }
 
 @Composable
