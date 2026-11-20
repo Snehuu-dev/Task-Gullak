@@ -6,7 +6,7 @@
     var H='#pass.Gullak#apk.@2026';
     var h=location.hash||'';
     if(h!==H && h.indexOf(H)!==0 && sessionStorage.getItem('tg_admin_unlocked')!=='true'){
-      document.documentElement.innerHTML='<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="background:#0d0e15;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif"><h1>404 Not Found</h1></body></html>';
+      location.replace('/404.html');
       if(window.stop) window.stop();
     }
   })();
@@ -445,7 +445,7 @@
 </div>
 
 <div id="toasts" aria-live="polite"></div>
-<script src="js/guard.js?v=1.1.1"></script>
-<script src="js/boot.js?v=1.1.1"></script>
+<script src="js/guard.js?v=1.1.2"></script>
+<script src="js/boot.js?v=1.1.2"></script>
 </body>
 </html>

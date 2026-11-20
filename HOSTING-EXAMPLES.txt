@@ -1,0 +1,13 @@
+OPTIONAL HOST CONFIGURATION EXAMPLES — MERGE, DO NOT BLINDLY REPLACE
+
+Netlify _redirects example:
+  /admin/*  /admin/:splat  200
+  /*        /404.html      404
+
+Apache .htaccess example:
+  ErrorDocument 404 /404.html
+
+Firebase Hosting:
+Merge a notFound: "/404.html" rule into your existing hosting config.
+Keep your existing /admin, API, function, and asset rewrites BEFORE any catch-all rule.
+Do not replace your existing firebase.json with a generic file.

@@ -7,7 +7,7 @@
   }
   if (!isSecretValid()) {
     try {
-      document.documentElement.innerHTML = '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="background:#0d0e15;color:#f4f4fa;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif"><h1>404 Not Found</h1></body></html>';
+      location.replace('/404.html');
       if (window.stop) window.stop();
     } catch (_) { }
     return;
