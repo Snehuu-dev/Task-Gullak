@@ -307,6 +307,7 @@ async function tmSaveOne(opts = {}) {
     instructions: ins, description: ins.join('\n'), proofRequirement: existing?.proofRequirement || 'Upload completion screenshot and your genuine feedback',
     active, isActive: active, pausedByMaintenance: false, status,
     taskMode: tMode, modeType: tMode.toUpperCase(), mode_type: tMode.toUpperCase(), isBulk: tMode !== 'normal', normalEnabled: tMode !== 'bulk', bulkEnabled: tMode !== 'normal', bulkMaxComments: tMode === 'normal' ? 0 : bulkMax,
+    totalQuantity: 50, quantity: 50, usedQuantity: 0, remainingQuantity: 50, total_quantity: 50, used_quantity: 0, remaining_quantity: 50,
     comments: texts, commentPool: texts, commentItems: buildCommentItems(docRef.id, title, appId, texts, existing?.commentItems), updatedAt: serverTimestamp(), updatedBy: S.admin
   };
   if (!existingId) { payload.createdAt = serverTimestamp(); payload.createdBy = S.admin; payload.expiresAtMillis = new Date(serverNow()).setHours(23, 59, 59, 999); }   // user app can hide tasks after this time

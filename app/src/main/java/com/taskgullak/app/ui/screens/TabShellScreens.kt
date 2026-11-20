@@ -700,9 +700,8 @@ internal fun OffersTabShellContent(
         availableTasks.filter { task ->
             val mode = task.modeType.uppercase().ifBlank { if (task.isBulk) "BULK" else "NORMAL" }
             val isExhaustedOrClosed = task.status.lowercase() in listOf("paused", "archived", "closed", "exhausted", "draft")
-            val isStockExhausted = task.remainingQuantity <= 0 && task.totalQuantity > 0
 
-            if (isExhaustedOrClosed || isStockExhausted) return@filter false
+            if (isExhaustedOrClosed) return@filter false
 
             when (mode) {
                 "BOTH" -> true

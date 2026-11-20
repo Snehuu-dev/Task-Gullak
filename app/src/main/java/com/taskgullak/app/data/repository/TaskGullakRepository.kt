@@ -655,8 +655,7 @@ class TaskGullakRepository(
                     val remQty = ((data["remainingQuantity"] as? Number) ?: (data["remaining_quantity"] as? Number))?.toInt() ?: (totalQty - usedQty)
 
                     val isExplicitlyInactive = !isActive ||
-                        statusStr == "inactive" || statusStr == "archived" || statusStr == "paused" || statusStr == "exhausted" ||
-                        (remQty <= 0 && totalQty > 0)
+                        statusStr == "inactive" || statusStr == "archived" || statusStr == "paused" || statusStr == "exhausted"
 
                     if (isExplicitlyInactive) {
                         null
