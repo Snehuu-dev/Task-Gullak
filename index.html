@@ -1,74 +1,330 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Task Gullak — complete small online tasks, earn rewards and track your progress.">
-<meta name="theme-color" content="#6738df">
-<title>Complete Tasks & Earn Money | Task Gullak</title>
-<link rel="stylesheet" href="/assets/style.css">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
-:root{--ink:#17152e;--muted:#77758d;--purple:#6738df;--purple2:#9254f4;--lav:#eee8ff;--pink:#f6eaff;--green:#159b62;--line:#e8e2f4;--white:#fff;--shadow:0 18px 55px rgba(67,42,133,.12);--radius:26px}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:linear-gradient(135deg,#faf8ff 0%,#f4f0ff 52%,#f9f7ff 100%);color:var(--ink);font-family:'DM Sans',sans-serif;overflow-x:hidden}a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}.container{width:min(1160px,calc(100% - 40px));margin:auto}
-.nav{height:82px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:10}.brand{display:flex;align-items:center;gap:11px;font:800 22px Manrope,sans-serif;letter-spacing:-.8px}.brand-logo{width:43px;height:43px;border-radius:15px;object-fit:cover;box-shadow:0 8px 22px rgba(103,56,223,0.35)}.navlinks{display:flex;align-items:center;gap:27px;color:#45415f;font-size:14px;font-weight:700}.navlinks a{transition:.2s}.navlinks a:hover,.navlinks a.active{color:var(--purple)}.nav-cta,.btn{border:0;border-radius:999px;padding:14px 22px;background:linear-gradient(110deg,#5930d7,#8b3fe7);color:#fff;font-weight:800;box-shadow:0 10px 24px #7542df38;display:inline-flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;transition:transform .2s,box-shadow .2s}.nav-cta:hover,.btn:hover{transform:translateY(-3px);box-shadow:0 15px 30px #7542df55}.btn.secondary{background:#fff;color:var(--purple);border:1px solid #d8cafa;box-shadow:none}.menu-btn{display:none;background:white;border:1px solid var(--line);border-radius:13px;padding:10px 13px;font-size:20px}
-.hero{position:relative;display:grid;grid-template-columns:1.03fr .97fr;align-items:center;min-height:580px;padding:40px 0 65px}.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;background:#eee7ff;color:#6939d8;font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}.hero h1{font:800 clamp(42px,5.5vw,70px)/1.05 Manrope,sans-serif;letter-spacing:-3px;margin:23px 0 17px;max-width:650px}.gradient-text{background:linear-gradient(100deg,#5b35d8,#a53be1);-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{font-size:18px;line-height:1.65;color:var(--muted);max-width:520px}.hero-actions{display:flex;gap:13px;flex-wrap:wrap;margin:28px 0}.trust{display:flex;align-items:center;gap:12px;color:#6e6a83;font-size:13px;font-weight:700}.avatars{display:flex}.avatars span{width:28px;height:28px;margin-left:-6px;border:2px solid #fff;border-radius:50%;background:linear-gradient(140deg,#ffd4b7,#a38be9)}.hero-art{min-height:460px;position:relative;display:grid;place-items:center}.glow{position:absolute;width:390px;height:390px;border-radius:50%;background:radial-gradient(circle,#d9c7ff 0%,#eee7ff 55%,transparent 72%);animation:pulse 5s ease-in-out infinite}.phone{position:relative;z-index:2;width:min(290px,75%);padding:13px;border:7px solid #292443;border-radius:39px;background:#fff;transform:rotate(7deg);box-shadow:0 30px 60px #30215b35;animation:float 5s ease-in-out infinite}.phone-top{height:20px;width:85px;border-radius:20px;background:#292443;margin:-4px auto 13px}.phone-head{background:linear-gradient(130deg,#6437dd,#a14be9);color:white;padding:17px;border-radius:22px}.phone-head small{letter-spacing:1.5px;font-weight:800}.phone-head strong{display:block;font-size:29px;margin:13px 0 2px}.phone-stat{display:flex;justify-content:space-between;padding:14px 4px;border-bottom:1px solid #eee}.phone-stat b{font-size:13px}.phone-task{margin-top:10px;padding:13px;border-radius:15px;background:#f5f1ff;font-size:12px;font-weight:800}.coin{position:absolute;z-index:3;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#ffe58b,#ffad21);border:4px solid #fff5c9;color:#a96500;font-size:26px;font-weight:900;box-shadow:0 12px 22px #d98e2e55;animation:coinFloat 4s ease-in-out infinite}.coin.one{top:55px;left:8%}.coin.two{right:5%;top:43% ;animation-delay:1s}.coin.three{bottom:35px;left:17%;animation-delay:2s}.pig{position:absolute;bottom:45px;right:4%;font-size:85px;filter:drop-shadow(0 12px 12px #4e32752a);animation:float 4.5s ease-in-out infinite reverse}
-.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:#ffffffc9;border:1px solid #e5dcfb;border-radius:22px;padding:22px;box-shadow:var(--shadow);backdrop-filter:blur(12px);position:relative;z-index:4;margin-top:-24px}.strip-item{display:flex;align-items:center;justify-content:center;gap:12px;border-right:1px solid #ddd3f4;font-weight:800;color:#494461}.strip-item:last-child{border:0}.strip-icon{font-size:23px;color:var(--purple)}
-.section{padding:92px 0}.section-head{text-align:center;max-width:650px;margin:0 auto 42px}.section-head h2,.page-hero h1{font:800 clamp(32px,4vw,46px)/1.12 Manrope,sans-serif;letter-spacing:-1.7px;margin:15px 0}.section-head p,.page-hero p{color:var(--muted);font-size:17px;line-height:1.7}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.card{background:#ffffffd9;border:1px solid #e9e2f6;border-radius:24px;padding:26px;box-shadow:0 10px 30px #513b8910;transition:transform .25s,box-shadow .25s}.card:hover{transform:translateY(-7px);box-shadow:var(--shadow)}.card-icon{width:54px;height:54px;border-radius:18px;background:#eee7ff;display:grid;place-items:center;font-size:25px;margin-bottom:19px}.card h3{font:800 19px Manrope;margin:0 0 9px}.card p{color:var(--muted);line-height:1.65;margin:0}.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.step{position:relative;text-align:center;padding:25px 18px}.step-num{width:54px;height:54px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:#e4d8ff;color:#6738df;font-weight:900;font-size:19px;border:4px solid #fff;box-shadow:0 0 0 2px #cbb8ff}.step:not(:last-child):after{content:"→";position:absolute;right:-15px;top:38px;color:#a88be9;font-size:25px}.earning{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;background:linear-gradient(120deg,#241d51,#5430a5);border-radius:32px;padding:42px;color:white;overflow:hidden;position:relative}.earning h2{font:800 36px Manrope;margin:15px 0}.earning p{color:#ddd4fa;line-height:1.7}.earning .mini-stats{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}.mini-stat{padding:15px 18px;border:1px solid #ffffff2a;border-radius:16px;background:#ffffff12}.mini-stat b{display:block;font-size:25px;color:#a9f0ce}.earning-art{font-size:150px;text-align:center;filter:drop-shadow(0 15px 18px #0004);animation:float 5s infinite}
-.faq-list{max-width:800px;margin:auto;display:grid;gap:12px}.faq-item{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden}.faq-q{width:100%;padding:20px 22px;text-align:left;border:0;background:none;font-weight:800;color:var(--ink);display:flex;justify-content:space-between;cursor:pointer}.faq-a{max-height:0;overflow:hidden;padding:0 22px;color:var(--muted);line-height:1.7;transition:max-height .3s,padding .3s}.faq-item.open .faq-a{max-height:180px;padding:0 22px 20px}.faq-q span:last-child{color:var(--purple);font-size:20px}
-.page-hero{text-align:center;padding:75px 0 35px;max-width:760px;margin:auto}.page-hero h1{font-size:clamp(38px,5vw,58px)}.content-panel{max-width:900px;margin:0 auto 90px;background:#fff;border:1px solid var(--line);border-radius:26px;padding:clamp(24px,5vw,48px);box-shadow:var(--shadow)}.content-panel h2{font:800 22px Manrope;margin:28px 0 10px}.content-panel h2:first-child{margin-top:0}.content-panel p,.content-panel li{color:#68657b;line-height:1.8}.contact-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:22px}.contact-box{background:#f4efff;border-radius:22px;padding:25px}.form-field{display:grid;gap:8px;margin-bottom:16px}.form-field label{font-weight:800;font-size:13px}.form-field input,.form-field textarea{border:1px solid #ddd4f1;border-radius:13px;padding:14px;background:#fff;outline:none}.form-field input:focus,.form-field textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px #7544df1c}.form-field textarea{min-height:130px;resize:vertical}
-.cta{margin:20px auto 85px;padding:45px;border-radius:30px;text-align:center;color:white;background:linear-gradient(110deg,#5631d2,#a23ee2);box-shadow:0 20px 50px #7441d53a}.cta h2{font:800 34px Manrope;margin:0 0 12px}.cta p{color:#eee5ff;margin:0 0 23px}.cta .btn{background:#fff;color:#6535d8;box-shadow:none}
-.footer{background:#211b43;color:#fff;padding:52px 0 24px;margin-top:70px}.footer-top{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}.footer p{color:#bdb6d8;max-width:360px;line-height:1.7}.footer-links{display:flex;gap:17px;flex-wrap:wrap;color:#d7d0eb;font-size:14px}.copyright{border-top:1px solid #ffffff20;margin-top:35px;padding-top:20px;color:#aaa2c7;font-size:13px}
-.notfound{text-align:center;padding:95px 20px 120px}.notfound .big404{font:900 clamp(100px,22vw,190px)/.9 Manrope;color:#6b39dc;text-shadow:8px 10px 0 #e5d9ff}.notfound .mascot{font-size:90px;animation:float 4s infinite}.notfound h1{font:800 34px Manrope}
-.notfound-container{min-height:calc(100vh - 280px);display:grid;place-items:center;padding:60px 20px 90px;text-align:center}
-.notfound-stage{max-width:680px;margin:auto;position:relative}
-.notfound-art{display:flex;align-items:center;justify-content:center;gap:24px;position:relative;margin-bottom:30px;min-height:240px}
-.pig-mascot{font-size:110px;filter:drop-shadow(0 15px 25px rgba(103,56,223,0.3));animation:float 4s ease-in-out infinite}
-.card-404{background:linear-gradient(145deg,#6d39e3,#8f47f6);border:4px solid #b893ff;border-radius:28px;padding:28px 45px;box-shadow:0 20px 45px rgba(103,56,223,0.4);transform:rotate(-6deg);position:relative;animation:cardPulse 5s ease-in-out infinite}
-.num-404{font:900 78px/1 'Manrope',sans-serif;color:#fff;letter-spacing:-2px;text-shadow:0 4px 12px rgba(0,0,0,0.2)}
-.qmark{position:absolute;color:#a375ff;font-weight:900;animation:float 3.5s ease-in-out infinite}
-.qmark.q1{top:-35px;right:-20px;font-size:52px;animation-delay:0.5s}
-.qmark.q2{bottom:-25px;left:-25px;font-size:42px;animation-delay:1.2s}
-.coin.c1{top:10px;left:5%;animation:coinFloat 4s ease-in-out infinite}
-.coin.c2{bottom:10px;right:8%;animation:coinFloat 4.5s ease-in-out infinite 1.5s}
-@keyframes cardPulse{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(-3deg) scale(1.03)}}
-.reveal{opacity:0;transform:translateY(25px);transition:opacity .7s ease,transform .7s ease}.reveal.visible{opacity:1;transform:none}.delay1{transition-delay:.12s}.delay2{transition-delay:.24s}.delay3{transition-delay:.36s}
-@keyframes float{0%,100%{transform:translateY(0) rotate(7deg)}50%{transform:translateY(-17px) rotate(4deg)}}@keyframes coinFloat{0%,100%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-20px) rotate(12deg)}}@keyframes pulse{0%,100%{transform:scale(.95);opacity:.8}50%{transform:scale(1.08);opacity:1}}
-@media(max-width:850px){.navlinks{display:none;position:absolute;top:72px;left:0;right:0;padding:20px;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);flex-direction:column;align-items:stretch}.navlinks.show{display:flex}.navlinks a{padding:8px}.menu-btn{display:block}.nav-cta{display:none}.hero{grid-template-columns:1fr;padding-top:35px;text-align:center}.hero p{margin:auto}.hero-actions,.trust{justify-content:center}.hero-art{min-height:390px}.strip{grid-template-columns:repeat(2,1fr);gap:18px}.strip-item:nth-child(2){border:0}.grid{grid-template-columns:1fr 1fr}.steps{grid-template-columns:1fr 1fr}.step:nth-child(2):after{display:none}.earning{grid-template-columns:1fr;text-align:center}.earning-art{font-size:110px}.contact-grid{grid-template-columns:1fr}}
-@media(max-width:560px){.container{width:min(100% - 28px,1160px)}.brand{font-size:19px}.hero h1{letter-spacing:-2px}.hero p{font-size:16px}.hero-art{min-height:340px}.glow{width:300px;height:300px}.phone{width:230px}.coin{width:46px;height:46px;font-size:21px}.pig{font-size:65px}.strip{padding:17px 10px}.strip-item{font-size:12px;gap:7px}.section{padding:68px 0}.grid{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.step{padding:18px 8px}.step:after{display:none}.earning{padding:28px 22px}.earning h2{font-size:29px}.cta{padding:34px 22px}.cta h2{font-size:27px}.footer-top{display:block}.footer-links{margin-top:25px}.page-hero{padding:55px 0 25px}.content-panel{margin-bottom:65px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Task Gullak — Complete simple online tasks, earn rewards and track your wallet progress.">
+  <meta name="theme-color" content="#6738df">
+  <title>Complete Tasks & Earn Money | Task Gullak</title>
+  <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-<header class="container nav">
-  <a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Task Gullak"><span>Task Gullak</span></a>
-  <nav class="navlinks">
-    <a href="/">Home</a><a href="/how-it-works.html">How It Works</a><a href="/features.html">Features</a><a href="/faq.html">FAQ</a><a href="/support.html">Support</a><a href="/about.html">About</a>
-  </nav>
-  <a class="nav-cta" href="#get-app">Get the App ↗</a>
-  <button class="menu-btn" aria-label="Open navigation">☰</button>
-</header>
+
+<!-- Navigation Header -->
+<div class="header-wrapper">
+  <header class="container nav">
+    <a class="brand" href="/">
+      <div class="brand-mark">₹</div>
+      <span>Task Gullak</span>
+    </a>
+    <nav class="navlinks">
+      <a href="/" class="active">Home</a>
+      <a href="/how-it-works.html">How It Works</a>
+      <a href="/features.html">Features</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/support.html">Support</a>
+      <a href="/about.html">About</a>
+    </nav>
+    <a class="nav-cta" href="#get-app" data-app-link>Get the App →</a>
+    <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
+  </header>
+</div>
 
 <main>
-<section class="container hero">
- <div class="reveal"><span class="eyebrow">✦ Small tasks. Big rewards.</span><h1>Complete Tasks &<br><span class="gradient-text">Earn Money</span></h1><p>Do simple online tasks, refer friends, submit your proof and keep track of your rewards — all in one place.</p>
- <div class="hero-actions"><a class="btn" href="#get-app">Start Earning ↗</a><a class="btn secondary" href="/how-it-works.html">▷ Learn More</a></div>
- <div class="trust"><div class="avatars"><span></span><span></span><span></span></div><span>One simple place to manage your tasks and rewards</span></div></div>
- <div class="hero-art reveal delay1"><div class="glow"></div><div class="coin one">₹</div><div class="coin two">₹</div><div class="coin three">₹</div>
- <div class="phone"><div class="phone-top"></div><div class="phone-head"><small>TASK GULLAK WALLET</small><div>Available Balance</div><strong>₹546.00</strong><small>Approved rewards preview</small></div><div class="phone-stat"><b>Total Earned</b><strong>₹2,586</strong></div><div class="phone-stat"><b>In Review</b><strong>3 Tasks</strong></div><div class="phone-stat"><b>Withdrawn</b><strong>₹2,040</strong></div><div class="phone-task">✓ Browse available tasks</div><div class="phone-task">★ Submit proof for review</div><div class="phone-task">₹ Track your rewards</div></div><div class="pig">🐷</div></div>
-</section>
-<div class="container strip reveal"><div class="strip-item"><span class="strip-icon">⚡</span>Simple tasks</div><div class="strip-item"><span class="strip-icon">✓</span>Proof review</div><div class="strip-item"><span class="strip-icon">🎁</span>Refer & earn</div><div class="strip-item"><span class="strip-icon">◉</span>Wallet tracking</div></div>
-<section class="section container"><div class="section-head reveal"><span class="eyebrow">The simple way to get started</span><h2>How Task Gullak <span class="gradient-text">works</span></h2><p>Follow a few straightforward steps to participate in tasks and track eligible rewards.</p></div>
-<div class="steps"><div class="step card reveal"><div class="step-num">01</div><h3>Explore tasks</h3><p>Browse tasks and read their instructions carefully.</p></div><div class="step card reveal delay1"><div class="step-num">02</div><h3>Complete the task</h3><p>Follow the requirements and finish the activity.</p></div><div class="step card reveal delay2"><div class="step-num">03</div><h3>Submit your proof</h3><p>Upload the requested evidence for review.</p></div><div class="step card reveal delay3"><div class="step-num">04</div><h3>Track rewards</h3><p>Check task status and approved wallet balance.</p></div></div></section>
-<section class="section container"><div class="section-head reveal"><span class="eyebrow">Made to keep things clear</span><h2>Everything in <span class="gradient-text">one place</span></h2><p>Stay on top of tasks, referrals and rewards without losing track of your progress.</p></div>
-<div class="grid"><article class="card reveal"><div class="card-icon">⚡</div><h3>Task discovery</h3><p>See available tasks, reward details, instructions and task status in one place.</p></article><article class="card reveal delay1"><div class="card-icon">🧾</div><h3>Proof submissions</h3><p>Submit the required proof and follow its review status from your account.</p></article><article class="card reveal delay2"><div class="card-icon">👛</div><h3>Wallet overview</h3><p>Review available, pending and withdrawn reward totals with a clear summary.</p></article><article class="card reveal"><div class="card-icon">🤝</div><h3>Refer & earn</h3><p>Invite friends with your referral code and track eligible referral rewards.</p></article><article class="card reveal delay1"><div class="card-icon">🏆</div><h3>Progress tracking</h3><p>Keep an eye on completed tasks, achievements and account progress.</p></article><article class="card reveal delay2"><div class="card-icon">🛟</div><h3>Help when needed</h3><p>Find answers to common questions or reach out to the support team.</p></article></div></section>
-<section class="container section"><div class="earning reveal"><div><span class="eyebrow">Refer & earn</span><h2>Invite friends.<br><span style="color:#9af0c5">Grow together.</span></h2><p>Share your referral code with friends. The current referral programme advertises a ₹5 direct bonus, a ₹5 friend reward after their first withdrawal, and 1% commission on eligible completed task rewards. Check the in-app terms for eligibility and current rules.</p><div class="mini-stats"><div class="mini-stat"><b>₹5</b>Direct bonus</div><div class="mini-stat"><b>₹5</b>Friend reward*</div><div class="mini-stat"><b>1%</b>Task commission*</div></div></div><div class="earning-art">🐷💸</div></div></section>
-<section class="section container"><div class="section-head reveal"><span class="eyebrow">Questions?</span><h2>Good to know</h2><p>Get familiar with the task and reward process before you begin.</p></div><div class="faq-list"><div class="faq-item reveal"><button class="faq-q"><span>How do I earn rewards?</span><span>+</span></button><div class="faq-a">Choose an available task, follow its instructions and submit the required proof. Rewards are subject to review and approval.</div></div><div class="faq-item reveal"><button class="faq-q"><span>When does a task reward appear in my wallet?</span><span>+</span></button><div class="faq-a">A reward is added according to the task's approval and wallet rules. A submitted task is not automatically an approved reward.</div></div><div class="faq-item reveal"><button class="faq-q"><span>Where can I get help?</span><span>+</span></button><div class="faq-a">Visit the Support page and contact the Task Gullak team with your account and task details.</div></div></div></section>
-<section class="container cta reveal" id="get-app"><h2>Ready to get started?</h2><p>Open Task Gullak and explore the tasks available to you.</p><a class="btn" href="#" data-app-link>Get the App ↗</a></section>
+  <!-- Hero Section -->
+  <section class="container hero">
+    <div class="hero-content reveal">
+      <span class="eyebrow">✦ Complete Tasks. Earn Money.</span>
+      <h1>Complete Tasks.<br><span class="gradient-text">Earn Money.</span></h1>
+      <p>Discover simple online tasks, complete them, submit your proof and earn rewards directly in your wallet.</p>
+
+      <div class="hero-actions">
+        <a class="btn" href="#get-app" data-app-link>⚡ Start Earning →</a>
+        <a class="btn secondary" href="/how-it-works.html">▷ Learn More</a>
+      </div>
+
+      <div class="trust-badge">
+        <div class="avatar-group">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span class="trust-text">1M+ Happy Users</span>
+      </div>
+    </div>
+
+    <!-- 3D Artwork Phone Mockup -->
+    <div class="hero-art-container reveal delay-1">
+      <div class="hero-glow-bg"></div>
+
+      <!-- Floating 3D Rupee Coins -->
+      <div class="floating-element coin-3d c1">₹</div>
+      <div class="floating-element coin-3d c2">₹</div>
+      <div class="floating-element coin-3d c3">₹</div>
+      <div class="sparkle-3d s1">✨</div>
+      <div class="sparkle-3d s2">✨</div>
+
+      <!-- Smartphone Wallet Interface Mockup -->
+      <div class="phone-mockup">
+        <div class="phone-notch"></div>
+        <div class="phone-wallet-card">
+          <div class="wallet-label">Task Gullak Wallet</div>
+          <div class="wallet-sublabel">Available Balance</div>
+          <div class="wallet-balance">₹546.00</div>
+          <div class="wallet-badge">✓ Your approved rewards</div>
+          <div class="wallet-actions">
+            <span class="wallet-btn">View Wallet →</span>
+            <span class="wallet-btn">TG-ZZKJIBOW 📋</span>
+          </div>
+        </div>
+
+        <div class="phone-stats-grid">
+          <div class="stat-item earned">
+            <small>Total Earned</small>
+            <strong>₹2,586</strong>
+          </div>
+          <div class="stat-item review">
+            <small>In Review</small>
+            <strong>3 Tasks</strong>
+          </div>
+          <div class="stat-item withdrawn">
+            <small>Withdrawn</small>
+            <strong>₹2,040</strong>
+          </div>
+        </div>
+
+        <div class="phone-withdrawal-box">
+          <div class="withdrawal-title">Quick Withdrawal</div>
+          <div class="withdrawal-meta">Min: ₹100 • Max: ₹546 (Available Earned)</div>
+          <div class="upi-chip">
+            <span>💳 UPI Transfer</span>
+            <small style="margin-left:auto;opacity:0.8">Instant Payout • 0% Fee</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating 3D Piggy Bank -->
+      <div class="floating-element 3d-piggy">🐷</div>
+    </div>
+  </section>
+
+  <!-- Feature Strip Bar -->
+  <div class="container">
+    <div class="feature-strip reveal">
+      <div class="strip-item">
+        <div class="strip-icon-box">⚡</div>
+        <span>Easy Tasks & High Rewards</span>
+      </div>
+      <div class="strip-item">
+        <div class="strip-icon-box">🎁</div>
+        <span>Refer & Earn More</span>
+      </div>
+      <div class="strip-item">
+        <div class="strip-icon-box">🛡️</div>
+        <span>Secure & Trusted</span>
+      </div>
+      <div class="strip-item">
+        <div class="strip-icon-box">🎧</div>
+        <span>24/7 Support</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works Section -->
+  <section class="section container">
+    <div class="section-header reveal">
+      <span class="eyebrow">Simple Steps</span>
+      <h2>How It <span class="gradient-text">Works</span></h2>
+      <p>Get started in just a few simple steps!</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-num-badge">1</div>
+        <div class="step-icon-glow">📥</div>
+        <h3>Download</h3>
+        <p>our app or visit the website</p>
+      </div>
+
+      <div class="step-card reveal delay-1">
+        <div class="step-num-badge">2</div>
+        <div class="step-icon-glow">📝</div>
+        <h3>Complete tasks</h3>
+        <p>like reviews, visits & more</p>
+      </div>
+
+      <div class="step-card reveal delay-2">
+        <div class="step-num-badge">3</div>
+        <div class="step-icon-glow">🎁</div>
+        <h3>Earn rewards</h3>
+        <p>and track your progress</p>
+      </div>
+
+      <div class="step-card reveal delay-3">
+        <div class="step-num-badge">4</div>
+        <div class="step-icon-glow">💸</div>
+        <h3>Withdraw your</h3>
+        <p>earnings easily</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section container">
+    <div class="section-header reveal">
+      <span class="eyebrow">Why Choose Us?</span>
+      <h2>Amazing <span class="gradient-text">Features</span></h2>
+      <p>Everything you need to earn more and more!</p>
+    </div>
+
+    <div class="features-layout">
+      <div class="features-grid">
+        <article class="feature-card reveal">
+          <div class="feature-icon-wrapper">⚡</div>
+          <h3>Simple Tasks</h3>
+          <p>Complete easy tasks anytime</p>
+        </article>
+
+        <article class="feature-card reveal delay-1">
+          <div class="feature-icon-wrapper">🎁</div>
+          <h3>High Rewards</h3>
+          <p>Earn real money for your efforts</p>
+        </article>
+
+        <article class="feature-card reveal delay-2">
+          <div class="feature-icon-wrapper">⚡</div>
+          <h3>Instant Withdrawals</h3>
+          <p>Get your money quickly</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <div class="feature-icon-wrapper">🛡️</div>
+          <h3>Secure Platform</h3>
+          <p>Your data is always protected</p>
+        </article>
+
+        <article class="feature-card reveal delay-1">
+          <div class="feature-icon-wrapper">👥</div>
+          <h3>Refer & Earn</h3>
+          <p>Invite friends & earn more</p>
+        </article>
+
+        <article class="feature-card reveal delay-2">
+          <div class="feature-icon-wrapper">🎧</div>
+          <h3>24/7 Support</h3>
+          <p>We're always here to help</p>
+        </article>
+      </div>
+
+      <!-- 3D Gold Trophy Card -->
+      <div class="trophy-showcase reveal delay-1">
+        <div class="trophy-icon">🏆</div>
+        <h3>Earn & Win</h3>
+        <p>Milestone rewards, leaderboard bonuses and referral perks!</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="section container">
+    <div class="section-header reveal">
+      <span class="eyebrow">Got Questions?</span>
+      <h2>Frequently Asked <span class="gradient-text">Questions</span></h2>
+      <p>Find answers to common questions.</p>
+    </div>
+
+    <div class="faq-layout">
+      <div class="faq-accordion">
+        <div class="faq-item reveal">
+          <button class="faq-question">
+            <span>Is Task Gullak safe to use?</span>
+            <div class="faq-icon-toggle">+</div>
+          </button>
+          <div class="faq-answer">
+            Yes! Task Gullak prioritizes user data protection, secure wallet payouts, and transparent task guidelines.
+          </div>
+        </div>
+
+        <div class="faq-item reveal delay-1">
+          <button class="faq-question">
+            <span>How do I get rewards?</span>
+            <div class="faq-icon-toggle">+</div>
+          </button>
+          <div class="faq-answer">
+            Simply pick any task, carefully follow its instructions, submit required proof, and watch approved rewards hit your wallet!
+          </div>
+        </div>
+
+        <div class="faq-item reveal delay-2">
+          <button class="faq-question">
+            <span>When can I withdraw money?</span>
+            <div class="faq-icon-toggle">+</div>
+          </button>
+          <div class="faq-answer">
+            You can request instant UPI withdrawals as soon as your available wallet balance reaches the minimum ₹100 threshold.
+          </div>
+        </div>
+
+        <div class="faq-item reveal delay-3">
+          <button class="faq-question">
+            <span>Need more help?</span>
+            <div class="faq-icon-toggle">+</div>
+          </button>
+          <div class="faq-answer">
+            Our 24/7 support team is always ready to assist you. Contact us via the Support page anytime!
+          </div>
+        </div>
+      </div>
+
+      <!-- 3D Question Mark Graphic Box -->
+      <div class="faq-art-card reveal delay-1">
+        <div class="faq-q-mascot">❓</div>
+        <h3>Need Clarification?</h3>
+        <p style="color:var(--text-muted);font-size:14px;margin-top:8px">We're here to explain every detail of your task & reward journey.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="container">
+    <div class="cta-banner reveal" id="get-app">
+      <h2>Ready to get started?</h2>
+      <p>Download Task Gullak now and start completing tasks to earn rewards instantly!</p>
+      <a class="btn" href="#" data-app-link>Get the App →</a>
+    </div>
+  </section>
 </main>
 
-<footer class="footer"><div class="container">
- <div class="footer-top"><div><a class="brand" href="/"><img class="brand-logo" src="data:image/png;base64,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" alt="Task Gullak"><span>Task Gullak</span></a><p>Small tasks, meaningful rewards. Discover tasks, submit your work and track approved rewards in one place.</p></div>
- <div class="footer-links"><a href="/how-it-works.html">How it works</a><a href="/features.html">Features</a><a href="/faq.html">FAQ</a><a href="/support.html">Support</a><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></div></div>
- <div class="copyright">© <span data-year></span> Task Gullak. All rights reserved. <span style="float:right"><a href="/admin#pass.Gullak#apk.@2026">Admin</a></span></div>
-</div></footer>
-<script src="/assets/app.js"></script></body></html>
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="brand" href="/" style="color:#fff">
+          <div class="brand-mark">₹</div>
+          <span>Task Gullak</span>
+        </a>
+        <p>Discover simple online tasks, submit your proof and earn rewards directly in your wallet.</p>
+      </div>
+
+      <div class="footer-links-group">
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="/features.html">Features</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/support.html">Support</a>
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/terms.html">Terms & Conditions</a>
+      </div>
+    </div>
+
+    <div class="copyright-bar">
+      <span>© <span data-year></span> Task Gullak. All rights reserved.</span>
+      <a href="/admin#pass.Gullak#apk.@2026">Admin Panel</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

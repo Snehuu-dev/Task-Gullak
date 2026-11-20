@@ -3,227 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delete Account & Data - Task Gullak</title>
-    <style>
-        :root {
-            --primary: #4535D6;
-            --primary-light: #6366F1;
-            --danger: #E11D48;
-            --danger-bg: #FFF1F2;
-            --text-dark: #1E1B4B;
-            --text-muted: #64748B;
-            --bg-light: #F8FAFC;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: var(--text-dark);
-            background-color: var(--bg-light);
-            margin: 0;
-            padding: 0;
-        }
-
-        .container {
-            max-width: 680px;
-            margin: 40px auto;
-            padding: 36px 28px;
-            background-color: white;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-            border-radius: 16px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid #E2E8F0;
-        }
-
-        .badge {
-            display: inline-block;
-            background-color: var(--danger-bg);
-            color: var(--danger);
-            padding: 6px 14px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            margin-bottom: 14px;
-        }
-
-        h1 {
-            font-size: 28px;
-            margin: 0 0 12px 0;
-            color: var(--text-dark);
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 15px;
-            margin: 0;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 6px;
-        }
-
-        input[type="email"],
-        input[type="text"],
-        textarea {
-            width: 100%;
-            padding: 12px 14px;
-            border: 1px solid #CBD5E1;
-            border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-        }
-
-        input[type="email"]:focus,
-        input[type="text"]:focus,
-        textarea:focus {
-            outline: none;
-            border-color: var(--primary-light);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .btn-delete {
-            width: 100%;
-            background-color: var(--danger);
-            color: white;
-            border: none;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 700;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        .btn-delete:hover {
-            background-color: #BE123C;
-        }
-
-        .btn-delete:active {
-            transform: scale(0.99);
-        }
-
-        .info-box {
-            background-color: #F8FAFC;
-            border-left: 4px solid var(--danger);
-            padding: 16px;
-            border-radius: 0 8px 8px 0;
-            margin: 28px 0;
-            font-size: 14px;
-        }
-
-        .info-box strong {
-            display: block;
-            margin-bottom: 4px;
-            color: var(--text-dark);
-        }
-
-        ul {
-            margin: 12px 0;
-            padding-left: 20px;
-            color: #475569;
-            font-size: 14px;
-        }
-
-        li {
-            margin-bottom: 6px;
-        }
-
-        .success-banner {
-            display: none;
-            background-color: #ECFDF5;
-            border: 1px solid #A7F3D0;
-            color: #065F46;
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        .footer {
-            margin-top: 36px;
-            text-align: center;
-            font-size: 13px;
-            color: var(--text-muted);
-            border-top: 1px solid #E2E8F0;
-            padding-top: 20px;
-        }
-
-        .footer a {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
-    </style>
+    <title>Delete Account & Data | Task Gullak</title>
+    <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <span class="badge">ACCOUNT DELETION</span>
-            <h1>Delete Task Gullak Account</h1>
-            <p class="subtitle">Submit a request to permanently delete your account and associated personal data.</p>
-        </div>
-
-        <div id="successBanner" class="success-banner">
-            <strong>Deletion Request Submitted!</strong><br>
-            We have received your account deletion request for <span id="confirmedEmail" style="font-weight:bold;"></span>. Your account profile, wallet balance, and task history will be permanently deleted within 24-48 hours.
-        </div>
-
-        <form id="deleteForm" onsubmit="handleDeleteSubmit(event)">
-            <div class="form-group">
-                <label for="email">Registered Email Address *</label>
-                <input type="email" id="email" placeholder="e.g. yourname@gmail.com" required>
-            </div>
-
-            <div class="form-group">
-                <label for="confirmCode">Type DELETE to Confirm *</label>
-                <input type="text" id="confirmCode" placeholder="Type DELETE in capital letters" required pattern="DELETE">
-            </div>
-
-            <div class="form-group">
-                <label for="reason">Reason for Leaving (Optional)</label>
-                <textarea id="reason" placeholder="Tell us why you are deleting your account..."></textarea>
-            </div>
-
-            <button type="submit" class="btn-delete">Submit Permanent Deletion Request</button>
-        </form>
-
-        <div class="info-box">
-            <strong>What happens when you delete your account:</strong>
-            <ul>
-                <li><strong>Account Profile & Auth:</strong> Your login credentials, email address, display name, and authentication tokens are purged.</li>
-                <li><strong>Wallet & Earnings:</strong> Any remaining wallet balance, referral commissions, and pending rewards are permanently forfeited and deleted.</li>
-                <li><strong>Task Proofs & History:</strong> Uploaded verification screenshots, submission logs, and reward receipts are deleted from our servers.</li>
-                <li><strong>Irreversible Action:</strong> Account deletion cannot be undone or restored once completed.</li>
-            </ul>
-        </div>
-
-        <div class="footer">
-            <p>Need help instead? Contact us at <a href="mailto:nestreview88@gmail.com">nestreview88@gmail.com</a></p>
-            <p>© 2026 Task Gullak. All rights reserved. | <a href="/privacy">Privacy Policy</a></p>
-        </div>
+    <div class="header-wrapper">
+        <header class="container nav">
+            <a class="brand" href="/">
+                <div class="brand-mark">₹</div>
+                <span>Task Gullak</span>
+            </a>
+            <nav class="navlinks">
+                <a href="/">Home</a>
+                <a href="/how-it-works.html">How It Works</a>
+                <a href="/features.html">Features</a>
+                <a href="/faq.html">FAQ</a>
+                <a href="/support.html">Support</a>
+                <a href="/about.html">About</a>
+            </nav>
+            <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
+            <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
+        </header>
     </div>
 
+    <main class="container section">
+        <div class="content-panel reveal" style="max-width:680px;margin:30px auto 60px">
+            <div style="text-align:center;margin-bottom:30px">
+                <span class="eyebrow" style="background:#ffeef2;color:#e11d48;border-color:#ffcbd6">ACCOUNT DELETION</span>
+                <h1 style="font-size:32px;margin:12px 0">Delete Task Gullak Account</h1>
+                <p style="color:var(--text-muted);font-size:15px">Submit a request to permanently delete your account and associated personal data.</p>
+            </div>
+
+            <div id="successBanner" style="display:none;background:#ecfdf5;border:1.5px solid #a7f3d0;color:#065f46;padding:18px;border-radius:16px;margin-bottom:24px;font-size:14px;text-align:center">
+                <strong>Deletion Request Submitted!</strong><br>
+                We have received your account deletion request for <span id="confirmedEmail" style="font-weight:bold;"></span>. Your account profile, wallet balance, and task history will be permanently deleted within 24-48 hours.
+            </div>
+
+            <form id="deleteForm" onsubmit="handleDeleteSubmit(event)">
+                <div class="form-group">
+                    <label for="email">Registered Email Address *</label>
+                    <input type="email" id="email" placeholder="e.g. yourname@gmail.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmCode">Type DELETE to Confirm *</label>
+                    <input type="text" id="confirmCode" placeholder="Type DELETE in capital letters" required pattern="DELETE">
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Reason for Leaving (Optional)</label>
+                    <textarea id="reason" placeholder="Tell us why you are deleting your account..."></textarea>
+                </div>
+
+                <button type="submit" class="btn" style="width:100%;background:linear-gradient(115deg, #e11d48 0%, #be123c 100%);box-shadow:0 10px 25px rgba(225, 29, 72, 0.35)">Submit Permanent Deletion Request</button>
+            </form>
+
+            <div style="background:#f8fafc;border-left:4px solid #e11d48;padding:18px;border-radius:0 16px 16px 0;margin-top:32px">
+                <strong style="display:block;margin-bottom:6px;color:var(--text-main)">What happens when you delete your account:</strong>
+                <ul style="padding-left:20px;font-size:14px;color:var(--text-muted)">
+                    <li style="margin-bottom:6px"><strong>Account Profile & Auth:</strong> Your login credentials, email address, display name, and authentication tokens are purged.</li>
+                    <li style="margin-bottom:6px"><strong>Wallet & Earnings:</strong> Any remaining wallet balance, referral commissions, and pending rewards are permanently forfeited and deleted.</li>
+                    <li style="margin-bottom:6px"><strong>Task Proofs & History:</strong> Uploaded verification screenshots, submission logs, and reward receipts are deleted from our servers.</li>
+                    <li><strong>Irreversible Action:</strong> Account deletion cannot be undone or restored once completed.</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <a class="brand" href="/" style="color:#fff">
+                        <div class="brand-mark">₹</div>
+                        <span>Task Gullak</span>
+                    </a>
+                    <p>Discover simple online tasks, submit your proof and earn rewards directly in your wallet.</p>
+                </div>
+
+                <div class="footer-links-group">
+                    <a href="/how-it-works.html">How It Works</a>
+                    <a href="/features.html">Features</a>
+                    <a href="/faq.html">FAQ</a>
+                    <a href="/support.html">Support</a>
+                    <a href="/about.html">About</a>
+                    <a href="/privacy.html">Privacy Policy</a>
+                    <a href="/terms.html">Terms & Conditions</a>
+                </div>
+            </div>
+
+            <div class="copyright-bar">
+                <span>© <span data-year></span> Task Gullak. All rights reserved.</span>
+                <a href="/admin">Admin Panel</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/assets/app.js"></script>
     <script>
         function handleDeleteSubmit(event) {
             event.preventDefault();
