@@ -733,9 +733,13 @@ internal fun OffersTabShellContent(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
@@ -809,7 +813,8 @@ internal fun OffersTabShellContent(
                         color = Color(0xFF5B21B6),
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        maxLines = 1
                     )
                 }
             }
