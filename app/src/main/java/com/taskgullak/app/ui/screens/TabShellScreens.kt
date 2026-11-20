@@ -3512,7 +3512,7 @@ internal fun WalletTabShellContent(
             val parsedAmount = withdrawAmountInput.trim().toLongOrNull()
                 ?: walletBalance.takeIf { it >= 100L }
                 ?: 0L
-            val methodLabel = if (selectedPayoutMethod == 0) "UPI Transfer" else "Redeem Code"
+            val methodLabel = "UPI Transfer"
             val cleanDetails = payoutDetailsInput.trim()
             when {
                 walletBalance < 100L -> {
@@ -3525,11 +3525,7 @@ internal fun WalletTabShellContent(
                     localWithdrawError = "Maximum withdrawal amount is ₹$walletBalance (Your available earned balance)."
                 }
                 cleanDetails.length < 3 -> {
-                    localWithdrawError = if (selectedPayoutMethod == 0) {
-                        "Please enter your UPI ID (e.g. yourname@upi)."
-                    } else {
-                        "Please enter details for Redeem Code."
-                    }
+                    localWithdrawError = "Please enter your UPI ID (e.g. yourname@upi)."
                 }
                 else -> {
                     onRequestWithdrawal(parsedAmount, methodLabel, cleanDetails)
@@ -3623,27 +3619,14 @@ internal fun WalletTabShellContent(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                PayoutMethodChip(
-                    icon = Icons.Outlined.QrCode2,
-                    title = "UPI Transfer",
-                    subtitle = "Instant • 0% Fee",
-                    isSelected = selectedPayoutMethod == 0,
-                    onClick = { selectedPayoutMethod = 0 },
-                    modifier = Modifier.weight(1f)
-                )
-                PayoutMethodChip(
-                    icon = Icons.Outlined.CardGiftcard,
-                    title = "Redeem Code",
-                    subtitle = "Instant Code • 0% Fee",
-                    isSelected = selectedPayoutMethod == 1,
-                    onClick = { selectedPayoutMethod = 1 },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            PayoutMethodChip(
+                icon = Icons.Outlined.QrCode2,
+                title = "UPI Transfer",
+                subtitle = "Instant Payout • 0% Fee",
+                isSelected = true,
+                onClick = { selectedPayoutMethod = 0 },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             if (showWithdrawForm) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3657,7 +3640,7 @@ internal fun WalletTabShellContent(
                         singleLine = true,
                         label = {
                             Text(
-                                text = if (selectedPayoutMethod == 0) "Enter UPI ID (e.g. name@upi)" else "Enter details for Redeem Code",
+                                text = "Enter UPI ID (e.g. name@upi)",
                                 fontFamily = InterFontFamily,
                                 fontSize = 12.sp
                             )

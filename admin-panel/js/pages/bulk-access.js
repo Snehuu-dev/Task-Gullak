@@ -6,12 +6,7 @@ function bulkRows() {
   const m = new Map();
   const row = uid => { const c = canon(uid); let r = m.get(c); if (!r) m.set(c, r = { uid: c, req: null }); return r; };
   (S.bulkReq || []).forEach(q => { const uid = q.userId || q.uid || q.id; if (!uid) return; const r = row(uid); if (!r.req) r.req = q; });
-  (S.users || []).forEach(u => {
-    if (!u || !u.id) return;
-    const st = String(u.bulkStatus || '').toLowerCase();
-    const isBulkUser = u.bulkMode === true || st === 'active' || st === 'approved' || st === 'pending' || st === 'requested' || st === 'rejected' || st === 'revoked';
-    if (isBulkUser) row(u.id);
-  });
+  (S.users || []).forEach(u => { if (u && u.id) row(u.id); });
   return [...m.values()].map(r => {
     const u = userInfo(r.uid), q = r.req; r.user = u;
     r.name = (u && (u.fullName || u.userName || u.name || u.email)) || (q && (q.userName || q.userEmail)) || r.uid;
@@ -21,14 +16,18 @@ function bulkRows() {
     const isActive = (u && u.bulkMode === true) || uSt === 'active' || uSt === 'approved' || qSt === 'approved';
     const isPending = !isActive && (qSt === 'pending' || uSt === 'pending' || uSt === 'requested');
     const isRejected = !isActive && !isPending && (['rejected', 'revoked'].includes(qSt) || ['rejected', 'revoked'].includes(uSt));
-    r.status = isActive ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
+    r.status = isActive ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'available';
     return r;
-  }).filter(r => r.status !== 'other').sort((a, b) => tsMs(b.req && b.req.createdAt) - tsMs(a.req && a.req.createdAt));
+  }).sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (b.status === 'pending' && a.status !== 'pending') return 1;
+    return tsMs(b.req && b.req.createdAt) - tsMs(a.req && a.req.createdAt) || String(a.name).localeCompare(String(b.name));
+  });
 }
 const bkIds = uid => { const ids = idsOfUser(uid).filter(id => S.usersRaw.some(u => u.id === id)); return ids.length ? ids : [uid]; };
 async function bkSet(uid, userPatch, reqPatch, statuses) {
   await Promise.all(bkIds(uid).map(id => setDoc(doc(db, 'users', id), userPatch, { merge: true })));
-  const reqs = S.bulkReq.filter(q => canon(q.userId) === canon(uid) && statuses.includes(q.status));
+  const reqs = (S.bulkReq || []).filter(q => canon(q.userId) === canon(uid) && statuses.includes(q.status));
   await Promise.all(reqs.map(q => updateDoc(doc(db, 'bulkRequests', q.id), reqPatch)));
 }
 ACT.bkTab = el => { S.bkTab = el.dataset.k; renderAll(); };
@@ -50,19 +49,29 @@ ACT.bkRevoke = async el => {
   catch (e) { toast('Failed: ' + (e.code || e.message), 'bad'); }
 };
 RENDER.bulk = () => {
-  const rows = bulkRows(), f = S.bkTab, by = k => rows.filter(r => r.status === k);
-  setHTML($('#bk-tabs'), [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']].map(([k, l]) => `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`).join(''));
+  const rows = bulkRows(), f = S.bkTab || 'pending', by = k => rows.filter(r => r.status === k);
+  setHTML($('#bk-tabs'), [
+    ['pending', 'Pending'],
+    ['active', 'Active'],
+    ['rejected', 'Rejected'],
+    ['available', 'All Users']
+  ].map(([k, l]) => `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`).join(''));
   if (loadGate('bulkRequests', rows.length, LOADER(), $('#bk-list'))) return;
-  const list = by(f), pill = { pending: '<span class="pill warn">Pending</span>', active: '<span class="pill ok">Active</span>', rejected: '<span class="pill bad">Not allowed</span>' };
+  const list = by(f), pill = {
+    pending: '<span class="pill warn">Pending</span>',
+    active: '<span class="pill ok">Active</span>',
+    rejected: '<span class="pill bad">Not allowed</span>',
+    available: '<span class="pill mute">Normal</span>'
+  };
   setHTML($('#bk-list'), list.map(r => {
     const q = r.req, uid = esc(r.uid);
-    const act = f === 'pending' ? `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
-      : f === 'active' ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>` : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
+    const act = f === 'active'
+      ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
+      : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate Bulk Mode</button>`;
     return `<div class="card"><div class="row" style="gap:10px;align-items:flex-start"><span class="avatar" style="background:${avc(r.name)}">${esc(String(r.name)[0].toUpperCase())}</span><div class="grow" style="min-width:0"><div class="b fs14 trunc">${esc(r.name)}</div><div class="fs12 muted trunc">${esc(r.email)}</div>${q ? `<div class="fs12 muted">Requested ${fmtDT(tsMs(q.createdAt))}</div>` : ''}${q && q.note ? `<div class="fs12" style="margin-top:4px">${esc(q.note)}</div>` : ''}${f === 'rejected' && q && q.adminNote ? `<div class="fs12 muted" style="margin-top:4px">Reason: ${esc(q.adminNote)}</div>` : ''}</div>${pill[r.status]}</div><div class="row gap6 mt8">${act}</div></div>`;
-  }).join('') || `<div class="card">${emptyHTML('bulk', f === 'pending' ? 'No requests waiting.' : f === 'active' ? 'No user has Bulk mode yet.' : 'Nobody here.')}</div>`);
+  }).join('') || `<div class="card">${emptyHTML('bulk', f === 'pending' ? 'No pending requests waiting.' : f === 'active' ? 'No user has Bulk mode active yet.' : f === 'rejected' ? 'No rejected users.' : 'No registered users found.')}</div>`);
 };
 
 function startBulkListener() {
   listen('bulkRequests', collection(db, 'bulkRequests'), snap => { S.bulkReq = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => tsMs(y.createdAt) - tsMs(x.createdAt)); });
 }
-
