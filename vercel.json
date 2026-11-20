@@ -1,24 +1,24 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "admin/index.html", "use": "@vercel/static" },
-    { "src": "admin.html", "use": "@vercel/static" },
-    { "src": "privacy.html", "use": "@vercel/static" },
-    { "src": "delete.html", "use": "@vercel/static" },
-    { "src": "css/**", "use": "@vercel/static" },
-    { "src": "js/**", "use": "@vercel/static" },
-    { "src": "admin-panel/**", "use": "@vercel/static" }
-  ],
   "cleanUrls": true,
   "trailingSlash": false,
   "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/css/(.*)", "dest": "/css/$1" },
+    { "src": "/js/(.*)", "dest": "/js/$1" },
+    { "src": "/admin-panel/(.*)", "dest": "/admin-panel/$1" },
+    { "src": "/admin-panel", "dest": "/admin/index.html" },
+    { "src": "/admin", "dest": "/admin/index.html" },
+    { "src": "/how-it-works", "dest": "/how-it-works.html" },
+    { "src": "/features", "dest": "/features.html" },
+    { "src": "/faq", "dest": "/faq.html" },
+    { "src": "/support", "dest": "/support.html" },
+    { "src": "/about", "dest": "/about.html" },
     { "src": "/privacy", "dest": "/privacy.html" },
+    { "src": "/terms", "dest": "/terms.html" },
+    { "src": "/404", "dest": "/404.html" },
     { "src": "/delete-account", "dest": "/delete.html" },
-    { "src": "/delete.acc", "dest": "/delete.html" },
     { "src": "/delete", "dest": "/delete.html" },
-    { "src": "/admin-panel(.*)", "dest": "/admin/index.html" },
-    { "src": "/admin(.*)", "dest": "/admin/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
