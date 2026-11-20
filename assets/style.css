@@ -593,7 +593,7 @@ h1, h2, h3, h4, .brand {
   pointer-events: none;
 }
 
-.3d-piggy {
+.piggy-3d {
   bottom: 20px;
   right: -15px;
   font-size: 115px;

@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const heroArt = document.querySelector('.hero-art-container');
   if (heroArt) {
     const phone = heroArt.querySelector('.phone-mockup');
-    const piggy = heroArt.querySelector('.3d-piggy');
+    const piggy = heroArt.querySelector('.piggy-3d');
     const coins = heroArt.querySelectorAll('.coin-3d');
 
     window.addEventListener('mousemove', e => {
