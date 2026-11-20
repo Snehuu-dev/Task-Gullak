@@ -3512,7 +3512,7 @@ internal fun WalletTabShellContent(
             val parsedAmount = withdrawAmountInput.trim().toLongOrNull()
                 ?: walletBalance.takeIf { it >= 100L }
                 ?: 0L
-            val methodLabel = if (selectedPayoutMethod == 0) "UPI Transfer" else "Bank (IMPS)"
+            val methodLabel = if (selectedPayoutMethod == 0) "UPI Transfer" else "Redeem Code"
             val cleanDetails = payoutDetailsInput.trim()
             when {
                 walletBalance < 100L -> {
@@ -3528,7 +3528,7 @@ internal fun WalletTabShellContent(
                     localWithdrawError = if (selectedPayoutMethod == 0) {
                         "Please enter your UPI ID (e.g. yourname@upi)."
                     } else {
-                        "Please enter your Bank Account & IFSC details."
+                        "Please enter details for Redeem Code."
                     }
                 }
                 else -> {
@@ -3636,9 +3636,9 @@ internal fun WalletTabShellContent(
                     modifier = Modifier.weight(1f)
                 )
                 PayoutMethodChip(
-                    icon = Icons.Outlined.AccountBalance,
-                    title = "Bank (IMPS)",
-                    subtitle = "1–2 hrs • Verified",
+                    icon = Icons.Outlined.CardGiftcard,
+                    title = "Redeem Code",
+                    subtitle = "Instant Code • 0% Fee",
                     isSelected = selectedPayoutMethod == 1,
                     onClick = { selectedPayoutMethod = 1 },
                     modifier = Modifier.weight(1f)
@@ -3657,7 +3657,7 @@ internal fun WalletTabShellContent(
                         singleLine = true,
                         label = {
                             Text(
-                                text = if (selectedPayoutMethod == 0) "Enter UPI ID (e.g. name@upi)" else "Account Number & IFSC Code",
+                                text = if (selectedPayoutMethod == 0) "Enter UPI ID (e.g. name@upi)" else "Enter details for Redeem Code",
                                 fontFamily = InterFontFamily,
                                 fontSize = 12.sp
                             )

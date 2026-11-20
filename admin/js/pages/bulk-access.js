@@ -5,12 +5,23 @@
 function bulkRows() {
   const m = new Map();
   const row = uid => { const c = canon(uid); let r = m.get(c); if (!r) m.set(c, r = { uid: c, req: null }); return r; };
-  S.bulkReq.forEach(q => { if (!q.userId) return; const r = row(q.userId); if (!r.req) r.req = q; });
-  S.users.forEach(u => { if (u.bulkMode === true) row(u.id); });
+  (S.bulkReq || []).forEach(q => { const uid = q.userId || q.uid || q.id; if (!uid) return; const r = row(uid); if (!r.req) r.req = q; });
+  (S.users || []).forEach(u => {
+    if (!u || !u.id) return;
+    const st = String(u.bulkStatus || '').toLowerCase();
+    const isBulkUser = u.bulkMode === true || st === 'active' || st === 'approved' || st === 'pending' || st === 'requested' || st === 'rejected' || st === 'revoked';
+    if (isBulkUser) row(u.id);
+  });
   return [...m.values()].map(r => {
     const u = userInfo(r.uid), q = r.req; r.user = u;
-    r.name = (u && (u.fullName || u.email)) || (q && (q.userName || q.userEmail)) || r.uid; r.email = (u && u.email) || (q && q.userEmail) || '';
-    r.status = u && u.bulkMode === true ? 'active' : q && q.status === 'pending' ? 'pending' : (q && ['rejected', 'revoked'].includes(q.status)) || (u && ['rejected', 'revoked'].includes(u.bulkStatus)) ? 'rejected' : 'other';
+    r.name = (u && (u.fullName || u.userName || u.name || u.email)) || (q && (q.userName || q.userEmail)) || r.uid;
+    r.email = (u && u.email) || (q && q.userEmail) || '';
+    const uSt = String((u && u.bulkStatus) || '').toLowerCase();
+    const qSt = String((q && q.status) || '').toLowerCase();
+    const isActive = (u && u.bulkMode === true) || uSt === 'active' || uSt === 'approved' || qSt === 'approved';
+    const isPending = !isActive && (qSt === 'pending' || uSt === 'pending' || uSt === 'requested');
+    const isRejected = !isActive && !isPending && (['rejected', 'revoked'].includes(qSt) || ['rejected', 'revoked'].includes(uSt));
+    r.status = isActive ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
     return r;
   }).filter(r => r.status !== 'other').sort((a, b) => tsMs(b.req && b.req.createdAt) - tsMs(a.req && a.req.createdAt));
 }
