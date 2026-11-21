@@ -6,7 +6,15 @@
     { "source": "/admin-panel", "destination": "/admin/index.html" },
     { "source": "/admin-panel/(.*)", "destination": "/admin-panel/$1" },
     { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/how-it-works", "destination": "/how-it-works.html" },
+    { "source": "/features", "destination": "/features.html" },
+    { "source": "/faq", "destination": "/faq.html" },
+    { "source": "/support", "destination": "/support.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/delete-account", "destination": "/delete.html" },
-    { "source": "/delete", "destination": "/delete.html" }
+    { "source": "/delete", "destination": "/delete.html" },
+    { "source": "/404", "destination": "/404.html" }
   ]
 }
