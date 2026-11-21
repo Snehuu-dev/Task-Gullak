@@ -372,11 +372,12 @@ function go(view, opts = {}) {
     S.appr.groups = 6; S.appr.folder = null;
   }
   if (view === 'comments' && opts.tab) { S.cm.tab = opts.tab; if (opts.tab === 'bank') S.cm.folder = null; }
+  if (view === 'bulk' && opts.tab) { S.bkTab = opts.tab; if (S.bkSel && S.bkSel.clear) S.bkSel.clear(); }
   $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + view));
   $$('.nav-i[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === view));
   $('.nav-i[data-v="overview"]').classList.toggle('on', view === 'overview');
   $$('.nav-g').forEach(g => { const nb = $('.nav-i', g); if (nb) g.classList.toggle('open', nb.dataset.nav === view); });
-  $$('.nav-sub button').forEach(b => b.classList.toggle('on', view === 'approvals' && b.dataset.range === S.appr.range || view === 'comments' && b.dataset.tab === S.cm.tab && b.dataset.v === 'comments'));
+  $$('.nav-sub button').forEach(b => b.classList.toggle('on', view === 'approvals' && b.dataset.range === S.appr.range || view === 'comments' && b.dataset.tab === S.cm.tab && b.dataset.v === 'comments' || view === 'bulk' && b.dataset.tab === S.bkTab && b.dataset.v === 'bulk'));
   const m = VIEW_META[view];
   $('#page-title').textContent = m[0]; $('#page-sub').textContent = m[1];
   document.body.classList.remove('nav-open');
@@ -1205,7 +1206,8 @@ function bulkRows() {
   userList.forEach(u => {
     if (!u) return;
     const st = String(u.bulkStatus || '').toLowerCase();
-    if (u.bulkMode === true || st === 'pending' || st === 'active' || st === 'requested' || st === 'rejected') {
+    const reqType = String(u.pendingRequestType || '').toLowerCase();
+    if (u.bulkMode === true || st === 'pending' || st === 'active' || st === 'requested' || st === 'rejected' || st === 'exit' || reqType === 'exit' || reqType === 'exit_bulk_mode') {
       const r = row(u.id);
       if (!r.req) {
         r.req = {
@@ -1214,7 +1216,7 @@ function bulkRows() {
           userName: u.fullName || u.username || u.name || '',
           userEmail: u.email || '',
           note: u.bulkRejectReason || 'Requested via Mobile App',
-          status: u.bulkMode === true ? 'approved' : (st === 'active' ? 'approved' : (st === 'pending' || st === 'requested' ? 'pending' : st)),
+          status: reqType === 'exit' ? 'exit' : (u.bulkMode === true ? 'approved' : (st === 'active' ? 'approved' : (st === 'pending' || st === 'requested' ? 'pending' : st))),
           createdAt: u.updatedAt || u.createdAt,
           requestData: { deviceCount: u.bulkDeviceCount || 2, tier: 'Standard' }
         };
