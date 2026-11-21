@@ -1,0 +1,16 @@
+/* Loading screen: ring spinner + thin top bar */
+.loader{grid-column:1/-1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:72px 16px;animation:ldIn .35s .1s both}
+.ld-ring{position:relative;width:54px;height:54px}
+.ld-ring svg{width:100%;height:100%;transform:rotate(-90deg);animation:ldRot 1.4s linear infinite}
+.ld-track{fill:none;stroke:var(--line);stroke-width:4}
+.ld-arc{fill:none;stroke:var(--brand,#0ea5e9);stroke-width:4;stroke-linecap:round;stroke-dasharray:6 126;animation:ldDash 1.4s ease-in-out infinite}
+.ld-core{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;display:block;background:linear-gradient(135deg,#38bdf8,#6366f1);animation:ldPulse 1.4s ease-in-out infinite}
+.ld-t{font-size:12.5px;color:var(--muted);letter-spacing:.3px}
+@keyframes ldRot{to{transform:rotate(270deg)}}
+@keyframes ldDash{0%{stroke-dasharray:6 126;stroke-dashoffset:0}50%{stroke-dasharray:70 126;stroke-dashoffset:-20}100%{stroke-dasharray:6 126;stroke-dashoffset:-126}}
+@keyframes ldPulse{0%,100%{transform:scale(.7);opacity:.7}50%{transform:scale(1);opacity:1}}
+@keyframes ldIn{from{opacity:0}to{opacity:1}}
+#top-load{position:fixed;left:0;top:0;height:3px;width:100%;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s;background:linear-gradient(90deg,transparent,#38bdf8,#6366f1,transparent) no-repeat;background-size:45% 100%;animation:ldBar 1.1s ease-in-out infinite}
+#top-load.on{opacity:1}
+@keyframes ldBar{0%{background-position:-60% 0}100%{background-position:160% 0}}
+@media (prefers-reduced-motion:reduce){.ld-ring svg,.ld-arc,.ld-core,#top-load{animation:none}.ld-arc{stroke-dasharray:70 126}}
