@@ -6,55 +6,127 @@
   <meta name="description" content="Task Gullak — Page Not Found">
   <meta name="theme-color" content="#6738df">
   <title>Oops! Page Not Found | Task Gullak</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="./assets/style.css?v=4">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute;pointer-events:none">
+  <defs>
+    <linearGradient id="coinGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE875"/>
+      <stop offset="50%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF4B8"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="piggyPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB6C1"/>
+      <stop offset="50%" stop-color="#FF7A95"/>
+      <stop offset="100%" stop-color="#E04868"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4A1DB8"/>
+    </linearGradient>
+    <linearGradient id="screenDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231942"/>
+      <stop offset="100%" stop-color="#0F0A1F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4F26B8" flood-opacity="0.22"/>
+    </filter>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+</svg>
+
 <div class="header-wrapper">
   <header class="container nav">
-    <a class="brand" href="/">
+    <a class="brand" href="./index.html">
       <div class="brand-mark">₹</div>
       <span>Task Gullak</span>
     </a>
     <nav class="navlinks">
-      <a href="/">Home</a>
-      <a href="/how-it-works.html">How It Works</a>
-      <a href="/features.html">Features</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/support.html">Support</a>
-      <a href="/about.html">About</a>
+      <a href="./index.html">Home</a>
+      <a href="./how-it-works.html">How It Works</a>
+      <a href="./features.html">Features</a>
+      <a href="./faq.html">FAQ</a>
+      <a href="./support.html">Support</a>
+      <a href="./about.html">About</a>
     </nav>
-    <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
     <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
   </header>
 </div>
 
-<main class="notfound-wrapper">
-  <div class="notfound-stage reveal visible">
-    <div class="notfound-art-block">
-      <div class="piggy-404">🐷</div>
-      <div class="card-404-badge">
-        <span class="qmark-floating q1">?</span>
-        <span class="qmark-floating q2">?</span>
-        <div class="num-404-text">404</div>
+<main>
+  <section class="notfound-wrapper">
+    <div class="notfound-stage reveal visible">
+      <div class="zero-g-coin zg-1" title="Click floating coin!"><svg width="50" height="50" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="34" r="27" fill="#B45309"/>
+      <circle cx="32" cy="30" r="27" fill="url(#coinGold)" stroke="url(#coinRim)" stroke-width="3"/>
+      <circle cx="32" cy="30" r="20" stroke="#FFF4B8" stroke-width="1.8" stroke-dasharray="4 3"/>
+      <text x="32" y="38" text-anchor="middle" fill="#78350F" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="24">₹</text>
+    </svg></div>
+      <div class="zero-g-coin zg-2" title="Click floating coin!"><svg width="44" height="44" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="34" r="27" fill="#B45309"/>
+      <circle cx="32" cy="30" r="27" fill="url(#coinGold)" stroke="url(#coinRim)" stroke-width="3"/>
+      <circle cx="32" cy="30" r="20" stroke="#FFF4B8" stroke-width="1.8" stroke-dasharray="4 3"/>
+      <text x="32" y="38" text-anchor="middle" fill="#78350F" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="24">₹</text>
+    </svg></div>
+
+      <div class="notfound-art-block">
+        <svg width="165" height="155" viewBox="0 0 180 170" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:piggyBob 3.6s ease-in-out infinite">
+  <!-- Stuck Coin -->
+  <g transform="rotate(-14 92 34)">
+    <circle cx="92" cy="34" r="19" fill="url(#coinGold)" stroke="#FFF4B8" stroke-width="2.5"/>
+    <text x="92" y="41" text-anchor="middle" fill="#78350F" font-weight="800" font-size="18">₹</text>
+  </g>
+  <!-- Ears -->
+  <ellipse cx="56" cy="58" rx="14" ry="20" transform="rotate(-24 56 58)" fill="url(#piggyPink)"/>
+  <ellipse cx="124" cy="58" rx="14" ry="20" transform="rotate(24 124 58)" fill="url(#piggyPink)"/>
+  <!-- Legs -->
+  <rect x="56" y="132" width="18" height="24" rx="9" fill="#E04868"/>
+  <rect x="106" y="132" width="18" height="24" rx="9" fill="#E04868"/>
+  <!-- Body -->
+  <ellipse cx="90" cy="96" rx="52" ry="45" fill="url(#piggyPink)"/>
+  <!-- Confused Eyes -->
+  <circle cx="70" cy="84" r="5.5" fill="#1E1B4B"/>
+  <circle cx="110" cy="84" r="5.5" fill="#1E1B4B"/>
+  <circle cx="72" cy="82" r="1.8" fill="#FFF"/>
+  <circle cx="112" cy="82" r="1.8" fill="#FFF"/>
+  <path d="M62 73L77 76" stroke="#881337" stroke-width="3" stroke-linecap="round"/>
+  <path d="M118 73L103 76" stroke="#881337" stroke-width="3" stroke-linecap="round"/>
+  <!-- Snout -->
+  <ellipse cx="90" cy="105" rx="21" ry="15" fill="#FFA3B5"/>
+  <circle cx="83" cy="105" r="3.5" fill="#881337"/>
+  <circle cx="97" cy="105" r="3.5" fill="#881337"/>
+</svg>
+        <div style="position:relative">
+          <span class="qmark-floating">?</span>
+          <div class="card-404-badge">
+            <div class="scan-beam"></div>
+            <div class="num-404-text">404</div>
+          </div>
+        </div>
       </div>
-      <div class="floating-element coin-3d" style="top:-10px;right:-10px">₹</div>
-      <div class="floating-element coin-3d" style="bottom:-10px;left:0">₹</div>
+
+      <h1 style="font-size:clamp(34px,4.5vw,48px);font-weight:800;margin-bottom:12px">Oops! Page Not Found</h1>
+      <p style="color:var(--text-muted);font-size:17.5px;margin-bottom:28px">The page you're looking for might have moved or doesn't exist.</p>
+
+      <a class="btn" href="./index.html">🏠 Back to Home</a>
     </div>
-
-    <h1 style="font-size:clamp(34px,4.5vw,48px);margin-bottom:12px">Oops! Page Not Found</h1>
-    <p style="color:var(--text-muted);font-size:18px;margin-bottom:28px">The page you're looking for might have moved or doesn't exist.</p>
-
-    <a class="btn" href="/">🏠 Back to Home</a>
-  </div>
+  </section>
 </main>
 
 <footer class="footer">
   <div class="container">
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="brand" href="/" style="color:#fff">
+        <a class="brand" href="./index.html" style="color:#fff">
           <div class="brand-mark">₹</div>
           <span>Task Gullak</span>
         </a>
@@ -62,13 +134,14 @@
       </div>
 
       <div class="footer-links-group">
-        <a href="/how-it-works.html">How It Works</a>
-        <a href="/features.html">Features</a>
-        <a href="/faq.html">FAQ</a>
-        <a href="/support.html">Support</a>
-        <a href="/about.html">About</a>
-        <a href="/privacy.html">Privacy Policy</a>
-        <a href="/terms.html">Terms & Conditions</a>
+        <a href="./how-it-works.html">How It Works</a>
+        <a href="./features.html">Features</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./support.html">Support</a>
+        <a href="./about.html">About</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms & Conditions</a>
+        <a href="./delete.html">Delete Account</a>
       </div>
     </div>
 
@@ -79,6 +152,6 @@
   </div>
 </footer>
 
-<script src="/assets/app.js"></script>
+<script src="./assets/app.js?v=4" defer></script>
 </body>
 </html>

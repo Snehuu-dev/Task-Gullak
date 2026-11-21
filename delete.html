@@ -1,121 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delete Account & Data | Task Gullak</title>
-    <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="/assets/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Delete Task Gullak Account & Data — Submit a request to permanently delete your account and personal data.">
+  <meta name="theme-color" content="#6738df">
+  <title>Delete Account & Data | Task Gullak</title>
+  <link rel="stylesheet" href="./assets/style.css?v=4">
 </head>
 <body>
-    <div class="header-wrapper">
-        <header class="container nav">
-            <a class="brand" href="/">
-                <div class="brand-mark">₹</div>
-                <span>Task Gullak</span>
-            </a>
-            <nav class="navlinks">
-                <a href="/">Home</a>
-                <a href="/how-it-works.html">How It Works</a>
-                <a href="/features.html">Features</a>
-                <a href="/faq.html">FAQ</a>
-                <a href="/support.html">Support</a>
-                <a href="/about.html">About</a>
-            </nav>
-            <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
-            <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
-        </header>
+
+<svg width="0" height="0" style="position:absolute;pointer-events:none">
+  <defs>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4A1DB8"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="header-wrapper">
+  <header class="container nav">
+    <a class="brand" href="./index.html">
+      <div class="brand-mark">₹</div>
+      <span>Task Gullak</span>
+    </a>
+    <nav class="navlinks">
+      <a href="./index.html">Home</a>
+      <a href="./how-it-works.html">How It Works</a>
+      <a href="./features.html">Features</a>
+      <a href="./faq.html">FAQ</a>
+      <a href="./support.html">Support</a>
+      <a href="./about.html">About</a>
+    </nav>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
+    <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
+  </header>
+</div>
+
+<main class="container section">
+  <div class="content-panel reveal" style="max-width:680px;margin:30px auto 60px">
+    <div style="text-align:center;margin-bottom:30px">
+      <span class="eyebrow" style="background:#FFE3E8;color:#E11D48;border-color:#FFC2CE">ACCOUNT DELETION</span>
+      <h1 style="font-size:32px;margin:12px 0">Delete Task Gullak Account</h1>
+      <p style="color:var(--text-muted);font-size:15px">Submit a request to permanently delete your account and associated personal data.</p>
     </div>
 
-    <main class="container section">
-        <div class="content-panel reveal" style="max-width:680px;margin:30px auto 60px">
-            <div style="text-align:center;margin-bottom:30px">
-                <span class="eyebrow" style="background:#ffeef2;color:#e11d48;border-color:#ffcbd6">ACCOUNT DELETION</span>
-                <h1 style="font-size:32px;margin:12px 0">Delete Task Gullak Account</h1>
-                <p style="color:var(--text-muted);font-size:15px">Submit a request to permanently delete your account and associated personal data.</p>
-            </div>
+    <div id="successBanner" style="display:none;background:#ECFDF5;border:1.5px solid #A7F3D0;color:#065F46;padding:18px;border-radius:16px;margin-bottom:24px;font-size:14px;text-align:center">
+      <strong>Deletion Request Submitted!</strong><br>
+      We have received your account deletion request for <span id="confirmedEmail" style="font-weight:bold;"></span>. Your account profile, wallet balance, and task history will be permanently deleted within 24-48 hours.
+    </div>
 
-            <div id="successBanner" style="display:none;background:#ecfdf5;border:1.5px solid #a7f3d0;color:#065f46;padding:18px;border-radius:16px;margin-bottom:24px;font-size:14px;text-align:center">
-                <strong>Deletion Request Submitted!</strong><br>
-                We have received your account deletion request for <span id="confirmedEmail" style="font-weight:bold;"></span>. Your account profile, wallet balance, and task history will be permanently deleted within 24-48 hours.
-            </div>
+    <form id="deleteForm" onsubmit="handleDeleteSubmit(event)">
+      <div class="form-group">
+        <label for="email">Registered Email Address *</label>
+        <input type="email" id="email" placeholder="e.g. yourname@gmail.com" required>
+      </div>
 
-            <form id="deleteForm" onsubmit="handleDeleteSubmit(event)">
-                <div class="form-group">
-                    <label for="email">Registered Email Address *</label>
-                    <input type="email" id="email" placeholder="e.g. yourname@gmail.com" required>
-                </div>
+      <div class="form-group">
+        <label for="confirmCode">Type DELETE to Confirm *</label>
+        <input type="text" id="confirmCode" placeholder="Type DELETE in capital letters" required pattern="DELETE">
+      </div>
 
-                <div class="form-group">
-                    <label for="confirmCode">Type DELETE to Confirm *</label>
-                    <input type="text" id="confirmCode" placeholder="Type DELETE in capital letters" required pattern="DELETE">
-                </div>
+      <div class="form-group">
+        <label for="reason">Reason for Leaving (Optional)</label>
+        <textarea id="reason" placeholder="Tell us why you are deleting your account..."></textarea>
+      </div>
 
-                <div class="form-group">
-                    <label for="reason">Reason for Leaving (Optional)</label>
-                    <textarea id="reason" placeholder="Tell us why you are deleting your account..."></textarea>
-                </div>
+      <button type="submit" class="btn" style="width:100%;background:linear-gradient(115deg, #E11D48 0%, #BE123C 100%);box-shadow:0 10px 25px rgba(225, 29, 72, 0.35)">Submit Permanent Deletion Request</button>
+    </form>
 
-                <button type="submit" class="btn" style="width:100%;background:linear-gradient(115deg, #e11d48 0%, #be123c 100%);box-shadow:0 10px 25px rgba(225, 29, 72, 0.35)">Submit Permanent Deletion Request</button>
-            </form>
+    <div style="background:#F8FAFC;border-left:4px solid #E11D48;padding:18px;border-radius:0 16px 16px 0;margin-top:32px">
+      <strong style="display:block;margin-bottom:6px;color:var(--text-main)">What happens when you delete your account:</strong>
+      <ul style="padding-left:20px;font-size:14px;color:var(--text-muted)">
+        <li style="margin-bottom:6px"><strong>Account Profile & Auth:</strong> Your login credentials, email address, display name, and authentication tokens are purged.</li>
+        <li style="margin-bottom:6px"><strong>Wallet & Earnings:</strong> Any remaining wallet balance, referral commissions, and pending rewards are permanently forfeited and deleted.</li>
+        <li style="margin-bottom:6px"><strong>Task Proofs & History:</strong> Uploaded verification screenshots, submission logs, and reward receipts are deleted from our servers.</li>
+        <li><strong>Irreversible Action:</strong> Account deletion cannot be undone or restored once completed.</li>
+      </ul>
+    </div>
+  </div>
+</main>
 
-            <div style="background:#f8fafc;border-left:4px solid #e11d48;padding:18px;border-radius:0 16px 16px 0;margin-top:32px">
-                <strong style="display:block;margin-bottom:6px;color:var(--text-main)">What happens when you delete your account:</strong>
-                <ul style="padding-left:20px;font-size:14px;color:var(--text-muted)">
-                    <li style="margin-bottom:6px"><strong>Account Profile & Auth:</strong> Your login credentials, email address, display name, and authentication tokens are purged.</li>
-                    <li style="margin-bottom:6px"><strong>Wallet & Earnings:</strong> Any remaining wallet balance, referral commissions, and pending rewards are permanently forfeited and deleted.</li>
-                    <li style="margin-bottom:6px"><strong>Task Proofs & History:</strong> Uploaded verification screenshots, submission logs, and reward receipts are deleted from our servers.</li>
-                    <li><strong>Irreversible Action:</strong> Account deletion cannot be undone or restored once completed.</li>
-                </ul>
-            </div>
-        </div>
-    </main>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="brand" href="./index.html" style="color:#fff">
+          <div class="brand-mark">₹</div>
+          <span>Task Gullak</span>
+        </a>
+        <p>Discover simple online tasks, submit your proof and earn rewards directly in your wallet.</p>
+      </div>
 
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-top">
-                <div class="footer-brand">
-                    <a class="brand" href="/" style="color:#fff">
-                        <div class="brand-mark">₹</div>
-                        <span>Task Gullak</span>
-                    </a>
-                    <p>Discover simple online tasks, submit your proof and earn rewards directly in your wallet.</p>
-                </div>
+      <div class="footer-links-group">
+        <a href="./how-it-works.html">How It Works</a>
+        <a href="./features.html">Features</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./support.html">Support</a>
+        <a href="./about.html">About</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms & Conditions</a>
+        <a href="./delete.html">Delete Account</a>
+      </div>
+    </div>
 
-                <div class="footer-links-group">
-                    <a href="/how-it-works.html">How It Works</a>
-                    <a href="/features.html">Features</a>
-                    <a href="/faq.html">FAQ</a>
-                    <a href="/support.html">Support</a>
-                    <a href="/about.html">About</a>
-                    <a href="/privacy.html">Privacy Policy</a>
-                    <a href="/terms.html">Terms & Conditions</a>
-                </div>
-            </div>
+    <div class="copyright-bar">
+      <span>© <span data-year></span> Task Gullak. All rights reserved.</span>
+      <a href="/admin#pass.Gullak#apk.@2026">Admin Panel</a>
+    </div>
+  </div>
+</footer>
 
-            <div class="copyright-bar">
-                <span>© <span data-year></span> Task Gullak. All rights reserved.</span>
-                <a href="/admin#pass.Gullak#apk.@2026">Admin Panel</a>
-            </div>
-        </div>
-    </footer>
+<script src="./assets/app.js?v=4" defer></script>
+<script>
+  function handleDeleteSubmit(event) {
+    event.preventDefault();
+    const emailInput = document.getElementById('email').value.trim();
+    const confirmCode = document.getElementById('confirmCode').value.trim();
 
-    <script src="/assets/app.js"></script>
-    <script>
-        function handleDeleteSubmit(event) {
-            event.preventDefault();
-            const emailInput = document.getElementById('email').value.trim();
-            const confirmCode = document.getElementById('confirmCode').value.trim();
+    if (confirmCode !== 'DELETE') {
+      alert('Please type DELETE in capital letters to confirm account deletion.');
+      return;
+    }
 
-            if (confirmCode !== 'DELETE') {
-                alert('Please type DELETE in capital letters to confirm account deletion.');
-                return;
-            }
-
-            document.getElementById('confirmedEmail').innerText = emailInput;
-            document.getElementById('deleteForm').style.display = 'none';
-            document.getElementById('successBanner').style.display = 'block';
-        }
-    </script>
+    document.getElementById('confirmedEmail').innerText = emailInput;
+    document.getElementById('deleteForm').style.display = 'none';
+    document.getElementById('successBanner').style.display = 'block';
+  }
+</script>
 </body>
 </html>

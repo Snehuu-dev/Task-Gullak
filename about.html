@@ -6,34 +6,65 @@
   <meta name="description" content="About Task Gullak — Our mission, platform vision and fair online task rewards.">
   <meta name="theme-color" content="#6738df">
   <title>About Us | Task Gullak</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="./assets/style.css?v=4">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute;pointer-events:none">
+  <defs>
+    <linearGradient id="coinGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE875"/>
+      <stop offset="50%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF4B8"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="piggyPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB6C1"/>
+      <stop offset="50%" stop-color="#FF7A95"/>
+      <stop offset="100%" stop-color="#E04868"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4A1DB8"/>
+    </linearGradient>
+    <linearGradient id="screenDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231942"/>
+      <stop offset="100%" stop-color="#0F0A1F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4F26B8" flood-opacity="0.22"/>
+    </filter>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+</svg>
+
 <div class="header-wrapper">
   <header class="container nav">
-    <a class="brand" href="/">
+    <a class="brand" href="./index.html">
       <div class="brand-mark">₹</div>
       <span>Task Gullak</span>
     </a>
     <nav class="navlinks">
-      <a href="/">Home</a>
-      <a href="/how-it-works.html">How It Works</a>
-      <a href="/features.html">Features</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/support.html">Support</a>
-      <a href="/about.html" class="active">About</a>
+      <a href="./index.html">Home</a>
+      <a href="./how-it-works.html">How It Works</a>
+      <a href="./features.html">Features</a>
+      <a href="./faq.html">FAQ</a>
+      <a href="./support.html">Support</a>
+      <a href="./about.html" class="active">About</a>
     </nav>
-    <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
     <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
   </header>
 </div>
 
 <main>
   <section class="container section">
-    <div class="content-grid-2col" style="margin-top:40px">
-      <!-- Left Column: Content -->
+    <div class="content-grid-2col" style="margin-top:20px">
       <div class="reveal">
         <span class="eyebrow">About Task Gullak</span>
         <h1 style="font-size:clamp(36px,4.5vw,54px);margin-bottom:20px">About <span class="gradient-text">Us</span></h1>
@@ -41,19 +72,43 @@
           Task Gullak is a platform that brings opportunities to earn money through simple online tasks. Our mission is to provide a secure, fair and user-friendly platform for everyone.
         </p>
 
-        <a class="btn" href="/#get-app" data-app-link>Join Our Journey →</a>
+        <a class="btn" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Join Our Journey →</a>
       </div>
 
-      <!-- Right Column: 3D Crown & Sunglasses Piggy Mascot Illustration -->
       <div class="art-box-3d reveal delay-1">
-        <div style="font-size:120px;filter:drop-shadow(0 18px 25px rgba(103, 56, 223, 0.25));animation:floatAnim 4.5s ease-in-out infinite">
-          👑<br>🕶️🐷<br>🪙🪙🪙
-        </div>
+        <svg width="210" height="190" viewBox="0 0 220 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:floatAnim 4.5s ease-in-out infinite">
+  <!-- Gold Coin Stack -->
+  <ellipse cx="164" cy="168" rx="28" ry="9" fill="#B45309"/>
+  <ellipse cx="164" cy="162" rx="28" ry="9" fill="url(#coinGold)"/>
+  <ellipse cx="164" cy="154" rx="28" ry="9" fill="#B45309"/>
+  <ellipse cx="164" cy="148" rx="28" ry="9" fill="url(#coinGold)"/>
+  <ellipse cx="164" cy="140" rx="28" ry="9" fill="#B45309"/>
+  <ellipse cx="164" cy="134" rx="28" ry="9" fill="url(#coinGold)"/>
+  <!-- Crown -->
+  <path d="M76 42L84 22L102 36L120 22L128 42H76Z" fill="url(#coinGold)" stroke="#FFF4B8" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Ears -->
+  <ellipse cx="66" cy="62" rx="16" ry="22" transform="rotate(-22 66 62)" fill="url(#piggyPink)"/>
+  <ellipse cx="138" cy="62" rx="16" ry="22" transform="rotate(22 138 62)" fill="url(#piggyPink)"/>
+  <!-- Legs -->
+  <rect x="66" y="144" width="20" height="28" rx="10" fill="#E04868"/>
+  <rect x="118" y="144" width="20" height="28" rx="10" fill="#E04868"/>
+  <!-- Body -->
+  <ellipse cx="102" cy="106" rx="58" ry="50" fill="url(#piggyPink)"/>
+  <!-- Cool Sunglasses -->
+  <rect x="64" y="80" width="32" height="20" rx="6" fill="#1A1333"/>
+  <rect x="108" y="80" width="32" height="20" rx="6" fill="#1A1333"/>
+  <rect x="94" y="84" width="16" height="5" fill="#1A1333"/>
+  <line x1="70" y1="85" x2="80" y2="95" stroke="#8B62FF" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="114" y1="85" x2="124" y2="95" stroke="#8B62FF" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Snout -->
+  <ellipse cx="102" cy="116" rx="24" ry="17" fill="#FFA3B5"/>
+  <circle cx="94" cy="116" r="4" fill="#881337"/>
+  <circle cx="110" cy="116" r="4" fill="#881337"/>
+</svg>
       </div>
     </div>
 
-    <!-- Extra Vision Cards -->
-    <div class="features-grid" style="margin-bottom:60px">
+    <div class="features-grid" style="margin-bottom:30px">
       <div class="feature-card reveal">
         <div class="feature-icon-wrapper">🎯</div>
         <h3>Our Mission</h3>
@@ -79,7 +134,7 @@
   <div class="container">
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="brand" href="/" style="color:#fff">
+        <a class="brand" href="./index.html" style="color:#fff">
           <div class="brand-mark">₹</div>
           <span>Task Gullak</span>
         </a>
@@ -87,13 +142,14 @@
       </div>
 
       <div class="footer-links-group">
-        <a href="/how-it-works.html">How It Works</a>
-        <a href="/features.html">Features</a>
-        <a href="/faq.html">FAQ</a>
-        <a href="/support.html">Support</a>
-        <a href="/about.html">About</a>
-        <a href="/privacy.html">Privacy Policy</a>
-        <a href="/terms.html">Terms & Conditions</a>
+        <a href="./how-it-works.html">How It Works</a>
+        <a href="./features.html">Features</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./support.html">Support</a>
+        <a href="./about.html">About</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms & Conditions</a>
+        <a href="./delete.html">Delete Account</a>
       </div>
     </div>
 
@@ -104,6 +160,6 @@
   </div>
 </footer>
 
-<script src="/assets/app.js"></script>
+<script src="./assets/app.js?v=4" defer></script>
 </body>
 </html>

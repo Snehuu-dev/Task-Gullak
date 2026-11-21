@@ -6,26 +6,58 @@
   <meta name="description" content="Discover Amazing Features of Task Gullak — simple tasks, instant UPI withdrawals, high rewards & 24/7 support.">
   <meta name="theme-color" content="#6738df">
   <title>Amazing Features | Task Gullak</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="./assets/style.css?v=4">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute;pointer-events:none">
+  <defs>
+    <linearGradient id="coinGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE875"/>
+      <stop offset="50%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF4B8"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="piggyPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB6C1"/>
+      <stop offset="50%" stop-color="#FF7A95"/>
+      <stop offset="100%" stop-color="#E04868"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4A1DB8"/>
+    </linearGradient>
+    <linearGradient id="screenDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231942"/>
+      <stop offset="100%" stop-color="#0F0A1F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4F26B8" flood-opacity="0.22"/>
+    </filter>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+</svg>
+
 <div class="header-wrapper">
   <header class="container nav">
-    <a class="brand" href="/">
+    <a class="brand" href="./index.html">
       <div class="brand-mark">₹</div>
       <span>Task Gullak</span>
     </a>
     <nav class="navlinks">
-      <a href="/">Home</a>
-      <a href="/how-it-works.html">How It Works</a>
-      <a href="/features.html" class="active">Features</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/support.html">Support</a>
-      <a href="/about.html">About</a>
+      <a href="./index.html">Home</a>
+      <a href="./how-it-works.html">How It Works</a>
+      <a href="./features.html" class="active">Features</a>
+      <a href="./faq.html">FAQ</a>
+      <a href="./support.html">Support</a>
+      <a href="./about.html">About</a>
     </nav>
-    <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
     <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
   </header>
 </div>
@@ -77,9 +109,15 @@
         </article>
       </div>
 
-      <!-- 3D Gold Trophy Showcase -->
       <div class="trophy-showcase reveal delay-1">
-        <div class="trophy-icon">🏆</div>
+        <svg width="136" height="136" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation:floatAnim 4s ease-in-out infinite">
+  <path d="M42 42H26C26 64 38 78 52 80" stroke="url(#coinGold)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M108 42H124C124 64 112 78 98 80" stroke="url(#coinGold)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M44 30H106V68C106 86 92 100 75 100C58 100 44 86 44 68V30Z" fill="url(#coinGold)" stroke="#FFF4B8" stroke-width="2.5"/>
+  <rect x="66" y="98" width="18" height="22" fill="#D97706"/>
+  <rect x="48" y="118" width="54" height="14" rx="7" fill="#2A166B"/>
+  <polygon points="75,46 80,58 93,59 83,68 86,80 75,73 64,80 67,68 57,59 70,58" fill="#FFFBEB"/>
+</svg>
         <h3>Top Earning Platform</h3>
         <p>Unlock milestone bonuses, referral rewards, and instant payouts!</p>
       </div>
@@ -90,7 +128,7 @@
     <div class="cta-banner reveal">
       <h2>Experience all features now</h2>
       <p>Download Task Gullak and unlock unlimited earning potential today!</p>
-      <a class="btn" href="#" data-app-link>Get the App →</a>
+      <a class="btn" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
     </div>
   </section>
 </main>
@@ -99,7 +137,7 @@
   <div class="container">
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="brand" href="/" style="color:#fff">
+        <a class="brand" href="./index.html" style="color:#fff">
           <div class="brand-mark">₹</div>
           <span>Task Gullak</span>
         </a>
@@ -107,13 +145,14 @@
       </div>
 
       <div class="footer-links-group">
-        <a href="/how-it-works.html">How It Works</a>
-        <a href="/features.html">Features</a>
-        <a href="/faq.html">FAQ</a>
-        <a href="/support.html">Support</a>
-        <a href="/about.html">About</a>
-        <a href="/privacy.html">Privacy Policy</a>
-        <a href="/terms.html">Terms & Conditions</a>
+        <a href="./how-it-works.html">How It Works</a>
+        <a href="./features.html">Features</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./support.html">Support</a>
+        <a href="./about.html">About</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms & Conditions</a>
+        <a href="./delete.html">Delete Account</a>
       </div>
     </div>
 
@@ -124,6 +163,6 @@
   </div>
 </footer>
 
-<script src="/assets/app.js"></script>
+<script src="./assets/app.js?v=4" defer></script>
 </body>
 </html>

@@ -6,26 +6,58 @@
   <meta name="description" content="Task Gullak Support — Get help with tasks, wallet balance, withdrawals & account support.">
   <meta name="theme-color" content="#6738df">
   <title>Support | Task Gullak</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="./assets/style.css?v=4">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute;pointer-events:none">
+  <defs>
+    <linearGradient id="coinGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE875"/>
+      <stop offset="50%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF4B8"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="piggyPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB6C1"/>
+      <stop offset="50%" stop-color="#FF7A95"/>
+      <stop offset="100%" stop-color="#E04868"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4A1DB8"/>
+    </linearGradient>
+    <linearGradient id="screenDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#231942"/>
+      <stop offset="100%" stop-color="#0F0A1F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4F26B8" flood-opacity="0.22"/>
+    </filter>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+</svg>
+
 <div class="header-wrapper">
   <header class="container nav">
-    <a class="brand" href="/">
+    <a class="brand" href="./index.html">
       <div class="brand-mark">₹</div>
       <span>Task Gullak</span>
     </a>
     <nav class="navlinks">
-      <a href="/">Home</a>
-      <a href="/how-it-works.html">How It Works</a>
-      <a href="/features.html">Features</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/support.html" class="active">Support</a>
-      <a href="/about.html">About</a>
+      <a href="./index.html">Home</a>
+      <a href="./how-it-works.html">How It Works</a>
+      <a href="./features.html">Features</a>
+      <a href="./faq.html">FAQ</a>
+      <a href="./support.html" class="active">Support</a>
+      <a href="./about.html">About</a>
     </nav>
-    <a class="nav-cta" href="/#get-app" data-app-link>Get the App →</a>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.taskgullak.app" target="_blank" rel="noopener noreferrer">Get the App →</a>
     <button class="menu-btn" aria-label="Toggle navigation menu">☰</button>
   </header>
 </div>
@@ -39,15 +71,14 @@
 
   <section class="container section">
     <div class="contact-grid">
-      <!-- Contact Info Card (Left Column) -->
       <div class="contact-card-info reveal">
         <h2>We're here to help you!</h2>
         <p style="opacity:0.9;margin-bottom:28px">Have questions about tasks, proof review, or withdrawals? Reach out anytime!</p>
 
-        <div class="info-item">
+        <div class="info-item" data-copy-email="support@taskgullak.space" title="Click to copy email">
           <div class="info-item-icon">✉️</div>
           <div class="info-item-text">
-            <b>Email Us</b>
+            <b>Email Us (Click to copy)</b>
             <span>support@taskgullak.space</span>
           </div>
         </div>
@@ -60,12 +91,14 @@
           </div>
         </div>
 
-        <div style="font-size:70px;text-align:center;margin-top:20px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.2))">
-          ✈️
+        <div style="text-align:center;margin-top:24px">
+          <svg width="96" height="96" viewBox="0 0 100 100" fill="none" style="animation:floatAnim 4s ease-in-out infinite">
+            <path d="M14 48L88 18L68 84L48 62L14 48Z" fill="#FFFFFF"/>
+            <path d="M48 62L88 18L56 68L54 84L48 62Z" fill="#DDD6FE"/>
+          </svg>
         </div>
       </div>
 
-      <!-- Contact Form (Right Column) -->
       <form class="content-panel reveal delay-1" id="support-form" style="margin-bottom:0">
         <div class="form-group">
           <label for="name">Your Name</label>
@@ -92,7 +125,7 @@
   <div class="container">
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="brand" href="/" style="color:#fff">
+        <a class="brand" href="./index.html" style="color:#fff">
           <div class="brand-mark">₹</div>
           <span>Task Gullak</span>
         </a>
@@ -100,13 +133,14 @@
       </div>
 
       <div class="footer-links-group">
-        <a href="/how-it-works.html">How It Works</a>
-        <a href="/features.html">Features</a>
-        <a href="/faq.html">FAQ</a>
-        <a href="/support.html">Support</a>
-        <a href="/about.html">About</a>
-        <a href="/privacy.html">Privacy Policy</a>
-        <a href="/terms.html">Terms & Conditions</a>
+        <a href="./how-it-works.html">How It Works</a>
+        <a href="./features.html">Features</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./support.html">Support</a>
+        <a href="./about.html">About</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms & Conditions</a>
+        <a href="./delete.html">Delete Account</a>
       </div>
     </div>
 
@@ -117,6 +151,6 @@
   </div>
 </footer>
 
-<script src="/assets/app.js"></script>
+<script src="./assets/app.js?v=4" defer></script>
 </body>
 </html>
