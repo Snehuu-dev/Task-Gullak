@@ -1394,3 +1394,16 @@ a {
     flex-direction: column;
   }
 }
+
+.brand-logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 14px rgba(103, 56, 223, 0.35);
+  transition: transform 0.22s ease;
+}
+.brand:hover .brand-logo-img {
+  transform: scale(1.08) rotate(4deg);
+}
+

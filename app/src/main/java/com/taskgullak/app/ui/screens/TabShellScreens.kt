@@ -772,7 +772,7 @@ internal fun OffersTabShellContent(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 520.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Offers Header Row with "Submissions" Pill Button (No count badge)
         Row(
@@ -789,9 +789,9 @@ internal fun OffersTabShellContent(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
                         .background(Color(0xFF7B3FE4).copy(alpha = 0.10f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.LocalOffer,
@@ -808,19 +808,20 @@ internal fun OffersTabShellContent(
                         letterSpacing = 1.1.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = if (isBulkActive) "Bulk Offers" else "Offers",
                     color = Color(0xFF17142E),
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 26.sp,
-                    letterSpacing = (-0.6).sp
+                    fontSize = 24.sp,
+                    letterSpacing = (-0.5).sp
                 )
                 if (isBulkActive) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 2.dp)
                     ) {
                         Text(
                             text = "Bulk Access Active • Max Limit: ${bulkDeviceCount.coerceAtLeast(1)} Devices",

@@ -1301,6 +1301,64 @@ ACT.bkRevoke = async el => {
   }
 };
 
+
+ACT.bkApproveExit = async el => {
+  const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
+  try {
+    await bkSet(
+      uid,
+      { bulkMode: false, bulkStatus: 'normal', bulkDeviceCount: 1, pendingRequestType: '', pendingRequestedDeviceCount: 0, updatedAt: serverTimestamp() },
+      { status: 'approved_exit', reviewedBy: S.admin, updatedAt: serverTimestamp() },
+      ['pending', 'exit', 'exit_bulk_mode', 'approved']
+    );
+    try {
+      await addDoc(collection(db, 'user_notifications'), {
+        userId: uid,
+        title: 'Bulk Mode Exit Approved',
+        message: 'Your request to exit Bulk Mode has been approved. Your account is now in Normal Mode.',
+        type: 'bulk_mode_exit',
+        createdAt: serverTimestamp()
+      });
+    } catch (_) {}
+    logAction('bulk_exit_approve', uid, { name: r && r.name });
+    toast(`Exit request approved for ${r ? r.name : 'user'}. Returned to Normal Mode.`, 'ok');
+  } catch (e) {
+    toast('Failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+ACT.resetAllBulkUsers = async () => {
+  if (!await confirmBox('Reset ALL Users to Normal Mode?', 'This will immediately remove Bulk Mode from ALL users (active or listed). They will need to apply for Bulk Mode again.', { ok: 'Reset All to Normal', danger: true })) return;
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    let count = 0;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => {
+      const u = d.data();
+      if (u.bulkMode === true || (u.bulkDeviceCount && u.bulkDeviceCount > 1) || ['active', 'approved'].includes(String(u.bulkStatus || '').toLowerCase())) {
+        batch.update(doc(db, 'users', d.id), {
+          bulkMode: false,
+          bulkStatus: 'normal',
+          bulkDeviceCount: 1,
+          pendingRequestType: '',
+          pendingRequestedDeviceCount: 0,
+          updatedAt: serverTimestamp()
+        });
+        count++;
+      }
+    });
+    if (count > 0) {
+      await batch.commit();
+      toast(`Successfully reset ${count} bulk user(s) back to Normal Mode!`, 'ok');
+      logAction('reset_all_bulk_users', 'batch', { count });
+    } else {
+      toast('All users are already in Normal Mode!', 'ok');
+    }
+  } catch (e) {
+    toast('Failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
 /** Task 2: Multi-Select & Selection Handlers */
 ACT.bkSelOne = el => {
   const uid = el.dataset.uid;
@@ -1490,7 +1548,7 @@ RENDER.bulk = () => {
 
   setHTML(
     $('#bk-tabs'),
-    [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']]
+    [['pending', 'Pending'], ['active', 'Active'], ['exit', 'Exit Requests'], ['rejected', 'Rejected']]
       .map(
         ([k, l]) =>
           `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`

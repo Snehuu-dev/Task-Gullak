@@ -1233,11 +1233,12 @@ function bulkRows() {
       const uStatus = String((u && u.bulkStatus) || '').toLowerCase();
       const qStatus = String((q && q.status) || '').toLowerCase();
 
-      const isApproved = (u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved';
-      const isPending = !isApproved && (qStatus === 'pending' || uStatus === 'pending' || uStatus === 'requested');
-      const isRejected = !isApproved && !isPending && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
+      const isExit = (qStatus === 'exit' || qStatus === 'exit_bulk_mode' || (q && (q.requestType === 'exit' || q.requestType === 'exit_bulk_mode')) || (u && (u.pendingRequestType === 'exit' || u.pendingRequestType === 'exit_bulk_mode')));
+      const isApproved = !isExit && ((u && u.bulkMode === true) || uStatus === 'active' || uStatus === 'approved' || qStatus === 'approved');
+      const isPending = !isExit && !isApproved && (qStatus === 'pending' || uStatus === 'pending' || uStatus === 'requested');
+      const isRejected = !isExit && !isApproved && !isPending && (['rejected', 'revoked'].includes(qStatus) || ['rejected', 'revoked'].includes(uStatus));
 
-      r.status = isApproved ? 'active' : isPending ? 'pending' : isRejected ? 'rejected' : 'other';
+      r.status = isExit ? 'exit' : (isApproved ? 'active' : (isPending ? 'pending' : (isRejected ? 'rejected' : 'other')));
       return r;
     })
     .filter(r => r.status !== 'other')
@@ -1333,6 +1334,64 @@ ACT.bkRevoke = async el => {
     );
     logAction('bulk_access_off', uid, { name: r && r.name });
     toast('Bulk mode turned off', 'ok');
+  } catch (e) {
+    toast('Failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+
+ACT.bkApproveExit = async el => {
+  const uid = el.dataset.uid, r = bulkRows().find(x => x.uid === uid);
+  try {
+    await bkSet(
+      uid,
+      { bulkMode: false, bulkStatus: 'normal', bulkDeviceCount: 1, pendingRequestType: '', pendingRequestedDeviceCount: 0, updatedAt: serverTimestamp() },
+      { status: 'approved_exit', reviewedBy: S.admin, updatedAt: serverTimestamp() },
+      ['pending', 'exit', 'exit_bulk_mode', 'approved']
+    );
+    try {
+      await addDoc(collection(db, 'user_notifications'), {
+        userId: uid,
+        title: 'Bulk Mode Exit Approved',
+        message: 'Your request to exit Bulk Mode has been approved. Your account is now in Normal Mode.',
+        type: 'bulk_mode_exit',
+        createdAt: serverTimestamp()
+      });
+    } catch (_) {}
+    logAction('bulk_exit_approve', uid, { name: r && r.name });
+    toast(`Exit request approved for ${r ? r.name : 'user'}. Returned to Normal Mode.`, 'ok');
+  } catch (e) {
+    toast('Failed: ' + (e.code || e.message), 'bad');
+  }
+};
+
+ACT.resetAllBulkUsers = async () => {
+  if (!await confirmBox('Reset ALL Users to Normal Mode?', 'This will immediately remove Bulk Mode from ALL users (active or listed). They will need to apply for Bulk Mode again.', { ok: 'Reset All to Normal', danger: true })) return;
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    let count = 0;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => {
+      const u = d.data();
+      if (u.bulkMode === true || (u.bulkDeviceCount && u.bulkDeviceCount > 1) || ['active', 'approved'].includes(String(u.bulkStatus || '').toLowerCase())) {
+        batch.update(doc(db, 'users', d.id), {
+          bulkMode: false,
+          bulkStatus: 'normal',
+          bulkDeviceCount: 1,
+          pendingRequestType: '',
+          pendingRequestedDeviceCount: 0,
+          updatedAt: serverTimestamp()
+        });
+        count++;
+      }
+    });
+    if (count > 0) {
+      await batch.commit();
+      toast(`Successfully reset ${count} bulk user(s) back to Normal Mode!`, 'ok');
+      logAction('reset_all_bulk_users', 'batch', { count });
+    } else {
+      toast('All users are already in Normal Mode!', 'ok');
+    }
   } catch (e) {
     toast('Failed: ' + (e.code || e.message), 'bad');
   }
@@ -1561,7 +1620,7 @@ RENDER.bulk = () => {
     if (tabBox) {
       setHTML(
         tabBox,
-        [['pending', 'Pending'], ['active', 'Active'], ['rejected', 'Rejected']]
+        [['pending', 'Pending'], ['active', 'Active'], ['exit', 'Exit Requests'], ['rejected', 'Rejected']]
           .map(
             ([k, l]) =>
               `<button class="tab ${f === k ? 'on' : ''}" data-act="bkTab" data-k="${k}">${l} <span class="fs11">${by(k).length}</span></button>`
@@ -1577,6 +1636,7 @@ RENDER.bulk = () => {
     const pill = {
       pending: '<span class="pill warn">Pending</span>',
       active: '<span class="pill ok">Active</span>',
+      exit: '<span class="pill bad">Exit Requested</span>',
       rejected: '<span class="pill bad">Not allowed</span>'
     };
 
@@ -1628,6 +1688,8 @@ RENDER.bulk = () => {
           const act =
             f === 'pending'
               ? `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button><button class="btn bad sm" data-act="bkReject" data-uid="${uid}">Reject</button>`
+              : f === 'exit'
+              ? `<button class="btn bad sm" data-act="bkApproveExit" data-uid="${uid}">Approve Exit Request</button>`
               : f === 'active'
               ? `<button class="btn bad sm" data-act="bkRevoke" data-uid="${uid}">Turn off</button>`
               : `<button class="btn okfill sm" data-act="bkApprove" data-uid="${uid}">Activate</button>`;
