@@ -92,7 +92,15 @@
       <div class="nav-g" data-g="approvals">
         <button class="nav-i" data-act="navGroup" data-v="approvals" data-nav="approvals"><i data-ic="approve"></i><span>Approval Management</span><span class="bdg" id="bdg-appr">0</span><i class="chev" data-ic="chev-down" data-s="14"></i></button>
       </div>
-      <button class="nav-i" data-act="go" data-v="bulk" data-nav="bulk"><i data-ic="users"></i><span>Bulk Access</span><span class="bdg hide-bdg hidden" id="bdg-bulk">0</span></button>
+      <div class="nav-g" data-g="bulk">
+        <button class="nav-i" data-act="navGroup" data-v="bulk" data-nav="bulk"><i data-ic="users"></i><span>Bulk Management</span><span class="bdg hide-bdg hidden" id="bdg-bulk">0</span><i class="chev" data-ic="chev-down" data-s="14"></i></button>
+        <div class="nav-sub">
+          <button data-act="go" data-v="bulk" data-tab="pending"><i data-ic="list" data-s="15"></i>Pending Applications</button>
+          <button data-act="go" data-v="bulk" data-tab="active"><i data-ic="check" data-s="15"></i>Active Bulk Users</button>
+          <button data-act="go" data-v="bulk" data-tab="exit"><i data-ic="ban" data-s="15"></i>Exit Requests</button>
+          <button data-act="go" data-v="bulk" data-tab="rejected"><i data-ic="x" data-s="15"></i>Rejected / Revoked</button>
+        </div>
+      </div>
       <button class="nav-i" data-act="go" data-v="users" data-nav="users"><i data-ic="users"></i><span>Users &amp; Wallet</span></button>
       <button class="nav-i" data-act="go" data-v="withdrawals" data-nav="withdrawals"><i data-ic="bank"></i><span>Withdrawal Management</span><span class="bdg" id="bdg-wd">0</span></button>
       <button class="nav-i" data-act="go" data-v="reports" data-nav="reports"><i data-ic="chart"></i><span>Monthly Records</span></button>
